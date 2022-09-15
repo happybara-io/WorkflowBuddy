@@ -1,0 +1,43 @@
+display_information:
+  name: WorkflowBuddy-dev
+  description: Automating the Slack workspace.
+  background_color: "#ad650c"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: false
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: WorkflowBuddy-dev
+    always_online: true
+  workflow_steps:
+    - name: Slack Utilities
+      callback_id: slack_utils
+    - name: Utilities
+      callback_id: utilities
+    - name: Demo Step
+      callback_id: demo
+oauth_config:
+  scopes:
+    bot:
+      - workflow.steps:execute
+      - chat:write
+      - channels:read
+      - app_mentions:read
+settings:
+  event_subscriptions:
+    request_url: https://c68f-205-178-24-105.ngrok.io/slack/events
+    bot_events:
+      - app_mention
+      - channel_created
+      - workflow_deleted
+      - workflow_published
+      - workflow_step_deleted
+      - workflow_step_execute
+      - workflow_unpublished
+  interactivity:
+    is_enabled: true
+    request_url: https://c68f-205-178-24-105.ngrok.io/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
