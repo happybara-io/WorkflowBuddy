@@ -8,7 +8,7 @@ generate_requirements_file() {
 run() {
     # export SLACK_SIGNING_SECRET=***
     # export SLACK_BOT_TOKEN=xoxb-***
-    FLASK_APP=app.py FLASK_ENV=development flask run -p 3000
+    FLASK_APP=app.py FLASK_DEBUG=true flask run -p 3000
 }
 
 ## RUN THIS BAD BOY

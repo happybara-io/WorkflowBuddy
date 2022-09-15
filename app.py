@@ -1,6 +1,8 @@
 import logging
-import requests
 import random
+import os
+import constants as c
+import utils
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -12,13 +14,7 @@ from flask import Flask, request
 
 app = App()
 
-###########################
-# Utilities
-############################
-def send_webhook(url, json_body):
-    resp = requests.post(url, json=json_body)
-    print(f'{resp.status_code}: {resp.text}')
-    return resp
+
 
 ###########################
 # Slack app stuff
@@ -29,11 +25,29 @@ def log_request(logger, body, next):
     return next()
 
 
-@app.event("app_mention")
-def event_test(body, say, logger):
-    logger.info(body)
-    say("What's up?")
+@app.event(c.EVENT_APP_MENTION)
+def event_test(event, body, say, logger):
+    logger.info(f'BODY:{body}')
 
+    # TODO: this can be a generic function, since i'm just passing the event payload through to Workflow Builder
+    # Nothing specific to any event happening here
+
+    # workflows_to_webhook = c.EVENT_WORKFLOW_MAP[c.EVENT_APP_MENTION]
+    workflows_to_webhook = [
+        {'webhook_url': os.getenv('EVENT_APP_MENTION_WEBHOOK_URL')}
+    ]
+    for workflow in workflows_to_webhook:
+        json_body = event
+        json_body['custom'] = 'true'
+        resp = utils.send_webhook(workflow["webhook_url"], json_body)
+
+    logger.info('Finished sending all webhooks for event')
+
+    say("What's up? + " + str(resp.status_code))
+
+# @app.event(c.EVENT_CHANNEL_CREATED)
+# def event_channel_created(event):
+#     pass
 
 @app.event("message")
 def handle_message():
@@ -241,7 +255,7 @@ def execute_utils(step, complete, fail):
     url = inputs["webhook_url"]["value"]
     print('sending to url:', url)
     json_body = {"abc": "123"}
-    resp = send_webhook(url, json_body)
+    resp = utils.send_webhook(url, json_body)
     
     outputs = {
         "webhook_status_code": str(resp.status_code)
