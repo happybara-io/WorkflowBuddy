@@ -22,11 +22,15 @@ oauth_config:
     bot:
       - workflow.steps:execute
       - chat:write
+      - channels:manage
+      - groups:write
       - channels:read
       - app_mentions:read
+      - users:read
+      - users:read.email
 settings:
   event_subscriptions:
-    request_url: https://c4b8-67-209-87-3.ngrok.io/slack/events
+    request_url: https://dfe6-205-178-24-105.ngrok.io/slack/events
     bot_events:
       - app_mention
       - channel_created
@@ -37,7 +41,7 @@ settings:
       - workflow_unpublished
   interactivity:
     is_enabled: true
-    request_url: https://c4b8-67-209-87-3.ngrok.io/slack/events
+    request_url: https://dfe6-205-178-24-105.ngrok.io/slack/events
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false

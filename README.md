@@ -2,11 +2,59 @@
 
 Workflow Builder is great! Except it's got a very limited selection of built-in Slack triggers (shortcut, emoji reaction, new channel member, webhook) and VERY limited selection of built-in Slack actions (send a message, send a form). You can get creative and do a lot with these building blocks, but what if you want to do more?
 
-🥳 ✨ Ta-da! ✨
+🥳 ✨ **Ta-da!** ✨
 
-This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of actions available. The most important is the `webhook` functionality, which enables users to plug their Slack Workflow steps into other applications.
+This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of actions available. The most important is the `webhook` functionality, which enables users to plug their Slack Workflow steps into almost any other application.
 
-## Setup
+## 🏁🎬 Available Triggers
+
+All [Slack events](https://api.slack.com/events) proxied through to any **_webhook-triggered_** Workflows.\* See _"Templates to save time"_ for copyable webhook starting points.
+
+_*While WorkflowBuddy code will work out of the box as an event proxy, you will need to update your app's OAuth scopes & event subscriptions for your new events, as well as save the webhook event from your Workflow in the config._
+
+![Visualizing the Slack event proxy](/static/workflow-buddy-event-proxy.png)
+
+## 🏃Available Steps
+
+The utilities currently available within WorkflowBuddy for use as Workflow Steps.
+
+### Send a Webhook
+
+Send data from your Slack Workflows to almost any service. You can trigger GitHub repos, Jenkins Builds, Salesforce actions, you name it.
+
+### Random Int
+
+Generate a random int in the range [`lower_bound`-`upper_bound`], inclusive.
+
+### Random UUID
+
+Generate a random UUID with [Python's standard library](https://docs.python.org/3/library/uuid.html).
+
+### (Slack) Create a channel
+
+This action will create a new channel with your specified name, then return the `channel_id` as both text & the `channel` type so it can be used in Slack's built-in functions.
+
+### (Slack) Find user by email
+
+Get a user based on their Slack email. Returns the user as both a text `user_id` and a `user` type so it can be used in Slack's built-in functions.
+
+### More to come ....
+
+🥱🔃
+
+---
+
+## Deploying & running the app
+
+TBD.
+
+### Templates to save time
+
+When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?). Currently the wrapping payload is not included, but could be an easy contribution in the future.
+
+---
+
+## Development
 
 - Create a `.env` file that looks like:
   ```
@@ -14,23 +62,15 @@ This Slack App acts as an extension of Workflow Builder, providing access to sig
   SLACK_SIGNING_SECRET=********
   ```
   (TEMPORARILY)
-  _Until a real datastore is configured, you will temporarily also need the `EVENT_APP_MENTION_WEBHOOK_URL` variable set in the `.env` file._
+  _Until a real datastore is configured, you will temporarily also need the `EVENT_APP_MENTION_WEBHOOK_URL` variable set in the `.env` file. Yeah i know this sucks, hold your horses 🐎._
 - `poetry install` (or install with your preferred Python tool using the `requirements.txt`)
 
-## Development
+## local dev
 - `poetry shell` so all our environment variables are easy
 - (in a separate terminal) Run `ngrok http 3000` to get a public domain address - [Ngrok Dashboard](https://dashboard.ngrok.com)
 - Run the local server with `./run.sh`
 - Update the Slack App console with new address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity
 - (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site)
-
-## Production Deployment
-
-TBD. Likely will be a Docker-Compose app that's easy for anyone to run almost anywhere.
-
-## Templates to save time
-
-When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?). Currently the wrapping payload is not included, but could be an easy contribution in the future.
 
 ## How it works
 
