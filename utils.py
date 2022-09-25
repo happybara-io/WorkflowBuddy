@@ -20,13 +20,16 @@ def db_get_event_config(event_type):
         return db[event_type]
 
 
-def db_add_webhook_to_event(event_type, webhook_url):
+def db_add_webhook_to_event(event_type, name, webhook_url):
     with shelve.open(DEFAULT_SHELF_DB, writeback=True) as db:
+        new_webhook = {
+                'name': name,
+                'webhook_url': webhook_url
+            }
         try:
-            db[event_type].append(webhook_url)
+            db[event_type].append(new_webhook)
         except KeyError:
-            print("adding fresh key")
-            db[event_type] = [webhook_url]
+            db[event_type] = [new_webhook]
 
 
 def db_remove_event(event_type):
@@ -60,15 +63,21 @@ def build_app_home_view():
     data = db_export()
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
-
-    print("KE", list(data.keys()), len(blocks))
+    if len(data.keys()) < 1:
+        blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f":shrug: Nothing here yet! Try using the `Add` or `Import options.",
+                }
+            })
     for event_type, webhook_list in data.items():
         single_event_row = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":black_small_square: Event: `{event_type}`",
+                    "text": f":black_small_square: `{event_type}`",
                 },
                 "accessory": {
                     "type": "button",
@@ -89,8 +98,7 @@ def build_app_home_view():
                 ],
             },
         ]
-        print("WHAT_THE_HECK", len(single_event_row))
         blocks.extend(single_event_row)
 
-    print(len(blocks), len(data.keys()))
+    print('blocks', blocks)
     return {"type": "home", "blocks": blocks}

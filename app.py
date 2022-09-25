@@ -32,27 +32,19 @@ def export_button_clicked(ack, body, logger, client):
     ack()
     exported_json = json.dumps(utils.db_export(), indent=2)
     export_modal = {
-	"type": "modal",
-	"title": {
-		"type": "plain_text",
-		"text": "Webhook Config Export",
-		"emoji": True
-	},
-	"close": {
-		"type": "plain_text",
-		"text": "Close",
-		"emoji": True
-	},
-	"blocks": [
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": f"*Exported Config:* \n```{exported_json}```"
-			}
-		}
-	]
-}
+        "type": "modal",
+        "title": {"type": "plain_text", "text": "Webhook Config Export", "emoji": True},
+        "close": {"type": "plain_text", "text": "Close", "emoji": True},
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Exported Config:* \n```{exported_json}```",
+                },
+            }
+        ],
+    }
     client.views_open(trigger_id=body["trigger_id"], view=export_modal)
 
 
@@ -61,26 +53,22 @@ def import_button_clicked(ack, body, logger, client):
     ack()
     blocks = [
         {
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "Import a JSON config of event type to webhook lists.\n*Example:*\n```{\"app_mention\":[\"https://webhook.com/123\"]}```\n\nUpdates existing keys, but doesn't remove any."
-			}
-		},
-		{
-			"type": "input",
-			"block_id": "json_config_input",
-			"element": {
-				"type": "plain_text_input",
-				"multiline": True,
-				"action_id": "json_config_value"
-			},
-			"label": {
-				"type": "plain_text",
-				"text": "JSON Config",
-				"emoji": True
-			}
-		}
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": 'Import a JSON config of event type mapped to lists of webhooks.\n*Example:*\n```{"app_mention": [{"name": "Helpful Description","webhook_url": "https://webhook.site/4bf6c228"}]}```\n\nUpdates existing keys, but doesn\'t remove any.',
+            },
+        },
+        {
+            "type": "input",
+            "block_id": "json_config_input",
+            "element": {
+                "type": "plain_text_input",
+                "multiline": True,
+                "action_id": "json_config_value",
+            },
+            "label": {"type": "plain_text", "text": "JSON Config", "emoji": True},
+        },
     ]
     import_modal = {
         "type": "modal",
@@ -105,7 +93,6 @@ def import_config_submission(ack, body, client, view, logger):
         errors["json_config_input"] = "Invalid JSON."
         ack(response_action="errors", errors=errors)
         return
-
 
     msg = ""
     try:
@@ -150,6 +137,12 @@ def add_button_clicked(ack, body, client):
         },
         {
             "type": "input",
+            "block_id": "name_input",
+            "element": {"type": "plain_text_input", "action_id": "name_value"},
+            "label": {"type": "plain_text", "text": "Name", "emoji": True},
+        },
+        {
+            "type": "input",
             "block_id": "webhook_url_input",
             "element": {"type": "plain_text_input", "action_id": "webhook_url_value"},
             "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
@@ -158,7 +151,7 @@ def add_button_clicked(ack, body, client):
 
     add_webhook_modal = {
         "type": "modal",
-        "callback_id": "add_webhook_form",
+        "callback_id": "webhook_form_submission",
         "title": {"type": "plain_text", "text": "Add Webhook"},
         "submit": {"type": "plain_text", "text": "Add"},
         "blocks": add_webhook_form_blocks,
@@ -166,14 +159,15 @@ def add_button_clicked(ack, body, client):
     client.views_open(trigger_id=body["trigger_id"], view=add_webhook_modal)
 
 
-@app.view("add_webhook_form")
-def handle_add_webhook_submission(ack, body, client, view, logger):
+@app.view("webhook_form_submission")
+def handle_webhook_submission(ack, body, client, view, logger):
     values = view["state"]["values"]
     user = body["user"]["id"]
     event_type = values["event_type_input"]["event_type_value"]["value"]
+    name = values["name_input"]["name_value"]["value"]
     webhook_url = values["webhook_url_input"]["webhook_url_value"]["value"]
     # Validate the inputs
-    logger.info(f'submission: {event_type}|{webhook_url} {webhook_url[0:7]}')
+    logger.info(f"submission: {event_type}|{name}|{webhook_url}")
     errors = {}
     if (event_type is not None and webhook_url is not None) and webhook_url[
         :8
@@ -183,22 +177,15 @@ def handle_add_webhook_submission(ack, body, client, view, logger):
     if len(errors) > 0:
         ack(response_action="errors", errors=errors)
         return
-    # Acknowledge the view_submission request and close the modal
     ack()
-    # Do whatever you want with the input data - here we're saving it to a DB
-    # then sending the user a verification of their submission
 
-    # Message to send user
     msg = ""
     try:
-        # Save to DB
-        utils.db_add_webhook_to_event(event_type, webhook_url)
-        msg = f"Your submission of {webhook_url} was successful"
+        utils.db_add_webhook_to_event(event_type, name, webhook_url)
+        msg = f"Your addition of {webhook_url} was successful."
     except Exception as e:
-        # Handle error
-        msg = "There was an error with your submission"
-
-    # Message the user
+        logger.exception(e)
+        msg = f"There was an error attempting to add {webhook_url}."
     try:
         client.chat_postMessage(channel=user, text=msg)
     except e:
@@ -209,22 +196,20 @@ def handle_add_webhook_submission(ack, body, client, view, logger):
 def generic_event_proxy(logger, event, body):
     event_type = event.get("type")
     logger.info(f"||{event_type}|BODY:{body}")
-    # workflows_to_webhook = c.EVENT_WORKFLOW_MAP[event_type]
-
-    TEMP_CONFIG_MAP = {
-        "app_mention": [{"webhook_url": os.getenv("EVENT_APP_MENTION_WEBHOOK_URL")}]
-    }
+    # TEMP_CONFIG_MAP = {
+    #     "app_mention": [{"webhook_url": os.getenv("EVENT_APP_MENTION_WEBHOOK_URL")}]
+    # }
     try:
-        workflows_to_webhook = TEMP_CONFIG_MAP[event_type]
+        workflow_webhooks_to_request = utils.db_get_event_config(event_type)
     except KeyError:
         raise
         # TODO: handle errors gracefully
 
-    for workflow in workflows_to_webhook:
+    for webhook in workflow_webhooks_to_request:
         json_body = event
-        resp = utils.send_webhook(workflow["webhook_url"], json_body)
+        resp = utils.send_webhook(webhook['webhook_url'], json_body)
         if resp.status_code >= 300:
-            logger.error(f"{resp.status_code}:{resp.text}|{workflow}")
+            logger.error(f"{resp.status_code}:{resp.text}|{webhook}")
     logger.info("Finished sending all webhooks for event")
 
 
@@ -431,32 +416,7 @@ def save_utils(ack, view, update):
         "utilities_action_select_value"
     ]
     selected_utility_callback_id = selected_option_object["selected_option"]["value"]
-
     curr_action_config = c.UTILS_CONFIG[selected_utility_callback_id]
-    # EXAMPLE
-    # 'state': {
-    #     'values': {
-    #         'utilities_action_select': {
-    #             'utilities_action_select_value': {
-    #                 'type': 'static_select',
-    #                 'selected_option': {
-    #                     'text': {
-    #                         'type': 'plain_text',
-    #                         'text': 'Send a Webhook',
-    #                         'emoji': True
-    #                     },
-    #                         'value': 'webhook'
-    #                     }
-    #             }
-    #         },
-    #         'webhook_url_input': {
-    #             'webhook_url_value': {
-    #                 'type': 'plain_text_input',
-    #                 'value': 'https://webhook.site/ece98740-9f9c-404a-9780-f55692bce841'}
-    #         }
-    #     }
-    # },
-
     ack()
 
     inputs = {
@@ -475,8 +435,6 @@ def save_utils(ack, view, update):
 def run_webhook(step, complete, fail):
     # TODO: input validation & error handling
     inputs = step["inputs"]
-
-    # TODO: hardcoded reach into
     url = inputs["webhook_url"]["value"]
     print("sending to url:", url)
     json_body = {"abc": "123"}
@@ -499,7 +457,6 @@ def run_random_int(step, complete, fail):
 
 def run_random_uuid(step, complete, fail):
     # TODO: input validation & error handling
-
     outputs = {"random_uuid": str(uuid.uuid4())}
     complete(outputs=outputs)
 
@@ -510,10 +467,8 @@ def execute_utils(step, complete, fail):
     if chosen_action == "webhook":
         run_webhook(step, complete, fail)
     elif chosen_action == "random_int":
-        # TODO: draft
         run_random_int(step, complete, fail)
     elif chosen_action == "random_uuid":
-        # TODO: draft
         run_random_uuid(step, complete, fail)
     else:
         fail()
@@ -637,24 +592,22 @@ def save_slack_utils(ack, view, update):
         "slack_utilities_action_select_value"
     ]
     selected_utility_callback_id = selected_option_object["selected_option"]["value"]
-
     curr_action_config = c.SLACK_UTILS_CONFIG[selected_utility_callback_id]
     ack()
     inputs = {
         "selected_utility": {"value": selected_utility_callback_id},
     }
-    print("CURR_ACTION_CONFIG", selected_utility_callback_id, curr_action_config)
+
     for input_config in curr_action_config["inputs"].values():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
         inputs[input_config["name"]] = {"value": values[block_id][action_id]["value"]}
 
-    print(f"INPUTS: {inputs}")
     outputs = curr_action_config["outputs"]
     update(inputs=inputs, outputs=outputs)
 
 
-def execute_slack_utils(step, complete, fail, client):
+def execute_slack_utils(step, complete, fail, client, logger):
     # TODO: make sure to log the execution event so it can be killed manually if needed
     print("slack utils: execute")
     inputs = step["inputs"]
@@ -670,7 +623,9 @@ def execute_slack_utils(step, complete, fail, client):
             }
             complete(outputs=outputs)
         else:
-            fail(error={"message": f"Slack err: {resp.get('error')}"})
+            errmsg = f"Slack err: {resp.get('error')}"
+            logger.error(errmsg)
+            fail(error={"message": errmsg})
     elif chosen_action == "find_user_by_email":
         user_email = inputs["user_email"]["value"]
         resp = client.users_lookupByEmail(email=user_email)
@@ -683,7 +638,9 @@ def execute_slack_utils(step, complete, fail, client):
             }
             complete(outputs=outputs)
         else:
-            fail(error={"message": f"Slack err: {resp.get('error')}"})
+            errmsg = f"Slack err: {resp.get('error')}"
+            logger.error(errmsg)
+            fail(error={"message": errmsg})
     else:
         fail(error={"message": f"Unknown Slack action chosen - {chosen_action}"})
 

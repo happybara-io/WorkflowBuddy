@@ -85,15 +85,13 @@ When using **Workflow Builder Webhooks**, it requires allow-listing any data key
   SLACK_BOT_TOKEN=xoxb-********
   SLACK_SIGNING_SECRET=********
   ```
-  (TEMPORARILY)
-  _Until a real datastore is configured, you will temporarily also need the `EVENT_APP_MENTION_WEBHOOK_URL` variable set in the `.env` file. Yeah i know this sucks, hold your horses 🐎._
 - `poetry install` (or install with your preferred Python tool using the `requirements.txt`)
 
 ## local dev
 - `poetry shell` so all our environment variables are easy
 - (in a separate terminal) Run `ngrok http 3000` to get a public domain address - [Ngrok Dashboard](https://dashboard.ngrok.com)
 - Run the local server with `./run.sh`
-- Update the Slack App console with new address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity
+- Update the Slack App console with new address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
 - (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site)
 
 ## How it works
@@ -102,15 +100,15 @@ For Slack events, this app basically just acts as a proxy. As long as the event 
 
 For the new actions, it registers a **Workflow Builder Step** - unfortunately each app is limited to 10 registered with Slack. To get around that limitation, we have the user select from a static select list of actions that have been implemented on the server, then update the modal to give them the appropriate options. For example, if the user wants to `Send a webhook`, we'll then update the modal to have an input for the Webhook URL, and a text box for the body they want to send.
 
+Config data (basically just webhooks for now) is persisted on disk using [Python Shelve](https://docs.python.org/3/library/shelve.html#module-shelve).
+
 ## Future Work
 
 As you may have noticed, this is a P.o.C. There is no resiliency baked into this application yet, so don't throw anything mission critical on it yet. A non-exhaustive list of updates it would benefit from:
 
 - Server needs to be productionized and easy to deploy - Docker-Compose is recommended route.
   - Write up a guide on how to deploy it to [Fly.io](https://fly.io) or similar easy deploy tools.
-- Need a datastore that isn't environment variables - 🤔 or do I? 😄
-  - Ideally user can CRUD their mapping of workflows to events from the App Home.
 - Sending webhooks should have a simple retry mechanism in place, in case it just needs a few seconds before things work hunky dory.
 - Incoming actions should be placed into a resilient queue, that way events aren't lost in the case of downstream failure response, server outage, or etc. 
   - A DB like SQlite can act as a queue in a pinch, so long as you setup an easy cron option. Rather than figuring out how to setup Celery with Python, why not use one of those services that will send you a webhook on a cron schedule, so all you have to write is an endpoint. [Cronhooks](https://cronhooks.io/) is one such aptly named service.
-- 
+- Tracking the timestamps of when the workflows were kicked off and also whether they succeeded or failed would be a nice touch, but that's a lot of data for a PoC app.

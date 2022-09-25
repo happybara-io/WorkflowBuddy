@@ -1,14 +1,4 @@
-## Act as our datastore until it's worth adding - ope, jk webhooks should be confidential though 🤦
-
-# TODO: these webhook URLs should only ever be committed if it's a private repo - even then questionable
-# EVENT_WORKFLOW_MAP = {
-#     'channel_joined': [],
-#     'app_mention': [
-#         {
-#             'webhook_url': ''
-#         }
-#     ]
-# }
+GITHUB_REPO_URL = "https://github.com/happybara-io/WorkflowBuddy"
 
 EVENT_APP_HOME_OPENED = "app_home_opened"
 EVENT_APP_MENTION = "app_mention"
@@ -25,7 +15,7 @@ APP_HOME_HEADER_BLOCKS = [
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "Configure your Workflow Buddy bot from this App Home page.",
+            "text": f"Configure your Workflow Buddy bot here. _Need Help?_ :link: <{GITHUB_REPO_URL}|GitHub>",
         },
     },
     {
