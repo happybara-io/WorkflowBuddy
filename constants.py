@@ -10,13 +10,56 @@
 #     ]
 # }
 
+EVENT_APP_HOME_OPENED = "app_home_opened"
 EVENT_APP_MENTION = "app_mention"
 EVENT_CHANNEL_CREATED = "channel_created"
 EVENT_WORKFLOW_PUBLISHED = "workflow_published"
 
+APP_HOME_HEADER_BLOCKS = [
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": "Workflow Buddy", "emoji": True},
+    },
+    {"type": "divider"},
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "Configure your Workflow Buddy bot from this App Home page.",
+        },
+    },
+    {
+        "type": "actions",
+        "elements": [
+            {
+                "type": "button",
+                "style": "primary",
+                "text": {"type": "plain_text", "text": "Add", "emoji": True},
+                "value": "add_webhook",
+                "action_id": "action_add_webhook",
+            },
+            {
+                "type": "button",
+                "style": "primary",
+                "text": {"type": "plain_text", "text": "Import", "emoji": True},
+                "value": "import",
+                "action_id": "action_import",
+            },
+            {
+                "type": "button",
+                "text": {"type": "plain_text", "text": "Export", "emoji": True},
+                "value": "export",
+                "action_id": "action_export",
+            },
+        ],
+    },
+    {"type": "divider"},
+]
+
 # TODO: incorporate the blocks here as well
 UTILS_CONFIG = {
     "webhook": {
+        "draft": False,
         "blocks": {"TODO": True},  # TODO
         "inputs": {
             "webhook_url": {
@@ -34,7 +77,7 @@ UTILS_CONFIG = {
         ],
     },
     "random_int": {
-        "draft": True,
+        "draft": False,
         "blocks": {},
         "inputs": {
             "lower_bound": {
@@ -53,12 +96,13 @@ UTILS_CONFIG = {
         ],
     },
     "random_uuid": {
-        "draft": True,
+        "draft": False,
         "blocks": {},
         "inputs": {},
         "outputs": [{"name": "random_uuid", "label": "Random UUID", "type": "text"}],
     },
 }
+
 
 # TODO: handle optional API arguments
 # TODO: make it easy to copy-paste blocks from block-kit builder
@@ -81,7 +125,7 @@ SLACK_UTILS_CONFIG = {
         ],
     },
     "find_user_by_email": {
-        "draft": True,
+        "draft": False,
         "blocks": {},
         "inputs": {
             "user_email": {
@@ -91,9 +135,10 @@ SLACK_UTILS_CONFIG = {
             }
         },
         "outputs": [
-            {"label": "User ID Text", "name": "user_id_text", "type": "text"},
-            {"label": "User ID", "name": "user_id", "type": "user"},
+            {"label": "User ID", "name": "user_id", "type": "text"},
             {"label": "Team ID", "name": "team_id", "type": "text"},
+            {"label": "User", "name": "user", "type": "user"},
+            {"label": "Real Name", "name": "real_name", "type": "text"},
         ],
     },
     "set_channel_topic": {
@@ -113,18 +158,3 @@ SLACK_UTILS_CONFIG = {
         "outputs": [],
     },
 }
-
-# Suggested Slack actions based on Zapier
-# Add reminder
-# Invite user to channel
-# Send channel message (slack built-in)
-# Send direct message (slack built-in)
-# Create channel
-# Set channel topic ! Cannot be done with a Bot token, only user token :(
-# Update profile
-# Set status
-# Find message
-# Find user by email
-# find user by ID
-# Find user by name
-# Find user by username

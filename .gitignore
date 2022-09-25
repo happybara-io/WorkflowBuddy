@@ -2,4 +2,7 @@
 **pycache**
 ngrok*
 .vscode/
+*.dat
+*.bak
+*.dir
 

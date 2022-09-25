@@ -16,7 +16,7 @@ _*While WorkflowBuddy code will work out of the box as an event proxy, you will 
 
 ## 🏃Available Steps
 
-The utilities currently available within WorkflowBuddy for use as Workflow Steps.
+The utilities currently available within WorkflowBuddy for use as Workflow Steps. To see the exact inputs & outputs without loading up Workflow Builder, see [constants.py](https://github.com/happybara-io/WorkflowBuddy/blob/main/constants.py)
 
 ### Send a Webhook
 
@@ -41,6 +41,30 @@ Get a user based on their Slack email. Returns the user as both a text `user_id`
 ### More to come ....
 
 🥱🔃
+
+Potential ideas seen in the wild for other automation use-cases ([Zapier](https://zapier.com/apps/categories/zapier-tools) and [n8n](https://docs.n8n.io/integrations/builtin/core-nodes/) are good sources):
+- Wait/delay state
+  - Workflow Builder does not have a convenient way to add a pause step - Workflows are long-running, so it should be no problem to have some wait action that doesn't run `complete()` until the duration has passed. The best solution for this may vary by hosting provider, or by integrating with a 3rd-party service.
+- Filter/conditional stop
+  - If a certain condition is not met, stop the workflow. Handy if you only want it to fire on certain conditions and the trigger isn't granular enough.
+- Send email and/or SMS
+  - Might be hard if they want it sent from their own address vs a generic SendGrid-type account.
+- Calendar invites/sending with a link?
+  - This seems like it's mostly covered through the `Send a message` built-in.
+- Suggested Slack actions based on Zapier
+  - Add reminder
+  - Invite user to channel
+  - Send channel message (slack built-in)
+  - Send direct message (slack built-in)
+  - Create channel
+  - Set channel topic (! Cannot be done with a Bot token, only user token 😔)
+  - Update profile
+  - Set status
+  - Find message
+  - find user by ID
+  - Find user by name
+  - Find user by username
+
 
 ---
 

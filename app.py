@@ -1,9 +1,11 @@
 import logging
 import random
+from urllib import response
 import uuid
 import os
 import constants as c
 import utils
+import json
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -23,6 +25,184 @@ app = App()
 def log_request(logger, body, next):
     logger.debug(body)
     return next()
+
+
+@app.action("action_export")
+def export_button_clicked(ack, body, logger, client):
+    ack()
+    exported_json = json.dumps(utils.db_export(), indent=2)
+    export_modal = {
+	"type": "modal",
+	"title": {
+		"type": "plain_text",
+		"text": "Webhook Config Export",
+		"emoji": True
+	},
+	"close": {
+		"type": "plain_text",
+		"text": "Close",
+		"emoji": True
+	},
+	"blocks": [
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": f"*Exported Config:* \n```{exported_json}```"
+			}
+		}
+	]
+}
+    client.views_open(trigger_id=body["trigger_id"], view=export_modal)
+
+
+@app.action("action_import")
+def import_button_clicked(ack, body, logger, client):
+    ack()
+    blocks = [
+        {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Import a JSON config of event type to webhook lists.\n*Example:*\n```{\"app_mention\":[\"https://webhook.com/123\"]}```\n\nUpdates existing keys, but doesn't remove any."
+			}
+		},
+		{
+			"type": "input",
+			"block_id": "json_config_input",
+			"element": {
+				"type": "plain_text_input",
+				"multiline": True,
+				"action_id": "json_config_value"
+			},
+			"label": {
+				"type": "plain_text",
+				"text": "JSON Config",
+				"emoji": True
+			}
+		}
+    ]
+    import_modal = {
+        "type": "modal",
+        "callback_id": "import_submission",
+        "title": {"type": "plain_text", "text": "Import Event Mappings"},
+        "submit": {"type": "plain_text", "text": "Import"},
+        "blocks": blocks,
+    }
+    client.views_open(trigger_id=body["trigger_id"], view=import_modal)
+
+
+@app.view("import_submission")
+def import_config_submission(ack, body, client, view, logger):
+    values = view["state"]["values"]
+    user = body["user"]["id"]
+    json_config_str = values["json_config_input"]["json_config_value"]["value"]
+    errors = {}
+    try:
+        data = json.loads(json_config_str)
+        ack()
+    except Exception:
+        errors["json_config_input"] = "Invalid JSON."
+        ack(response_action="errors", errors=errors)
+        return
+
+
+    msg = ""
+    try:
+        # Save to DB
+        num_keys_updated = utils.db_import(data)
+        msg = f"Imported {num_keys_updated} event_type keys into Workflow Buddy."
+    except Exception as e:
+        logger.exception(e)
+        # Handle error
+        msg = "There was an error with your submission"
+
+    # Message the user
+    try:
+        client.chat_postMessage(channel=user, text=msg)
+    except e:
+        logger.exception(f"Failed to post a message {e}")
+
+
+@app.action("event_delete_clicked")
+def delete_event_mapping(ack, body, logger, client):
+    ack()
+    user_id = body["user"]["id"]
+    payload = body["actions"][0]
+    event_type = payload["value"]
+    logger.info(f"EVENT_DELETE_CLICKED - {event_type}")
+    utils.db_remove_event(event_type)
+
+    app_home_view = utils.build_app_home_view()
+    client.views_publish(user_id=user_id, view=app_home_view)
+
+
+@app.action("action_add_webhook")
+def add_button_clicked(ack, body, client):
+    ack()
+
+    add_webhook_form_blocks = [
+        {
+            "type": "input",
+            "block_id": "event_type_input",
+            "element": {"type": "plain_text_input", "action_id": "event_type_value"},
+            "label": {"type": "plain_text", "text": "Event Type", "emoji": True},
+        },
+        {
+            "type": "input",
+            "block_id": "webhook_url_input",
+            "element": {"type": "plain_text_input", "action_id": "webhook_url_value"},
+            "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
+        },
+    ]
+
+    add_webhook_modal = {
+        "type": "modal",
+        "callback_id": "add_webhook_form",
+        "title": {"type": "plain_text", "text": "Add Webhook"},
+        "submit": {"type": "plain_text", "text": "Add"},
+        "blocks": add_webhook_form_blocks,
+    }
+    client.views_open(trigger_id=body["trigger_id"], view=add_webhook_modal)
+
+
+@app.view("add_webhook_form")
+def handle_add_webhook_submission(ack, body, client, view, logger):
+    values = view["state"]["values"]
+    user = body["user"]["id"]
+    event_type = values["event_type_input"]["event_type_value"]["value"]
+    webhook_url = values["webhook_url_input"]["webhook_url_value"]["value"]
+    # Validate the inputs
+    logger.info(f'submission: {event_type}|{webhook_url} {webhook_url[0:7]}')
+    errors = {}
+    if (event_type is not None and webhook_url is not None) and webhook_url[
+        :8
+    ] != "https://":
+        block_id = "webhook_url_input"
+        errors[block_id] = "Must be a valid URL with `https://`"
+    if len(errors) > 0:
+        ack(response_action="errors", errors=errors)
+        return
+    # Acknowledge the view_submission request and close the modal
+    ack()
+    # Do whatever you want with the input data - here we're saving it to a DB
+    # then sending the user a verification of their submission
+
+    # Message to send user
+    msg = ""
+    try:
+        # Save to DB
+        utils.db_add_webhook_to_event(event_type, webhook_url)
+        msg = f"Your submission of {webhook_url} was successful"
+    except Exception as e:
+        # Handle error
+        msg = "There was an error with your submission"
+
+    # Message the user
+    try:
+        client.chat_postMessage(channel=user, text=msg)
+    except e:
+        logger.exception(f"Failed to post a message {e}")
 
 
 # TODO: accept any of the keyword args that are allowed?
@@ -61,6 +241,12 @@ def event_channel_created(logger, event, body):
 @app.event(c.EVENT_WORKFLOW_PUBLISHED)
 def handle_workflow_published_events(body, logger):
     logger.info(body)
+
+
+@app.event(c.EVENT_APP_HOME_OPENED)
+def update_app_home(event, logger, client):
+    app_home_view = utils.build_app_home_view()
+    client.views_publish(user_id=event["user"], view=app_home_view)
 
 
 @app.event("message")
@@ -189,7 +375,23 @@ def edit_utils(ack, step, configure):
                                 "emoji": True,
                             },
                             "value": "webhook",
-                        }
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Random Integer",
+                                "emoji": True,
+                            },
+                            "value": "random_int",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Random UUID",
+                                "emoji": True,
+                            },
+                            "value": "random_uuid",
+                        },
                     ],
                     "action_id": "utilities_action_select_value",
                 }
@@ -200,6 +402,21 @@ def edit_utils(ack, step, configure):
             "block_id": "webhook_url_input",
             "element": {"type": "plain_text_input", "action_id": "webhook_url_value"},
             "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
+            "optional": True,
+        },
+        {
+            "type": "input",
+            "block_id": "lower_bound_input",
+            "element": {"type": "plain_text_input", "action_id": "lower_bound_value"},
+            "label": {"type": "plain_text", "text": "Lower Bound", "emoji": True},
+            "optional": True,
+        },
+        {
+            "type": "input",
+            "block_id": "upper_bound_input",
+            "element": {"type": "plain_text_input", "action_id": "upper_bound_value"},
+            "label": {"type": "plain_text", "text": "Upper Bound", "emoji": True},
+            "optional": True,
         },
     ]
     configure(blocks=blocks)
@@ -248,7 +465,7 @@ def save_utils(ack, view, update):
     for input_config in curr_action_config["inputs"].values():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
-        input_config["name"] = {"value": values[block_id][action_id]["value"]}
+        inputs[input_config["name"]] = {"value": values[block_id][action_id]["value"]}
 
     print(f"INPUTS: {inputs}")
     outputs = curr_action_config["outputs"]
@@ -272,8 +489,8 @@ def run_webhook(step, complete, fail):
 def run_random_int(step, complete, fail):
     # TODO: input validation & error handling
     inputs = step["inputs"]
-    lower_bound = inputs["lower_bound"]["value"]
-    upper_bound = inputs["upper_bound"]["value"]
+    lower_bound = int(inputs["lower_bound"]["value"])
+    upper_bound = int(inputs["upper_bound"]["value"])
 
     rand_value = random.randint(lower_bound, upper_bound)
     outputs = {"random_int_text": str(rand_value)}
@@ -352,7 +569,15 @@ def edit_slack_utils(ack, step, configure):
                                 "emoji": True,
                             },
                             "value": "conversations_create",
-                        }
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Find user by email",
+                                "emoji": True,
+                            },
+                            "value": "find_user_by_email",
+                        },
                     ],
                     "action_id": "slack_utilities_action_select_value",
                 }
@@ -363,15 +588,43 @@ def edit_slack_utils(ack, step, configure):
             "block_id": "channel_name_input",
             "element": {"type": "plain_text_input", "action_id": "channel_name_value"},
             "label": {"type": "plain_text", "text": "Channel Name", "emoji": True},
+            "optional": True,
         },
         {
             "type": "input",
             "block_id": "user_email_input",
             "element": {"type": "plain_text_input", "action_id": "user_email_value"},
             "label": {"type": "plain_text", "text": "User Email", "emoji": True},
+            "optional": True,
         },
     ]
     configure(blocks=blocks)
+
+
+@app.action("slack_utilities_action_select_value")
+def handle_some_action(ack, body, logger, client):
+    ack()
+    logger.info(f"SLACK_ACTION_CHANGE: {body}")
+
+    updated_view = {
+        "type": "modal",
+        "callback_id": "view_1",
+        "title": {"type": "plain_text", "text": "Updated modal"},
+        "blocks": [
+            {
+                "type": "section",
+                "text": {"type": "plain_text", "text": "You updated the modal!"},
+            },
+            {
+                "type": "image",
+                "image_url": "https://media.giphy.com/media/SVZGEcYt7brkFUyU90/giphy.gif",
+                "alt_text": "Yay! The modal was updated",
+            },
+        ],
+    }
+    resp = client.views_update(
+        view_id=body["view"]["id"], hash=body["view"]["hash"], view=updated_view
+    )
 
 
 # TODO: this is exactly the same as the other utils func with tiny change, why am i duplicating?
@@ -422,7 +675,12 @@ def execute_slack_utils(step, complete, fail, client):
         user_email = inputs["user_email"]["value"]
         resp = client.users_lookupByEmail(email=user_email)
         if resp["ok"]:
-            outputs = {"user_id": resp["user"]["id"]}
+            outputs = {
+                "user": resp["user"]["id"],
+                "user_id": resp["user"]["id"],
+                "team_id": resp["user"]["team_id"],
+                "real_name": resp["user"]["real_name"],
+            }
             complete(outputs=outputs)
         else:
             fail(error={"message": f"Slack err: {resp.get('error')}"})
