@@ -68,7 +68,7 @@ def build_app_home_view():
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":shrug: Nothing here yet! Try using the `Add` or `Import options.",
+                    "text": f":shrug: Nothing here yet! Try using the `Add` or `Import` options.",
                 }
             })
     for event_type, webhook_list in data.items():

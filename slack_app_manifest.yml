@@ -30,7 +30,7 @@ oauth_config:
       - users:read.email
 settings:
   event_subscriptions:
-    request_url: https://34fa-205-178-24-105.ngrok.io/slack/events
+    request_url: https://de96-205-178-24-105.ngrok.io/slack/events
     bot_events:
       - app_home_opened
       - app_mention
@@ -42,7 +42,7 @@ settings:
       - workflow_unpublished
   interactivity:
     is_enabled: true
-    request_url: https://34fa-205-178-24-105.ngrok.io/slack/events
+    request_url: https://de96-205-178-24-105.ngrok.io/slack/events
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false

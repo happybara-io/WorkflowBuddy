@@ -13,10 +13,15 @@ from slack_bolt import App
 from slack_bolt.workflows.step import WorkflowStep
 from slack_bolt.adapter.flask import SlackRequestHandler
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
+
+try:
+    # test shelf on load, ran into file permission errors in Docker container
+    print('TEST_SHELVE', utils.db_get_event_config('test_key'))
+except KeyError:
+    pass
 
 app = App()
-
 
 ###########################
 # Slack app stuff
@@ -676,6 +681,12 @@ def home():
     <li>Webhooks: /webhook</li>
 </ul>
 """
+
+@flask_app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "ok": True
+    }), 201
 
 
 @flask_app.route("/slack/events", methods=["POST"])

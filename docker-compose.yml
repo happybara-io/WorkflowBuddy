@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  workflow-buddy:
+    build: '.'
+    ports:
+      - '4747:4747'
+    environment:
+    # Docker Compose loads from .env file automatically
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}

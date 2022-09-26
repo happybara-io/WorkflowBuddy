@@ -1,15 +1,10 @@
 #!/bin/bash
 
 
-generate_requirements_file() {
-    poetry export -o requirements.txt
-}
-
 run() {
     # export SLACK_SIGNING_SECRET=***
     # export SLACK_BOT_TOKEN=xoxb-***
-    FLASK_APP=app.py FLASK_DEBUG=true flask run -p 3000
+    FLASK_APP=app.py FLASK_DEBUG=true flask run -p 4747
 }
 
-## RUN THIS BAD BOY
 run

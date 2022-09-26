@@ -70,6 +70,14 @@ Potential ideas seen in the wild for other automation use-cases ([Zapier](https:
 
 ## Deploying & running the app
 
+### Fly.io
+
+- Add secrets from `.env.example` using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
+- (Optional) update `fly.toml` config settings.
+- Run `fly deploy`.
+- **TODO: doesn't work yet** Getting `_gdbm.error: [Errno 11] Resource temporarily unavailable`, seems like maybe a volume would help? or potentially something is messed up with Docker for local DB stuff.
+### Others
+
 TBD.
 
 ### Templates to save time
@@ -85,12 +93,12 @@ When using **Workflow Builder Webhooks**, it requires allow-listing any data key
   SLACK_BOT_TOKEN=xoxb-********
   SLACK_SIGNING_SECRET=********
   ```
-- `poetry install` (or install with your preferred Python tool using the `requirements.txt`)
+- `poetry install` (or install with your preferred Python tool using the `requirements.txt`).
 
 ## local dev
-- `poetry shell` so all our environment variables are easy
-- (in a separate terminal) Run `ngrok http 3000` to get a public domain address - [Ngrok Dashboard](https://dashboard.ngrok.com)
-- Run the local server with `./run.sh`
+- `poetry shell` so all our environment variables are easy.
+- (in a separate terminal) Run `ngrok http 4747` to get a public domain address - [Ngrok Dashboard](https://dashboard.ngrok.com).
+- Run the local dev server with `./run.sh`, or a "prod" server with `make up` (which starts Docker).
 - Update the Slack App console with new address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
 - (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site)
 
