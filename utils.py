@@ -3,10 +3,9 @@ import requests
 import shelve
 import json
 import copy
-
 import constants as c
 
-DEFAULT_SHELF_DB = "workflow_buddy_db"
+logging.basicConfig(level=logging.DEBUG)
 
 # !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
 IN_MEMORY_WRITE_THROUGH_CACHE = {}
