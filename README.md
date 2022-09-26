@@ -1,10 +1,20 @@
 # Slack Automation - WorkflowBuddy
 
-Workflow Builder is great! Except it's got a very limited selection of built-in Slack triggers (shortcut, emoji reaction, new channel member, webhook) and VERY limited selection of built-in Slack actions (send a message, send a form). You can get creative and do a lot with these building blocks, but what if you want to do more?
+[Workflow Builder](https://slack.com/features/workflow-automation) is great! _Except_ it's got a very limited selection of built-in Slack triggers _(**4**: shortcut, emoji reaction, new channel member, webhook)_ and **_VERY_** limited selection of built-in Slack actions _(**2**: send a message, send a form)_. You can get creative and do a lot with these building blocks, but what if you want to do more?
 
 🥳 ✨ **Ta-da!** ✨
 
-This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of actions available. The most important is the `webhook` functionality, which enables users to plug their Slack Workflow steps into almost any other application.
+This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of Steps available. The most important is the `webhook` functionality, which enables users to plug their Slack Workflow Steps into almost any other application.
+
+- **WorkflowBuddy**
+  - [Available Triggers](#🏁🎬-available-triggers)
+  - [Available Steps](#🏃available-steps)
+  - [Use Cases](#use-cases)
+- [Run Locally](#run-locally) - _test me out!_
+- [Development](#development)
+- [Deployment](#deployment) 
+
+---
 
 ## 🏁🎬 Available Triggers
 
@@ -13,6 +23,10 @@ All [Slack events](https://api.slack.com/events) proxied through to any **_webho
 _*While WorkflowBuddy code will work out of the box as an event proxy, you will need to update your app's OAuth scopes & event subscriptions for your new events, as well as save the webhook event from your Workflow in the config._
 
 ![Visualizing the Slack event proxy](/static/workflow-buddy-event-proxy.png)
+
+### Templates for Event Triggers
+
+When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?). Currently the wrapping payload is not included, but could be an easy contribution in the future.
 
 ## 🏃Available Steps
 
@@ -70,9 +84,82 @@ Potential ideas seen in the wild for other automation use-cases ([Zapier](https:
   - Find user by username
 
 
+## Use Cases
+
+What can you do with these extra triggers and actions?
+
+### Replace the legacy Outgoing Webhooks 
+
+Slack used to offer [Outgoing Webhooks](https://slack.com/apps/A0F7VRG6Q-outgoing-webhooks?tab=more_info) as a way to listen for new messages/Trigger Words in Slack messages and then fire a webhook to external URLs.
+
+It has a warning at the top though _"Please note, this is a legacy custom integration - an outdated way for teams to integrate with Slack. These integrations lack newer features and they will be deprecated and possibly removed in the future."_. To avoid any issues, you can alternatively use WorkflowBuddy to listen for `message`**\*** events & then use it's `Step: Send a Webhook` to accomplish the same thing.
+
+**\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
+
 ---
 
-## Deploying & running the app
+## Development
+
+- [Bolt Python](https://slack.dev/bolt-python/)
+
+## Run locally
+
+Run the app locally & connect to your workspace Slack app.
+
+### Setup
+- [Create your Slack app](https://api.slack.com/reference/manifests#creating_apps) from the `slack_app_manifest.yml` file.
+- Create a `.env` file that looks like:
+  ```
+  SLACK_BOT_TOKEN=xoxb-********
+  SLACK_SIGNING_SECRET=********
+  ```
+
+### Run
+
+Use [`ngrok`](https://ngrok.com) to tunnel your local port to the public internet, then run the server with Docker.
+
+```
+make ngrok
+# (in a separate terminal)
+make up
+```
+
+### Local Development
+
+Alternative to running it with Docker, run the development server.
+
+- `poetry install` (or install with your preferred Python tool using the `requirements.txt`).
+- _(in a separate terminal)_ `make ngrok`.
+- `poetry shell` so all our environment variables are easy.
+- Run the local dev server with `./run.sh`, or a "prod" server with `./run-prod.sh`.
+- Update the Slack App console with new `ngrok` address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
+- (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site)
+
+
+### How it works
+
+For Slack events, this app basically just acts as a proxy. As long as the event is added to the bot's OAuth scopes, it should be able to proxy it through to your **Workflow Builder** flow. 
+
+For the new actions, it registers a **Workflow Builder Step** - unfortunately each app is limited to 10 registered with Slack. To get around that limitation, we have the user select from a static select list of actions that have been implemented on the server, then update the modal to give them the appropriate options. For example, if the user wants to `Send a webhook`, we'll then update the modal to have an input for the Webhook URL, and a text box for the body they want to send.
+
+Config data (basically just webhooks for now) is persisted on disk using [Python Shelve](https://docs.python.org/3/library/shelve.html#module-shelve).
+
+### Future Work
+
+As you may have noticed, this is a P.o.C. There is no resiliency baked into this application yet, so don't throw anything mission critical on it yet. A non-exhaustive list of updates it would benefit from:
+
+- Server needs to be productionized and easy to deploy - Docker-Compose is recommended route.
+  - Write up a guide on how to deploy it to [Fly.io](https://fly.io) or similar easy deploy tools.
+- Sending webhooks should have a simple retry mechanism in place, in case it just needs a few seconds before things work hunky dory.
+- Incoming actions should be placed into a resilient queue, that way events aren't lost in the case of downstream failure response, server outage, or etc. 
+  - A DB like SQlite can act as a queue in a pinch, so long as you setup an easy cron option. Rather than figuring out how to setup Celery with Python, why not use one of those services that will send you a webhook on a cron schedule, so all you have to write is an endpoint. [Cronhooks](https://cronhooks.io/) is one such aptly named service.
+- Tracking the timestamps of when the workflows were kicked off and also whether they succeeded or failed would be a nice touch, but that's a lot of data for a PoC app.
+
+---
+
+## Deployment
+
+Putting your server somewhere more useful than your local machine.
 
 ### Fly.io
 
@@ -84,49 +171,3 @@ Potential ideas seen in the wild for other automation use-cases ([Zapier](https:
 ### Others
 
 TBD.
-
-### Templates to save time
-
-When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?). Currently the wrapping payload is not included, but could be an easy contribution in the future.
-
----
-
-## Development
-
-### Quick links
-- [Bolt Python](https://slack.dev/bolt-python/)
-
-
-### Install
-- Create a `.env` file that looks like:
-  ```
-  SLACK_BOT_TOKEN=xoxb-********
-  SLACK_SIGNING_SECRET=********
-  ```
-- `poetry install` (or install with your preferred Python tool using the `requirements.txt`).
-
-### Local dev
-- `poetry shell` so all our environment variables are easy.
-- (in a separate terminal) Run `ngrok http 4747` to get a public domain address - [Ngrok Dashboard](https://dashboard.ngrok.com).
-- Run the local dev server with `./run.sh`, or a "prod" server with `make up` (which starts Docker).
-- Update the Slack App console with new address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
-- (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site)
-
-## How it works
-
-For Slack events, this app basically just acts as a proxy. As long as the event is added to the bot's OAuth scopes, it should be able to proxy it through to your **Workflow Builder** flow. 
-
-For the new actions, it registers a **Workflow Builder Step** - unfortunately each app is limited to 10 registered with Slack. To get around that limitation, we have the user select from a static select list of actions that have been implemented on the server, then update the modal to give them the appropriate options. For example, if the user wants to `Send a webhook`, we'll then update the modal to have an input for the Webhook URL, and a text box for the body they want to send.
-
-Config data (basically just webhooks for now) is persisted on disk using [Python Shelve](https://docs.python.org/3/library/shelve.html#module-shelve).
-
-## Future Work
-
-As you may have noticed, this is a P.o.C. There is no resiliency baked into this application yet, so don't throw anything mission critical on it yet. A non-exhaustive list of updates it would benefit from:
-
-- Server needs to be productionized and easy to deploy - Docker-Compose is recommended route.
-  - Write up a guide on how to deploy it to [Fly.io](https://fly.io) or similar easy deploy tools.
-- Sending webhooks should have a simple retry mechanism in place, in case it just needs a few seconds before things work hunky dory.
-- Incoming actions should be placed into a resilient queue, that way events aren't lost in the case of downstream failure response, server outage, or etc. 
-  - A DB like SQlite can act as a queue in a pinch, so long as you setup an easy cron option. Rather than figuring out how to setup Celery with Python, why not use one of those services that will send you a webhook on a cron schedule, so all you have to write is an endpoint. [Cronhooks](https://cronhooks.io/) is one such aptly named service.
-- Tracking the timestamps of when the workflows were kicked off and also whether they succeeded or failed would be a nice touch, but that's a lot of data for a PoC app.
