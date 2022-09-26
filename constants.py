@@ -46,6 +46,52 @@ APP_HOME_HEADER_BLOCKS = [
     {"type": "divider"},
 ]
 
+APP_HOME_FOOTER_BLOCKS = [{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "  "
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "plain_text",
+				"text": "    "
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "plain_text",
+				"text": "    "
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "plain_text",
+				"text": "    "
+			}
+		},
+		{
+			"type": "divider"
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "image",
+					"image_url": "https://s3.happybara.io/happybara/main_logo.png",
+					"alt_text": "happybara.io"
+				},
+				{
+					"type": "mrkdwn",
+					"text": "Proudly built by <https://happybara.io|Happybara>."
+				}
+			]
+		}]
+
 # TODO: incorporate the blocks here as well
 UTILS_CONFIG = {
     "webhook": {

@@ -108,5 +108,6 @@ def build_app_home_view():
             },
         ]
         blocks.extend(single_event_row)
-
+    
+    blocks.extend(c.APP_HOME_FOOTER_BLOCKS)
     return {"type": "home", "blocks": blocks}
