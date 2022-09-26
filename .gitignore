@@ -5,4 +5,5 @@ ngrok*
 *.dat
 *.bak
 *.dir
+workflow-buddy-db.json
 

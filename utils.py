@@ -8,6 +8,17 @@ import constants as c
 
 DEFAULT_SHELF_DB = "workflow_buddy_db"
 
+# !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
+IN_MEMORY_WRITE_THROUGH_CACHE = {}
+PERSISTED_JSON_FILE = "workflow-buddy-db.json"
+# on startup, load current contents into cache
+with open(PERSISTED_JSON_FILE, "a+") as jf:
+    try:
+        IN_MEMORY_WRITE_THROUGH_CACHE = json.load(jf)
+    except json.decoder.JSONDecodeError:
+        IN_MEMORY_WRITE_THROUGH_CACHE = {}
+logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
+
 
 def send_webhook(url, json_body):
     resp = requests.post(url, json=json_body)
@@ -16,61 +27,60 @@ def send_webhook(url, json_body):
 
 
 def db_get_event_config(event_type):
-    with shelve.open(DEFAULT_SHELF_DB, writeback=True) as db:
-        return db[event_type]
+    return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
+
+
+def sync_cache_to_disk():
+    logging.debug(f'Syncing cache to disk - {IN_MEMORY_WRITE_THROUGH_CACHE}')
+    json_str = json.dumps(IN_MEMORY_WRITE_THROUGH_CACHE, indent=2)
+    with open(PERSISTED_JSON_FILE, "w") as jf:
+        jf.write(json_str)
 
 
 def db_add_webhook_to_event(event_type, name, webhook_url):
-    with shelve.open(DEFAULT_SHELF_DB, writeback=True) as db:
-        new_webhook = {
-                'name': name,
-                'webhook_url': webhook_url
-            }
-        try:
-            db[event_type].append(new_webhook)
-        except KeyError:
-            db[event_type] = [new_webhook]
+    new_webhook = {"name": name, "webhook_url": webhook_url}
+    try:
+        IN_MEMORY_WRITE_THROUGH_CACHE[event_type].append(new_webhook)
+    except KeyError:
+        IN_MEMORY_WRITE_THROUGH_CACHE[event_type] = [new_webhook]
+    sync_cache_to_disk()
 
 
 def db_remove_event(event_type):
-    with shelve.open(DEFAULT_SHELF_DB, writeback=True) as db:
-        try:
-            del db[event_type]
-        except KeyError:
-            print("Key doesnt exist to delete")
-            pass
+    try:
+        del IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
+        sync_cache_to_disk()
+    except KeyError:
+        logging.info("Key doesnt exist to delete")
+        pass
 
 
 def db_import(new_data):
     count = len(new_data.keys())
-    with shelve.open(DEFAULT_SHELF_DB, writeback=True) as db:
-        for k, v in new_data.items():
-            db[k] = v
+    for k, v in new_data.items():
+        IN_MEMORY_WRITE_THROUGH_CACHE[k] = v
+    sync_cache_to_disk()
     return count
 
 
 def db_export():
-    data = {}
-    with shelve.open(DEFAULT_SHELF_DB, writeback=True) as db:
-        for k, v in db.items():
-            data[k] = v
-    print("DUMP", data)
-    return data
+    return IN_MEMORY_WRITE_THROUGH_CACHE
 
 
 def build_app_home_view():
-
     data = db_export()
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
     if len(data.keys()) < 1:
-        blocks.append({
+        blocks.append(
+            {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
                     "text": f":shrug: Nothing here yet! Try using the `Add` or `Import` options.",
-                }
-            })
+                },
+            }
+        )
     for event_type, webhook_list in data.items():
         single_event_row = [
             {
@@ -100,5 +110,4 @@ def build_app_home_view():
         ]
         blocks.extend(single_event_row)
 
-    print('blocks', blocks)
     return {"type": "home", "blocks": blocks}

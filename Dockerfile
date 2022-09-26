@@ -1,8 +1,8 @@
 FROM python:3.8.1-slim
 
-COPY ./*.py ./*.sh ./*.txt /app/
+COPY requirements.txt /app/requirements.txt
 RUN pip install -U pip && pip install -r /app/requirements.txt
-
+COPY ./*.py ./*.sh /app/
 WORKDIR /app/
 
 RUN useradd demo

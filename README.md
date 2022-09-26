@@ -32,9 +32,13 @@ Generate a random UUID with [Python's standard library](https://docs.python.org/
 
 ### (Slack) Create a channel
 
+- [API Method](https://api.slack.com/methods/conversations.create)
+
 This action will create a new channel with your specified name, then return the `channel_id` as both text & the `channel` type so it can be used in Slack's built-in functions.
 
 ### (Slack) Find user by email
+
+- [API Method](https://api.slack.com/methods/users.lookupByEmail)
 
 Get a user based on their Slack email. Returns the user as both a text `user_id` and a `user` type so it can be used in Slack's built-in functions.
 
@@ -72,10 +76,11 @@ Potential ideas seen in the wild for other automation use-cases ([Zapier](https:
 
 ### Fly.io
 
-- Add secrets from `.env.example` using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
+- Add secrets from `.env.example` using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets). Same secrets setup as in Development section.
 - (Optional) update `fly.toml` config settings.
 - Run `fly deploy`.
-- **TODO: doesn't work yet** Getting `_gdbm.error: [Errno 11] Resource temporarily unavailable`, seems like maybe a volume would help? or potentially something is messed up with Docker for local DB stuff.
+- ⚠️ _Using a very simple cache + JSON file to persist webhook config data - it's not very robust, so highly recommend keeping a copy of the JSON file as backup to easily import if config is destroyed._
+
 ### Others
 
 TBD.
@@ -88,6 +93,11 @@ When using **Workflow Builder Webhooks**, it requires allow-listing any data key
 
 ## Development
 
+### Quick links
+- [Bolt Python](https://slack.dev/bolt-python/)
+
+
+### Install
 - Create a `.env` file that looks like:
   ```
   SLACK_BOT_TOKEN=xoxb-********
@@ -95,7 +105,7 @@ When using **Workflow Builder Webhooks**, it requires allow-listing any data key
   ```
 - `poetry install` (or install with your preferred Python tool using the `requirements.txt`).
 
-## local dev
+### Local dev
 - `poetry shell` so all our environment variables are easy.
 - (in a separate terminal) Run `ngrok http 4747` to get a public domain address - [Ngrok Dashboard](https://dashboard.ngrok.com).
 - Run the local dev server with `./run.sh`, or a "prod" server with `make up` (which starts Docker).

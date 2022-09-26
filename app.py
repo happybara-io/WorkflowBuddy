@@ -15,12 +15,6 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 
 from flask import Flask, request, jsonify
 
-try:
-    # test shelf on load, ran into file permission errors in Docker container
-    print('TEST_SHELVE', utils.db_get_event_config('test_key'))
-except KeyError:
-    pass
-
 app = App()
 
 ###########################
@@ -212,7 +206,7 @@ def generic_event_proxy(logger, event, body):
 
     for webhook in workflow_webhooks_to_request:
         json_body = event
-        resp = utils.send_webhook(webhook['webhook_url'], json_body)
+        resp = utils.send_webhook(webhook["webhook_url"], json_body)
         if resp.status_code >= 300:
             logger.error(f"{resp.status_code}:{resp.text}|{webhook}")
     logger.info("Finished sending all webhooks for event")
@@ -327,7 +321,6 @@ app.step(ws)
 ############################
 def edit_utils(ack, step, configure):
     # TODO: if I want to update modal, need to listen for the action/event separately
-    print("utils: edit")
     ack()
     blocks = [
         {
@@ -412,9 +405,8 @@ def edit_utils(ack, step, configure):
     configure(blocks=blocks)
 
 
-def save_utils(ack, view, update):
-    print("utils: save")
-    print("view", view)
+def save_utils(ack, view, update, logger):
+    logger.debug("view", view)
     values = view["state"]["values"]
     # include this in every event as context
     selected_option_object = values["utilities_action_select"][
@@ -432,7 +424,7 @@ def save_utils(ack, view, update):
         action_id = input_config["action_id"]
         inputs[input_config["name"]] = {"value": values[block_id][action_id]["value"]}
 
-    print(f"INPUTS: {inputs}")
+    logger.debug(f"INPUTS: {inputs}")
     outputs = curr_action_config["outputs"]
     update(inputs=inputs, outputs=outputs)
 
@@ -441,7 +433,7 @@ def run_webhook(step, complete, fail):
     # TODO: input validation & error handling
     inputs = step["inputs"]
     url = inputs["webhook_url"]["value"]
-    print("sending to url:", url)
+    logging.info(f"sending to url:{url}")
     json_body = {"abc": "123"}
     resp = utils.send_webhook(url, json_body)
 
@@ -467,8 +459,8 @@ def run_random_uuid(step, complete, fail):
 
 
 def execute_utils(step, complete, fail):
-    print("utils: execute")
     chosen_action = step["inputs"]["selected_utility"]["value"]
+    logging.info(f"Chosen action: {chosen_action}")
     if chosen_action == "webhook":
         run_webhook(step, complete, fail)
     elif chosen_action == "random_int":
@@ -491,7 +483,6 @@ app.step(utils_ws)
 # Slack Utilities (give Workflow Builder access to more Slack APIs)
 ############################
 def edit_slack_utils(ack, step, configure):
-    print("slack_utils: edit")
     ack()
     blocks = [
         {
@@ -588,9 +579,8 @@ def handle_some_action(ack, body, logger, client):
 
 
 # TODO: this is exactly the same as the other utils func with tiny change, why am i duplicating?
-def save_slack_utils(ack, view, update):
-    print("slack utils: save")
-    print("view", view)
+def save_slack_utils(ack, view, update, logger):
+    logger.debug("view", view)
     values = view["state"]["values"]
     # include this in every event as context
     selected_option_object = values["slack_utilities_action_select"][
@@ -614,13 +604,14 @@ def save_slack_utils(ack, view, update):
 
 def execute_slack_utils(step, complete, fail, client, logger):
     # TODO: make sure to log the execution event so it can be killed manually if needed
-    print("slack utils: execute")
     inputs = step["inputs"]
     chosen_action = step["inputs"]["selected_utility"]["value"]
+    logger.info(f"Chosen action: {chosen_action}")
+    
     if chosen_action == "conversations_create":
         channel_name = inputs["channel_name"]["value"]
         resp = client.conversations_create(name=channel_name)
-        print(f"RESP|{resp}")
+        logger.debug(f"RESP|{resp}")
         if resp["ok"]:
             outputs = {
                 "channel_id": resp["channel"]["id"],
@@ -682,11 +673,10 @@ def home():
 </ul>
 """
 
+
 @flask_app.route("/health", methods=["GET"])
 def health():
-    return jsonify({
-        "ok": True
-    }), 201
+    return jsonify({"ok": True}), 201
 
 
 @flask_app.route("/slack/events", methods=["POST"])
@@ -696,4 +686,4 @@ def slack_events():
 
 @flask_app.route("/webhook", methods=["POST"])
 def inbound_webhook():
-    print("#### RECEIVED ###", request.json)
+    logging.info(f"#### RECEIVED ###: {request.json}")
