@@ -49,6 +49,16 @@ APP_HOME_HEADER_BLOCKS = [
                 "value": "export",
                 "action_id": "action_export",
             },
+            {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Manage Scheduled Messages",
+                    "emoji": True,
+                },
+                "value": "manage_scheduled_messages",
+                "action_id": "action_manage_scheduled_messages",
+            },
         ],
     },
     {"type": "divider"},
@@ -74,20 +84,24 @@ APP_HOME_FOOTER_BLOCKS = [
     {
         "type": "section",
         "fields": [
-            {"type": "plain_text", "text": "Slack: Create a Channel", "emoji": True},
-            {"type": "plain_text", "text": "Slack: Find User by Email", "emoji": True},
-            {"type": "plain_text", "text": "🚧 Slack: Schedule a Message", "emoji": True},
+            {"type": "plain_text", "text": "• Slack: Create a Channel", "emoji": True},
+            {"type": "plain_text", "text": "• Slack: Find User by Email", "emoji": True},
             {
                 "type": "plain_text",
-                "text": "Utils: Send Outbound Webhook",
+                "text": "• Slack: Schedule a Message",
                 "emoji": True,
             },
             {
                 "type": "plain_text",
-                "text": "Utils: Get Random Integer from Range",
+                "text": "• Utils: Send Outbound Webhook",
                 "emoji": True,
             },
-            {"type": "plain_text", "text": "Utils: Get Random UUID", "emoji": True},
+            {
+                "type": "plain_text",
+                "text": "• Utils: Get Random Integer from Range",
+                "emoji": True,
+            },
+            {"type": "plain_text", "text": "• Utils: Get Random UUID", "emoji": True},
         ],
     },
     {"type": "divider"},
@@ -277,7 +291,7 @@ SLACK_STEP_MODAL_COMMON_BLOCKS = [
                 "initial_option": {
                     "text": {
                         "type": "plain_text",
-                        "text": "Find user by email",
+                        "text": "Find User by Email",
                         "emoji": True,
                     },
                     "value": "find_user_by_email",
@@ -294,10 +308,18 @@ SLACK_STEP_MODAL_COMMON_BLOCKS = [
                     {
                         "text": {
                             "type": "plain_text",
-                            "text": "Find user by email",
+                            "text": "Find User by Email",
                             "emoji": True,
                         },
                         "value": "find_user_by_email",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Schedule a Message",
+                            "emoji": True,
+                        },
+                        "value": "schedule_message",
                     },
                 ],
                 "action_id": "slack_utilities_action_select_value",
@@ -373,13 +395,71 @@ SLACK_UTILS_CONFIG = {
         ],
     },
     "schedule_message": {
-        "draft": True,
+        "draft": False,
         "description": "Schedule a message up to 120 days in the future.",
-        "modal_input_blocks": [],
-        "inputs": {},
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "channel_input",
+                "element": {
+                    "type": "channels_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "#taco-tuesday",
+                        "emoji": True,
+                    },
+                    "action_id": "channel_value",
+                },
+                "label": {"type": "plain_text", "text": "Channel", "emoji": True},
+            },
+            {
+                "type": "input",
+                "block_id": "post_at_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "post_at_value",
+                    "placeholder": {"type": "plain_text", "text": "1669557726"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Post At Unix Timestamp",
+                    "emoji": True,
+                },
+                "hint": {
+                    "type": "plain_text",
+                    "text": "Use https://www.unixtimestamp.com/ to convert easily.",
+                    "emoji": True
+                }
+                # "optional": True,
+            },
+            {
+                "type": "input",
+                "block_id": "msg_text_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "msg_text_value",
+                    "placeholder": {"type": "plain_text", "text": "A great message!"},
+                },
+                "label": {"type": "plain_text", "text": "Message", "emoji": True},
+                # "optional": True,
+            },
+        ],
+        "inputs": {
+            "channel": {
+                "type": "channels_select",
+                "block_id": "channel_input",
+                "action_id": "channel_value",
+            },
+            "post_at": {"block_id": "post_at_input", "action_id": "post_at_value"},
+            "msg_text": {"block_id": "msg_text_input", "action_id": "msg_text_value"},
+        },
         "outputs": [
-            {"label": "Scheduled Message ID", "name": "scheduled_message_id", "type": "text"}
-        ]
+            {
+                "label": "Scheduled Message ID",
+                "name": "scheduled_message_id",
+                "type": "text",
+            }
+        ],
     },
     "set_channel_topic": {
         "draft": True,

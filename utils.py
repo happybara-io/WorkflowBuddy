@@ -8,16 +8,15 @@ from urllib import parse
 
 logging.basicConfig(level=logging.DEBUG)
 
+
 def get_block_kit_builder_link(type="home", view=None, blocks=[]):
     block_kit_base_url = "https://app.slack.com/block-kit-builder/"
     payload = view
     if view is None:
-        payload = {
-            "type": type,
-            "blocks": blocks
-        }
+        payload = {"type": type, "blocks": blocks}
     json_str = json.dumps(payload)
-    return parse.quote(f"{block_kit_base_url}#{json_str}", safe='/:?=&#')
+    return parse.quote(f"{block_kit_base_url}#{json_str}", safe="/:?=&#")
+
 
 # !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
 IN_MEMORY_WRITE_THROUGH_CACHE = {}
@@ -33,6 +32,7 @@ logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 ###################
 # Utils
 ###################
+
 
 def send_webhook(url, json_body):
     resp = requests.post(url, json=json_body)

@@ -10,9 +10,11 @@ import copy
 
 logging.basicConfig(level=logging.DEBUG)
 
-from slack_bolt import App
+from slack_bolt import App, Ack
 from slack_bolt.workflows.step import WorkflowStep
 from slack_bolt.adapter.flask import SlackRequestHandler
+import slack_sdk
+from slack_sdk.models.views import View
 
 from flask import Flask, request, jsonify
 
@@ -22,13 +24,129 @@ app = App()
 # Slack app stuff
 ############################
 @app.middleware  # or app.use(log_request)
-def log_request(logger, body, next):
+def log_request(logger: logging.Logger, body, next):
     logger.debug(body)
     return next()
 
 
+def build_scheduled_message_modal(client: slack_sdk.WebClient):
+    # https://api.slack.com/methods/chat.scheduledMessages.list
+    # TODO: error handling
+    resp = client.chat_scheduledMessages_list()
+    blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Messages scheduled to be sent from this bot.",
+            },
+        },
+        {
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "_Backticks ` have been replaced with ' only for display._"
+				}
+			]
+		},
+        {"type": "divider"},
+    ]
+    if resp["ok"]:
+        # TODO: add stuff for pagination? etc? Average user will have <10 I'd bet,
+        # so fine to leave off for now.
+        messages_list = resp["scheduled_messages"]
+        if len(messages_list) < 1:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"🤷 Nothing scheduled currently.",
+                    },
+                }
+            )
+        for sm in messages_list:
+            text = sm["text"]
+            # backticks were screwing up mine, escaping doesn't seem to work tho
+            safe_text = text.replace('`', "'")
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*To:* <#{sm['channel_id']}> *At:* `{sm['post_at']}` *Text:*\n`{safe_text[:100]}{'...' if len(safe_text) > 100 else ''}`",
+                    },
+                    "accessory": {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Delete", "emoji": True},
+                        "style": "danger",
+                        "value": f"{sm['channel_id']}-{sm['id']}",
+                        "action_id": "scheduled_message_delete_clicked",
+                    },
+                }
+            )
+    else:
+        blocks.extend(
+            [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"❌ Failed to list scheduled messages, err: {resp.get('error')}",
+                    },
+                }
+            ]
+        )
+
+    sm_modal = {
+        "type": "modal",
+        "title": {
+            "type": "plain_text",
+            "text": "Manage Scheduled Msgs",
+            "emoji": True,
+        },
+        "close": {"type": "plain_text", "text": "Close", "emoji": True},
+        "blocks": blocks,
+    }
+    return sm_modal
+
+
+@app.action("scheduled_message_delete_clicked")
+def delete_scheduled_message(
+    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+):
+    ack()
+    payload = body["actions"][0]
+    channel_id, scheduled_message_id = payload["value"].split("-")
+    logger.info(f"SCHEDULED_MESSAGE_CLICKED - {channel_id}:{scheduled_message_id}")
+    # rate-limiting: tier 3, 50+ per minute per workspace - should be fine.
+    resp = client.chat_deleteScheduledMessage(
+        channel=channel_id, scheduled_message_id=scheduled_message_id
+    )
+
+    if resp["ok"]:
+        # update modal
+        sm_modal = build_scheduled_message_modal(client)
+        resp = client.views_update(
+            view_id=body["view"]["id"], hash=body["view"]["hash"], view=sm_modal
+        )
+        logger.info(resp)
+
+
+@app.action("action_manage_scheduled_messages")
+def manage_scheduled_messages(
+    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+):
+    ack()
+    sm_modal = build_scheduled_message_modal(client)
+    client.views_open(trigger_id=body["trigger_id"], view=sm_modal)
+
+
 @app.action("action_export")
-def export_button_clicked(ack, body, logger, client):
+def export_button_clicked(
+    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+):
     ack()
     exported_json = json.dumps(utils.db_export(), indent=2)
     export_modal = {
@@ -49,7 +167,9 @@ def export_button_clicked(ack, body, logger, client):
 
 
 @app.action("action_import")
-def import_button_clicked(ack, body, logger, client):
+def import_button_clicked(
+    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+):
     ack()
     blocks = [
         {
@@ -81,7 +201,9 @@ def import_button_clicked(ack, body, logger, client):
 
 
 @app.view("import_submission")
-def import_config_submission(ack, body, client, view, logger):
+def import_config_submission(
+    ack: Ack, body, client: slack_sdk.WebClient, view: View, logger: logging.Logger
+):
     values = view["state"]["values"]
     user_id = body["user"]["id"]
     json_config_str = values["json_config_input"]["json_config_value"]["value"]
@@ -112,8 +234,11 @@ def import_config_submission(ack, body, client, view, logger):
 
     utils.update_app_home(client, user_id)
 
+
 @app.action("event_delete_clicked")
-def delete_event_mapping(ack, body, logger, client):
+def delete_event_mapping(
+    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+):
     ack()
     user_id = body["user"]["id"]
     payload = body["actions"][0]
@@ -122,8 +247,9 @@ def delete_event_mapping(ack, body, logger, client):
     utils.db_remove_event(event_type)
     utils.update_app_home(client, user_id)
 
+
 @app.action("action_add_webhook")
-def add_button_clicked(ack, body, client):
+def add_button_clicked(ack: Ack, body, client: slack_sdk.WebClient):
     ack()
 
     add_webhook_form_blocks = [
@@ -158,7 +284,9 @@ def add_button_clicked(ack, body, client):
 
 
 @app.view("webhook_form_submission")
-def handle_webhook_submission(ack, body, client, view, logger):
+def handle_webhook_submission(
+    ack: Ack, body, client: slack_sdk.WebClient, view: View, logger: logging.Logger
+):
     values = view["state"]["values"]
     user_id = body["user"]["id"]
     event_type = values["event_type_input"]["event_type_value"]["value"]
@@ -188,17 +316,14 @@ def handle_webhook_submission(ack, body, client, view, logger):
         client.chat_postMessage(channel=user_id, text=msg)
     except e:
         logger.exception(f"Failed to post a message {e}")
-    
+
     utils.update_app_home(client, user_id)
 
 
 # TODO: accept any of the keyword args that are allowed?
-def generic_event_proxy(logger, event, body):
+def generic_event_proxy(logger: logging.Logger, event, body):
     event_type = event.get("type")
     logger.info(f"||{event_type}|BODY:{body}")
-    # TEMP_CONFIG_MAP = {
-    #     "app_mention": [{"webhook_url": os.getenv("EVENT_APP_MENTION_WEBHOOK_URL")}]
-    # }
     try:
         workflow_webhooks_to_request = utils.db_get_event_config(event_type)
     except KeyError:
@@ -214,22 +339,22 @@ def generic_event_proxy(logger, event, body):
 
 
 @app.event(c.EVENT_APP_MENTION)
-def event_app_mention(logger, event, body):
+def event_app_mention(logger: logging.Logger, event, body):
     generic_event_proxy(logger, event, body)
 
 
 @app.event(c.EVENT_CHANNEL_CREATED)
-def event_channel_created(logger, event, body):
+def event_channel_created(logger: logging.Logger, event, body):
     generic_event_proxy(logger, event, body)
 
 
 @app.event(c.EVENT_WORKFLOW_PUBLISHED)
-def handle_workflow_published_events(body, logger):
+def handle_workflow_published_events(body, logger: logging.Logger):
     logger.info(body)
 
 
 @app.event(c.EVENT_APP_HOME_OPENED)
-def update_app_home(event, logger, client):
+def update_app_home(event, logger: logging.Logger, client: slack_sdk.WebClient):
     app_home_view = utils.build_app_home_view()
     client.views_publish(user_id=event["user"], view=app_home_view)
 
@@ -239,7 +364,7 @@ def handle_message():
     pass
 
 
-def edit(ack, step, configure):
+def edit(ack: Ack, step: WorkflowStep, configure):
     ack()
 
     blocks = [
@@ -267,7 +392,7 @@ def edit(ack, step, configure):
     configure(blocks=blocks)
 
 
-def save(ack, view, update):
+def save(ack: Ack, view, update):
     ack()
 
     values = view["state"]["values"]
@@ -293,7 +418,7 @@ def save(ack, view, update):
     update(inputs=inputs, outputs=outputs)
 
 
-def execute(step, complete, fail):
+def execute(step: WorkflowStep, complete, fail):
     inputs = step["inputs"]
     # if everything was successful
     # outputs = {
@@ -320,7 +445,7 @@ app.step(ws)
 ###########################
 # Utilities (non-Slack helper tools)
 ############################
-def edit_utils(ack, step, configure):
+def edit_utils(ack: Ack, step: WorkflowStep, configure):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
     blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
@@ -341,7 +466,9 @@ def edit_utils(ack, step, configure):
 # TODO: this seems like it would be a good thing to just have natively in Bolt.
 # Lots of people want to update their Step view.
 @app.action("utilities_action_select_value")
-def utils_update_step_modal(ack, body, logger, client):
+def utils_update_step_modal(
+    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+):
     ack()
     logger.info(f"ACTION_CHANGE: {body}")
     selected_action = body["actions"][0]["selected_option"]["value"]
@@ -367,7 +494,7 @@ def utils_update_step_modal(ack, body, logger, client):
     logger.info(resp)
 
 
-def save_utils(ack, view, update, logger):
+def save_utils(ack: Ack, view, update, logger: logging.Logger):
     logger.debug("view", view)
     values = view["state"]["values"]
     # include this in every event as context
@@ -381,17 +508,17 @@ def save_utils(ack, view, update, logger):
     inputs = {
         "selected_utility": {"value": selected_utility_callback_id},
     }
-    for input_config in curr_action_config["inputs"].values():
+    for name, input_config in curr_action_config["inputs"].items():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
-        inputs[input_config["name"]] = {"value": values[block_id][action_id]["value"]}
+        inputs[name] = {"value": values[block_id][action_id]["value"]}
 
     logger.debug(f"INPUTS: {inputs}")
     outputs = curr_action_config["outputs"]
     update(inputs=inputs, outputs=outputs)
 
 
-def run_webhook(step, complete, fail):
+def run_webhook(step: WorkflowStep, complete, fail):
     # TODO: input validation & error handling
     inputs = step["inputs"]
     url = inputs["webhook_url"]["value"]
@@ -403,7 +530,7 @@ def run_webhook(step, complete, fail):
     complete(outputs=outputs)
 
 
-def run_random_int(step, complete, fail):
+def run_random_int(step: WorkflowStep, complete, fail):
     # TODO: input validation & error handling
     inputs = step["inputs"]
     lower_bound = int(inputs["lower_bound"]["value"])
@@ -414,13 +541,13 @@ def run_random_int(step, complete, fail):
     complete(outputs=outputs)
 
 
-def run_random_uuid(step, complete, fail):
+def run_random_uuid(step: WorkflowStep, complete, fail):
     # TODO: input validation & error handling
     outputs = {"random_uuid": str(uuid.uuid4())}
     complete(outputs=outputs)
 
 
-def execute_utils(step, complete, fail):
+def execute_utils(step: WorkflowStep, complete, fail):
     chosen_action = step["inputs"]["selected_utility"]["value"]
     logging.info(f"Chosen action: {chosen_action}")
     if chosen_action == "webhook":
@@ -444,7 +571,7 @@ app.step(utils_ws)
 ###########################
 # Slack Utilities (give Workflow Builder access to more Slack APIs)
 ############################
-def edit_slack_utils(ack, step, configure):
+def edit_slack_utils(ack: Ack, step: WorkflowStep, configure):
     ack()
     blocks = copy.deepcopy(c.SLACK_STEP_MODAL_COMMON_BLOCKS)
     DEFAULT_ACTION = "find_user_by_email"
@@ -464,7 +591,9 @@ def edit_slack_utils(ack, step, configure):
 # TODO: this seems like it would be a good thing to just have natively in Bolt.
 # Lots of people want to update their Step view.
 @app.action("slack_utilities_action_select_value")
-def slack_utils_update_step_modal(ack, body, logger, client):
+def slack_utils_update_step_modal(
+    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+):
     ack()
     logger.info(f"SLACK_ACTION_CHANGE: {body}")
     selected_action = body["actions"][0]["selected_option"]["value"]
@@ -491,8 +620,7 @@ def slack_utils_update_step_modal(ack, body, logger, client):
 
 
 # TODO: this is exactly the same as the other utils func with tiny change, why am i duplicating?
-def save_slack_utils(ack, view, update, logger):
-    logger.debug("view", view)
+def save_slack_utils(ack: Ack, view, update, logger: logging.Logger):
     values = view["state"]["values"]
     # include this in every event as context
     selected_option_object = values["slack_utilities_action_select"][
@@ -505,16 +633,23 @@ def save_slack_utils(ack, view, update, logger):
         "selected_utility": {"value": selected_utility_callback_id},
     }
 
-    for input_config in curr_action_config["inputs"].values():
+    for name, input_config in curr_action_config["inputs"].items():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
-        inputs[input_config["name"]] = {"value": values[block_id][action_id]["value"]}
+        if input_config.get("type") == "channels_select":
+            print("VALUES", values)
+            value = values[block_id][action_id]["selected_channel"]
+        else:
+            value = values[block_id][action_id]["value"]
+        inputs[name] = {"value": value}
 
     outputs = curr_action_config["outputs"]
     update(inputs=inputs, outputs=outputs)
 
 
-def execute_slack_utils(step, complete, fail, client, logger):
+def execute_slack_utils(
+    step: WorkflowStep, complete, fail, client, logger: logging.Logger
+):
     # TODO: make sure to log the execution event so it can be killed manually if needed
     inputs = step["inputs"]
     chosen_action = step["inputs"]["selected_utility"]["value"]
@@ -550,9 +685,12 @@ def execute_slack_utils(step, complete, fail, client, logger):
             logger.error(errmsg)
             fail(error={"message": errmsg})
     elif chosen_action == "schedule_message":
-        channel = "CP1S57DAB"
-        post_at = "" # unix epoch timestamp
-        text = "hello world"
+        channel = inputs["channel"]["value"]
+        post_at = inputs["post_at"]["value"]  # unix epoch timestamp
+        # TODO: needs to support the time format in Workflow Builder variables
+        # -> Tuesday, September 27th 8:38:26 AM (at least in message display it's converted to user's TZ
+        # will have to check how it's passed internally)
+        text = inputs["msg_text"]["value"]
         resp = client.chat_scheduleMessage(channel=channel, post_at=post_at, text=text)
         if resp["ok"]:
             outputs = {
@@ -565,9 +703,6 @@ def execute_slack_utils(step, complete, fail, client, logger):
             fail(error={"message": errmsg})
     else:
         fail(error={"message": f"Unknown Slack action chosen - {chosen_action}"})
-
-    outputs = {}
-    complete(outputs=outputs)
 
 
 slack_utils_ws = WorkflowStep(

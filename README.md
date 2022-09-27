@@ -7,8 +7,8 @@
 This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of Steps available. The most important is the `webhook` functionality, which enables users to plug their Slack Workflow Steps into almost any other application.
 
 - **WorkflowBuddy**
-  - [Available Triggers](#🏁🎬-available-triggers)
-  - [Available Steps](#🏃available-steps)
+  - [Available Triggers](#🏁🎬-available-triggers) **Many**
+  - [Available Steps](#🏃available-steps) - **6**
   - [Use Cases](#use-cases)
 - [Run Locally](#run-locally) - _test me out!_
 - [Development](#development)
@@ -60,8 +60,7 @@ Get a user based on their Slack email. Returns the user as both a text `user_id`
 
 - [Core API Method](https://api.slack.com/methods/chat.scheduleMessage)
 
-_🚧 in development._
-Use Slack's internal Scheduled messages to schedule one up to 120 days in the future.
+Schedule bot messages to public channels up to 120 days in the future.
 
 ### More to come ....
 
@@ -99,7 +98,9 @@ What can you do with these extra triggers and actions?
 
 Slack used to offer [Outgoing Webhooks](https://slack.com/apps/A0F7VRG6Q-outgoing-webhooks?tab=more_info) as a way to listen for new messages/Trigger Words in Slack messages and then fire a webhook to external URLs.
 
-It has a warning at the top though _"Please note, this is a legacy custom integration - an outdated way for teams to integrate with Slack. These integrations lack newer features and they will be deprecated and possibly removed in the future."_. To avoid any issues, you can alternatively use WorkflowBuddy to listen for `message`**\*** events & then use it's `Step: Send a Webhook` to accomplish the same thing.
+It has a warning at the top though _"Please note, this is a legacy custom integration - an outdated way for teams to integrate with Slack. These integrations lack newer features and they will be deprecated and possibly removed in the future."_. To avoid any issues, you can alternatively use WorkflowBuddy to accomplish the same thing (in 2 ways!).
+
+Enable listening for `message`**\*** events, then either directly proxy the event to your webhook (by adding it to the `Event-Webhook Map` in App Home) or use the `Step: Send a Webhook` as part of a longer Workflow.
 
 **\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
 
