@@ -75,7 +75,8 @@ APP_HOME_FOOTER_BLOCKS = [
         "type": "section",
         "fields": [
             {"type": "plain_text", "text": "Slack: Create a Channel", "emoji": True},
-            {"type": "plain_text", "text": "Slack: Find user by Email", "emoji": True},
+            {"type": "plain_text", "text": "Slack: Find User by Email", "emoji": True},
+            {"type": "plain_text", "text": "🚧 Slack: Schedule a Message", "emoji": True},
             {
                 "type": "plain_text",
                 "text": "Utils: Send Outbound Webhook",
@@ -370,6 +371,15 @@ SLACK_UTILS_CONFIG = {
             {"label": "User", "name": "user", "type": "user"},
             {"label": "Real Name", "name": "real_name", "type": "text"},
         ],
+    },
+    "schedule_message": {
+        "draft": True,
+        "description": "Schedule a message up to 120 days in the future.",
+        "modal_input_blocks": [],
+        "inputs": {},
+        "outputs": [
+            {"label": "Scheduled Message ID", "name": "scheduled_message_id", "type": "text"}
+        ]
     },
     "set_channel_topic": {
         "draft": True,

@@ -83,7 +83,7 @@ def import_button_clicked(ack, body, logger, client):
 @app.view("import_submission")
 def import_config_submission(ack, body, client, view, logger):
     values = view["state"]["values"]
-    user = body["user"]["id"]
+    user_id = body["user"]["id"]
     json_config_str = values["json_config_input"]["json_config_value"]["value"]
     errors = {}
     try:
@@ -106,10 +106,11 @@ def import_config_submission(ack, body, client, view, logger):
 
     # Message the user
     try:
-        client.chat_postMessage(channel=user, text=msg)
+        client.chat_postMessage(channel=user_id, text=msg)
     except e:
         logger.exception(f"Failed to post a message {e}")
 
+    utils.update_app_home(client, user_id)
 
 @app.action("event_delete_clicked")
 def delete_event_mapping(ack, body, logger, client):
@@ -119,10 +120,7 @@ def delete_event_mapping(ack, body, logger, client):
     event_type = payload["value"]
     logger.info(f"EVENT_DELETE_CLICKED - {event_type}")
     utils.db_remove_event(event_type)
-
-    app_home_view = utils.build_app_home_view()
-    client.views_publish(user_id=user_id, view=app_home_view)
-
+    utils.update_app_home(client, user_id)
 
 @app.action("action_add_webhook")
 def add_button_clicked(ack, body, client):
@@ -162,7 +160,7 @@ def add_button_clicked(ack, body, client):
 @app.view("webhook_form_submission")
 def handle_webhook_submission(ack, body, client, view, logger):
     values = view["state"]["values"]
-    user = body["user"]["id"]
+    user_id = body["user"]["id"]
     event_type = values["event_type_input"]["event_type_value"]["value"]
     name = values["name_input"]["name_value"]["value"]
     webhook_url = values["webhook_url_input"]["webhook_url_value"]["value"]
@@ -187,9 +185,11 @@ def handle_webhook_submission(ack, body, client, view, logger):
         logger.exception(e)
         msg = f"There was an error attempting to add {webhook_url}."
     try:
-        client.chat_postMessage(channel=user, text=msg)
+        client.chat_postMessage(channel=user_id, text=msg)
     except e:
         logger.exception(f"Failed to post a message {e}")
+    
+    utils.update_app_home(client, user_id)
 
 
 # TODO: accept any of the keyword args that are allowed?
@@ -543,6 +543,20 @@ def execute_slack_utils(step, complete, fail, client, logger):
                 "user_id": resp["user"]["id"],
                 "team_id": resp["user"]["team_id"],
                 "real_name": resp["user"]["real_name"],
+            }
+            complete(outputs=outputs)
+        else:
+            errmsg = f"Slack err: {resp.get('error')}"
+            logger.error(errmsg)
+            fail(error={"message": errmsg})
+    elif chosen_action == "schedule_message":
+        channel = "CP1S57DAB"
+        post_at = "" # unix epoch timestamp
+        text = "hello world"
+        resp = client.chat_scheduleMessage(channel=channel, post_at=post_at, text=text)
+        if resp["ok"]:
+            outputs = {
+                "scheduled_message_id": resp["scheduled_message_id"],
             }
             complete(outputs=outputs)
         else:

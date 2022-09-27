@@ -46,15 +46,22 @@ Generate a random UUID with [Python's standard library](https://docs.python.org/
 
 ### (Slack) Create a channel
 
-- [API Method](https://api.slack.com/methods/conversations.create)
+- [Core API Method](https://api.slack.com/methods/conversations.create)
 
 This action will create a new channel with your specified name, then return the `channel_id` as both text & the `channel` type so it can be used in Slack's built-in functions.
 
 ### (Slack) Find user by email
 
-- [API Method](https://api.slack.com/methods/users.lookupByEmail)
+- [Core API Method](https://api.slack.com/methods/users.lookupByEmail)
 
 Get a user based on their Slack email. Returns the user as both a text `user_id` and a `user` type so it can be used in Slack's built-in functions.
+
+### (Slack) Schedule a message
+
+- [Core API Method](https://api.slack.com/methods/chat.scheduleMessage)
+
+_🚧 in development._
+Use Slack's internal Scheduled messages to schedule one up to 120 days in the future.
 
 ### More to come ....
 

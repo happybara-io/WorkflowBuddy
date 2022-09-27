@@ -30,6 +30,9 @@ with open(PERSISTED_JSON_FILE, "a+") as jf:
         IN_MEMORY_WRITE_THROUGH_CACHE = {}
 logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 
+###################
+# Utils
+###################
 
 def send_webhook(url, json_body):
     resp = requests.post(url, json=json_body)
@@ -76,6 +79,13 @@ def db_import(new_data):
 
 def db_export():
     return IN_MEMORY_WRITE_THROUGH_CACHE
+
+
+def update_app_home(client, user_id, view=None):
+    app_home_view = view
+    if not view:
+        app_home_view = build_app_home_view()
+    client.views_publish(user_id=user_id, view=app_home_view)
 
 
 def build_app_home_view():
