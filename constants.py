@@ -18,8 +18,13 @@ APP_HOME_HEADER_BLOCKS = [
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": f"Configure your Workflow Buddy bot here. _Need Help?_ :link: <{GITHUB_REPO_URL}|GitHub>",
+            "text": "Workflow Buddy lets you use any Slack Event as a trigger for Workflow Builder, as well as adding new Steps (e.g. `Send Outbound Webhook`).\nIt requires creating a Webhook-triggered Workflow, then adding the mapping between an event (e.g. `app_mention`) and the webhooks (aka workflows) you want triggered when an event happens. You can have multiple workflows triggered per event.\n_Need Help? :link: <https://github.com/happybara-io/WorkflowBuddy|GitHub Docs>._",
         },
+    },
+    {"type": "divider"},
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": "Event Triggers", "emoji": True},
     },
     {
         "type": "actions",
@@ -54,6 +59,36 @@ APP_HOME_FOOTER_BLOCKS = [
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
+    {"type": "divider"},
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": "Step Actions", "emoji": True},
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "The currently implemented Step actions. _<https://github.com/happybara-io/WorkflowBuddy#available-steps|Docs with more info>._",
+        },
+    },
+    {
+        "type": "section",
+        "fields": [
+            {"type": "plain_text", "text": "Slack: Create a Channel", "emoji": True},
+            {"type": "plain_text", "text": "Slack: Find user by Email", "emoji": True},
+            {
+                "type": "plain_text",
+                "text": "Utils: Send Outbound Webhook",
+                "emoji": True,
+            },
+            {
+                "type": "plain_text",
+                "text": "Utils: Get Random Integer from Range",
+                "emoji": True,
+            },
+            {"type": "plain_text", "text": "Utils: Get Random UUID", "emoji": True},
+        ],
+    },
     {"type": "divider"},
     {
         "type": "context",
@@ -239,12 +274,12 @@ SLACK_STEP_MODAL_COMMON_BLOCKS = [
                     "emoji": True,
                 },
                 "initial_option": {
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Find user by email",
-                            "emoji": True,
-                        },
-                        "value": "find_user_by_email",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Find user by email",
+                        "emoji": True,
+                    },
+                    "value": "find_user_by_email",
                 },
                 "options": [
                     {

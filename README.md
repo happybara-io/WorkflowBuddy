@@ -135,6 +135,9 @@ Alternative to running it with Docker, run the development server.
 - Update the Slack App console with new `ngrok` address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
 - (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site)
 
+#### UI/UX Development
+
+For the "UI" block surfaces (especially App Home), highly recommend opening in [Block Kit Builder](https://app.slack.com/block-kit-builder/) with the helper utility `get_block_kit_builder_link()`.
 
 ### How it works
 
