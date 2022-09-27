@@ -6,6 +6,11 @@
 
 This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of Steps available. The most important is the `webhook` functionality, which enables users to plug their Slack Workflow Steps into almost any other application.
 
+> **[ℹ️]** Alpha Disclaimer:
+> 
+> This code is in alpha stage on it's way to a stable 1st version. It's fully functional, but still needs resiliency features like retrying failed webhooks, retrying Slack API calls when rate-limited, etc.
+>
+
 - **WorkflowBuddy**
   - [Available Triggers](#🏁🎬-available-triggers) **Many**
   - [Available Steps](#🏃available-steps) - **6**
