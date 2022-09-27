@@ -30,7 +30,7 @@ def db_get_event_config(event_type):
 
 
 def sync_cache_to_disk():
-    logging.debug(f'Syncing cache to disk - {IN_MEMORY_WRITE_THROUGH_CACHE}')
+    logging.debug(f"Syncing cache to disk - {IN_MEMORY_WRITE_THROUGH_CACHE}")
     json_str = json.dumps(IN_MEMORY_WRITE_THROUGH_CACHE, indent=2)
     with open(PERSISTED_JSON_FILE, "w") as jf:
         jf.write(json_str)
@@ -108,6 +108,6 @@ def build_app_home_view():
             },
         ]
         blocks.extend(single_event_row)
-    
+
     blocks.extend(c.APP_HOME_FOOTER_BLOCKS)
     return {"type": "home", "blocks": blocks}

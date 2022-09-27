@@ -5,6 +5,9 @@ EVENT_APP_MENTION = "app_mention"
 EVENT_CHANNEL_CREATED = "channel_created"
 EVENT_WORKFLOW_PUBLISHED = "workflow_published"
 
+WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
+WORKFLOW_STEP_SLACK_UTILS_CALLBACK_ID = "slack_utils"
+
 APP_HOME_HEADER_BLOCKS = [
     {
         "type": "header",
@@ -46,57 +49,108 @@ APP_HOME_HEADER_BLOCKS = [
     {"type": "divider"},
 ]
 
-APP_HOME_FOOTER_BLOCKS = [{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "  "
-			}
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "plain_text",
-				"text": "    "
-			}
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "plain_text",
-				"text": "    "
-			}
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "plain_text",
-				"text": "    "
-			}
-		},
-		{
-			"type": "divider"
-		},
-		{
-			"type": "context",
-			"elements": [
-				{
-					"type": "image",
-					"image_url": "https://s3.happybara.io/happybara/main_logo.png",
-					"alt_text": "happybara.io"
-				},
-				{
-					"type": "mrkdwn",
-					"text": "Proudly built by <https://happybara.io|Happybara>."
-				}
-			]
-		}]
+APP_HOME_FOOTER_BLOCKS = [
+    {"type": "section", "text": {"type": "mrkdwn", "text": "  "}},
+    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
+    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
+    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
+    {"type": "divider"},
+    {
+        "type": "context",
+        "elements": [
+            {
+                "type": "image",
+                "image_url": "https://s3.happybara.io/happybara/main_logo.png",
+                "alt_text": "happybara.io",
+            },
+            {
+                "type": "mrkdwn",
+                "text": "Proudly built by <https://happybara.io|Happybara>.",
+            },
+        ],
+    },
+]
 
-# TODO: incorporate the blocks here as well
+UTILS_STEP_MODAL_COMMON_BLOCKS = [
+    {
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": "Choose Your Action Utility",
+            "emoji": True,
+        },
+    },
+    {
+        "type": "actions",
+        "block_id": "utilities_action_select",
+        "elements": [
+            {
+                "type": "static_select",
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "Select an item",
+                    "emoji": True,
+                },
+                "initial_option": {
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Send a Webhook",
+                        "emoji": True,
+                    },
+                    "value": "webhook",
+                },
+                "options": [
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Send a Webhook",
+                            "emoji": True,
+                        },
+                        "value": "webhook",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Random Integer",
+                            "emoji": True,
+                        },
+                        "value": "random_int",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Random UUID",
+                            "emoji": True,
+                        },
+                        "value": "random_uuid",
+                    },
+                ],
+                "action_id": "utilities_action_select_value",
+            }
+        ],
+    },
+]
+
 UTILS_CONFIG = {
     "webhook": {
         "draft": False,
-        "blocks": {"TODO": True},  # TODO
+        "description": "Send a webhook to the defined URL.",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "webhook_url_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "webhook_url_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "https://webhook.site/abcdefghijk",
+                    },
+                },
+                "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
+                # "optional": True,
+            },
+        ],
         "inputs": {
             "webhook_url": {
                 "name": "webhook_url",
@@ -114,7 +168,31 @@ UTILS_CONFIG = {
     },
     "random_int": {
         "draft": False,
-        "blocks": {},
+        "description": "Get a random integer from the range [lower bound - upper bound] (inclusive).",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "lower_bound_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "lower_bound_value",
+                    "placeholder": {"type": "plain_text", "text": "5"},
+                },
+                "label": {"type": "plain_text", "text": "Lower Bound", "emoji": True},
+                "optional": True,
+            },
+            {
+                "type": "input",
+                "block_id": "upper_bound_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "upper_bound_value",
+                    "placeholder": {"type": "plain_text", "text": "100"},
+                },
+                "label": {"type": "plain_text", "text": "Upper Bound", "emoji": True},
+                "optional": True,
+            },
+        ],
         "inputs": {
             "lower_bound": {
                 "name": "lower_bound",
@@ -133,12 +211,64 @@ UTILS_CONFIG = {
     },
     "random_uuid": {
         "draft": False,
-        "blocks": {},
+        "description": "Generated a UUID, e.g. `'9ba98b34-7e54-4b78-8833-ca29380aae08`.",
+        "modal_input_blocks": [],
         "inputs": {},
         "outputs": [{"name": "random_uuid", "label": "Random UUID", "type": "text"}],
     },
 }
 
+SLACK_STEP_MODAL_COMMON_BLOCKS = [
+    {
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": "Choose Your Slack Action",
+            "emoji": True,
+        },
+    },
+    {
+        "type": "actions",
+        "block_id": "slack_utilities_action_select",
+        "elements": [
+            {
+                "type": "static_select",
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "Select an item",
+                    "emoji": True,
+                },
+                "initial_option": {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Find user by email",
+                            "emoji": True,
+                        },
+                        "value": "find_user_by_email",
+                },
+                "options": [
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Channels Create",
+                            "emoji": True,
+                        },
+                        "value": "conversations_create",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Find user by email",
+                            "emoji": True,
+                        },
+                        "value": "find_user_by_email",
+                    },
+                ],
+                "action_id": "slack_utilities_action_select_value",
+            }
+        ],
+    },
+]
 
 # TODO: handle optional API arguments
 # TODO: make it easy to copy-paste blocks from block-kit builder
@@ -146,7 +276,23 @@ UTILS_CONFIG = {
 SLACK_UTILS_CONFIG = {
     "conversations_create": {
         "draft": False,
-        "blocks": {},
+        "description": "Create a new channel with your specified channel name.\n⚠️_Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars._",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "channel_name_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "channel_name_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "my-super-awesome-new-channel",
+                    },
+                },
+                "label": {"type": "plain_text", "text": "Channel Name", "emoji": True},
+                # "optional": True,
+            }
+        ],
         "inputs": {
             "channel_name": {
                 "name": "channel_name",
@@ -162,7 +308,20 @@ SLACK_UTILS_CONFIG = {
     },
     "find_user_by_email": {
         "draft": False,
-        "blocks": {},
+        "description": "Find a Slack user based on their account email.",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "user_email_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "user_email_value",
+                    "placeholder": {"type": "plain_text", "text": "user@example.com"},
+                },
+                "label": {"type": "plain_text", "text": "User Email", "emoji": True},
+                # "optional": True,
+            }
+        ],
         "inputs": {
             "user_email": {
                 "name": "user_email",

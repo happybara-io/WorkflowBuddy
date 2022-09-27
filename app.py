@@ -6,6 +6,7 @@ import os
 import constants as c
 import utils
 import json
+import copy
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -322,87 +323,48 @@ app.step(ws)
 def edit_utils(ack, step, configure):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
-    blocks = [
+    blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
+    DEFAULT_ACTION = "webhook"
+    blocks.append(
         {
-            "type": "header",
+            "type": "section",
             "text": {
-                "type": "plain_text",
-                "text": "Choose Your Action Utility",
-                "emoji": True,
+                "type": "mrkdwn",
+                "text": f"{c.UTILS_CONFIG[DEFAULT_ACTION].get('description')}",
             },
-        },
-        {
-            "type": "actions",
-            "block_id": "utilities_action_select",
-            "elements": [
-                {
-                    "type": "static_select",
-                    "placeholder": {
-                        "type": "plain_text",
-                        "text": "Select an item",
-                        "emoji": True,
-                    },
-                    "initial_option": {
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Send a Webhook",
-                            "emoji": True,
-                        },
-                        "value": "webhook",
-                    },
-                    "options": [
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Send a Webhook",
-                                "emoji": True,
-                            },
-                            "value": "webhook",
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Random Integer",
-                                "emoji": True,
-                            },
-                            "value": "random_int",
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Random UUID",
-                                "emoji": True,
-                            },
-                            "value": "random_uuid",
-                        },
-                    ],
-                    "action_id": "utilities_action_select_value",
-                }
-            ],
-        },
-        {
-            "type": "input",
-            "block_id": "webhook_url_input",
-            "element": {"type": "plain_text_input", "action_id": "webhook_url_value"},
-            "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
-            "optional": True,
-        },
-        {
-            "type": "input",
-            "block_id": "lower_bound_input",
-            "element": {"type": "plain_text_input", "action_id": "lower_bound_value"},
-            "label": {"type": "plain_text", "text": "Lower Bound", "emoji": True},
-            "optional": True,
-        },
-        {
-            "type": "input",
-            "block_id": "upper_bound_input",
-            "element": {"type": "plain_text_input", "action_id": "upper_bound_value"},
-            "label": {"type": "plain_text", "text": "Upper Bound", "emoji": True},
-            "optional": True,
-        },
-    ]
+        }
+    )
+    blocks.extend(c.UTILS_CONFIG[DEFAULT_ACTION]["modal_input_blocks"])
     configure(blocks=blocks)
+
+
+# TODO: this seems like it would be a good thing to just have natively in Bolt.
+# Lots of people want to update their Step view.
+@app.action("utilities_action_select_value")
+def utils_update_step_modal(ack, body, logger, client):
+    ack()
+    logger.info(f"ACTION_CHANGE: {body}")
+    selected_action = body["actions"][0]["selected_option"]["value"]
+    updated_blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
+    updated_blocks.append(
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"{c.UTILS_CONFIG[selected_action].get('description')}",
+            },
+        }
+    )
+    updated_blocks.extend(c.UTILS_CONFIG[selected_action]["modal_input_blocks"])
+    updated_view = {
+        "type": "workflow_step",
+        "callback_id": c.WORKFLOW_STEP_UTILS_CALLBACK_ID,
+        "blocks": updated_blocks,
+    }
+    resp = client.views_update(
+        view_id=body["view"]["id"], hash=body["view"]["hash"], view=updated_view
+    )
+    logger.info(resp)
 
 
 def save_utils(ack, view, update, logger):
@@ -472,7 +434,7 @@ def execute_utils(step, complete, fail):
 
 
 utils_ws = WorkflowStep(
-    callback_id="utilities",
+    callback_id=c.WORKFLOW_STEP_UTILS_CALLBACK_ID,
     edit=edit_utils,
     save=save_utils,
     execute=execute_utils,
@@ -484,98 +446,48 @@ app.step(utils_ws)
 ############################
 def edit_slack_utils(ack, step, configure):
     ack()
-    blocks = [
+    blocks = copy.deepcopy(c.SLACK_STEP_MODAL_COMMON_BLOCKS)
+    DEFAULT_ACTION = "find_user_by_email"
+    blocks.append(
         {
-            "type": "header",
+            "type": "section",
             "text": {
-                "type": "plain_text",
-                "text": "Choose Your Slack Action",
-                "emoji": True,
+                "type": "mrkdwn",
+                "text": f"{c.SLACK_UTILS_CONFIG[DEFAULT_ACTION].get('description')}",
             },
-        },
-        {
-            "type": "actions",
-            "block_id": "slack_utilities_action_select",
-            "elements": [
-                {
-                    "type": "static_select",
-                    "placeholder": {
-                        "type": "plain_text",
-                        "text": "Select an item",
-                        "emoji": True,
-                    },
-                    "initial_option": {
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Channels Create",
-                            "emoji": True,
-                        },
-                        "value": "conversations_create",
-                    },
-                    "options": [
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Channels Create",
-                                "emoji": True,
-                            },
-                            "value": "conversations_create",
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Find user by email",
-                                "emoji": True,
-                            },
-                            "value": "find_user_by_email",
-                        },
-                    ],
-                    "action_id": "slack_utilities_action_select_value",
-                }
-            ],
-        },
-        {
-            "type": "input",
-            "block_id": "channel_name_input",
-            "element": {"type": "plain_text_input", "action_id": "channel_name_value"},
-            "label": {"type": "plain_text", "text": "Channel Name", "emoji": True},
-            "optional": True,
-        },
-        {
-            "type": "input",
-            "block_id": "user_email_input",
-            "element": {"type": "plain_text_input", "action_id": "user_email_value"},
-            "label": {"type": "plain_text", "text": "User Email", "emoji": True},
-            "optional": True,
-        },
-    ]
+        }
+    )
+    blocks.extend(c.SLACK_UTILS_CONFIG[DEFAULT_ACTION]["modal_input_blocks"])
     configure(blocks=blocks)
 
 
+# TODO: this seems like it would be a good thing to just have natively in Bolt.
+# Lots of people want to update their Step view.
 @app.action("slack_utilities_action_select_value")
-def handle_some_action(ack, body, logger, client):
+def slack_utils_update_step_modal(ack, body, logger, client):
     ack()
     logger.info(f"SLACK_ACTION_CHANGE: {body}")
-
+    selected_action = body["actions"][0]["selected_option"]["value"]
+    updated_blocks = copy.deepcopy(c.SLACK_STEP_MODAL_COMMON_BLOCKS)
+    updated_blocks.append(
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"{c.SLACK_UTILS_CONFIG[selected_action].get('description')}",
+            },
+        }
+    )
+    updated_blocks.extend(c.SLACK_UTILS_CONFIG[selected_action]["modal_input_blocks"])
     updated_view = {
-        "type": "modal",
-        "callback_id": "view_1",
-        "title": {"type": "plain_text", "text": "Updated modal"},
-        "blocks": [
-            {
-                "type": "section",
-                "text": {"type": "plain_text", "text": "You updated the modal!"},
-            },
-            {
-                "type": "image",
-                "image_url": "https://media.giphy.com/media/SVZGEcYt7brkFUyU90/giphy.gif",
-                "alt_text": "Yay! The modal was updated",
-            },
-        ],
+        "type": "workflow_step",
+        "callback_id": c.WORKFLOW_STEP_SLACK_UTILS_CALLBACK_ID,
+        "blocks": updated_blocks,
     }
     resp = client.views_update(
         view_id=body["view"]["id"], hash=body["view"]["hash"], view=updated_view
     )
+    logger.info(resp)
 
 
 # TODO: this is exactly the same as the other utils func with tiny change, why am i duplicating?
@@ -607,7 +519,7 @@ def execute_slack_utils(step, complete, fail, client, logger):
     inputs = step["inputs"]
     chosen_action = step["inputs"]["selected_utility"]["value"]
     logger.info(f"Chosen action: {chosen_action}")
-    
+
     if chosen_action == "conversations_create":
         channel_name = inputs["channel_name"]["value"]
         resp = client.conversations_create(name=channel_name)
@@ -645,7 +557,7 @@ def execute_slack_utils(step, complete, fail, client, logger):
 
 
 slack_utils_ws = WorkflowStep(
-    callback_id="slack_utils",
+    callback_id=c.WORKFLOW_STEP_SLACK_UTILS_CALLBACK_ID,
     edit=edit_slack_utils,
     save=save_slack_utils,
     execute=execute_slack_utils,
