@@ -85,7 +85,11 @@ APP_HOME_FOOTER_BLOCKS = [
         "type": "section",
         "fields": [
             {"type": "plain_text", "text": "• Slack: Create a Channel", "emoji": True},
-            {"type": "plain_text", "text": "• Slack: Find User by Email", "emoji": True},
+            {
+                "type": "plain_text",
+                "text": "• Slack: Find User by Email",
+                "emoji": True,
+            },
             {
                 "type": "plain_text",
                 "text": "• Slack: Schedule a Message",
@@ -121,6 +125,15 @@ APP_HOME_FOOTER_BLOCKS = [
     },
 ]
 
+UTILS_ACTION_LABELS = {
+    "webhook": "Send a Webhook",
+    "random_int": "Random Integer",
+    "random_uuid": "Random UUID",
+    "manual_complete": "Wait for Manual Complete",
+}
+
+# Try to avoid needing variables in blocks, break it down if needed - want to be able to
+# easily use this with Block Kit Builder
 UTILS_STEP_MODAL_COMMON_BLOCKS = [
     {
         "type": "header",
@@ -144,7 +157,7 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                 "initial_option": {
                     "text": {
                         "type": "plain_text",
-                        "text": "Send a Webhook",
+                        "text": UTILS_ACTION_LABELS["webhook"],
                         "emoji": True,
                     },
                     "value": "webhook",
@@ -153,7 +166,7 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                     {
                         "text": {
                             "type": "plain_text",
-                            "text": "Send a Webhook",
+                            "text": UTILS_ACTION_LABELS["webhook"],
                             "emoji": True,
                         },
                         "value": "webhook",
@@ -161,7 +174,7 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                     {
                         "text": {
                             "type": "plain_text",
-                            "text": "Random Integer",
+                            "text": UTILS_ACTION_LABELS["random_int"],
                             "emoji": True,
                         },
                         "value": "random_int",
@@ -169,10 +182,18 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                     {
                         "text": {
                             "type": "plain_text",
-                            "text": "Random UUID",
+                            "text": UTILS_ACTION_LABELS["random_uuid"],
                             "emoji": True,
                         },
                         "value": "random_uuid",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["manual_complete"],
+                            "emoji": True,
+                        },
+                        "value": "manual_complete",
                     },
                 ],
                 "action_id": "utilities_action_select_value",
@@ -265,6 +286,35 @@ UTILS_CONFIG = {
         "modal_input_blocks": [],
         "inputs": {},
         "outputs": [{"name": "random_uuid", "label": "Random UUID", "type": "text"}],
+    },
+    "manual_complete": {
+        "draft": True,
+        "description": "Hold in progress until an execution ID is submitted to complete/fail the execution.",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "conversation_id_input",
+                "element": {
+                    "type": "conversations_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "Select conversation",
+                        "emoji": True,
+                    },
+                    "action_id": "conversation_id_value",
+                },
+                "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
+            }
+        ],
+        "inputs": {
+            "conversation_id": {
+                "name": "conversation_id",
+                "type": "conversations_select",
+                "block_id": "conversation_id_input",
+                "action_id": "conversation_id_value",
+            }
+        },
+        "outputs": [{"name": "execution_id", "label": "Execution ID", "type": "text"}],
     },
 }
 
@@ -428,7 +478,7 @@ SLACK_UTILS_CONFIG = {
                 "hint": {
                     "type": "plain_text",
                     "text": "Use https://www.unixtimestamp.com/ to convert easily.",
-                    "emoji": True
+                    "emoji": True,
                 }
                 # "optional": True,
             },

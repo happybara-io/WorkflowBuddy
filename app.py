@@ -11,7 +11,7 @@ import copy
 logging.basicConfig(level=logging.DEBUG)
 
 from slack_bolt import App, Ack
-from slack_bolt.workflows.step import WorkflowStep
+from slack_bolt.workflows.step import WorkflowStep, Configure, Complete, Fail, Update
 from slack_bolt.adapter.flask import SlackRequestHandler
 import slack_sdk
 from slack_sdk.models.views import View
@@ -24,7 +24,7 @@ app = App()
 # Slack app stuff
 ############################
 @app.middleware  # or app.use(log_request)
-def log_request(logger: logging.Logger, body, next):
+def log_request(logger: logging.Logger, body: dict, next):
     logger.debug(body)
     return next()
 
@@ -42,14 +42,14 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient):
             },
         },
         {
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "_Backticks ` have been replaced with ' only for display._"
-				}
-			]
-		},
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "_Backticks ` have been replaced with ' only for display._",
+                }
+            ],
+        },
         {"type": "divider"},
     ]
     if resp["ok"]:
@@ -69,7 +69,7 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient):
         for sm in messages_list:
             text = sm["text"]
             # backticks were screwing up mine, escaping doesn't seem to work tho
-            safe_text = text.replace('`', "'")
+            safe_text = text.replace("`", "'")
             blocks.append(
                 {
                     "type": "section",
@@ -110,6 +110,18 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient):
         "blocks": blocks,
     }
     return sm_modal
+
+
+def finish_an_execution(
+    client: slack_sdk.WebClient, execution_id: str, status="complete", err_msg=None
+):
+    if status == "complete":
+        resp = client.workflows_stepCompleted(workflow_step_execute_id=execution_id)
+    else:
+        resp = client.workflows_stepFailed(
+            workflow_step_execute_id=execution_id, error={"message": err_msg}
+        )
+    return resp
 
 
 @app.action("scheduled_message_delete_clicked")
@@ -237,7 +249,7 @@ def import_config_submission(
 
 @app.action("event_delete_clicked")
 def delete_event_mapping(
-    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+    ack: Ack, body: dict, logger: logging.Logger, client: slack_sdk.WebClient
 ):
     ack()
     user_id = body["user"]["id"]
@@ -249,7 +261,7 @@ def delete_event_mapping(
 
 
 @app.action("action_add_webhook")
-def add_button_clicked(ack: Ack, body, client: slack_sdk.WebClient):
+def add_button_clicked(ack: Ack, body: dict, client: slack_sdk.WebClient):
     ack()
 
     add_webhook_form_blocks = [
@@ -285,7 +297,11 @@ def add_button_clicked(ack: Ack, body, client: slack_sdk.WebClient):
 
 @app.view("webhook_form_submission")
 def handle_webhook_submission(
-    ack: Ack, body, client: slack_sdk.WebClient, view: View, logger: logging.Logger
+    ack: Ack,
+    body: dict,
+    client: slack_sdk.WebClient,
+    view: View,
+    logger: logging.Logger,
 ):
     values = view["state"]["values"]
     user_id = body["user"]["id"]
@@ -321,7 +337,7 @@ def handle_webhook_submission(
 
 
 # TODO: accept any of the keyword args that are allowed?
-def generic_event_proxy(logger: logging.Logger, event, body):
+def generic_event_proxy(logger: logging.Logger, event: dict, body: dict):
     event_type = event.get("type")
     logger.info(f"||{event_type}|BODY:{body}")
     try:
@@ -339,22 +355,22 @@ def generic_event_proxy(logger: logging.Logger, event, body):
 
 
 @app.event(c.EVENT_APP_MENTION)
-def event_app_mention(logger: logging.Logger, event, body):
+def event_app_mention(logger: logging.Logger, event: dict, body: dict):
     generic_event_proxy(logger, event, body)
 
 
 @app.event(c.EVENT_CHANNEL_CREATED)
-def event_channel_created(logger: logging.Logger, event, body):
+def event_channel_created(logger: logging.Logger, event: dict, body: dict):
     generic_event_proxy(logger, event, body)
 
 
 @app.event(c.EVENT_WORKFLOW_PUBLISHED)
-def handle_workflow_published_events(body, logger: logging.Logger):
+def handle_workflow_published_events(body: dict, logger: logging.Logger):
     logger.info(body)
 
 
 @app.event(c.EVENT_APP_HOME_OPENED)
-def update_app_home(event, logger: logging.Logger, client: slack_sdk.WebClient):
+def update_app_home(event: dict, logger: logging.Logger, client: slack_sdk.WebClient):
     app_home_view = utils.build_app_home_view()
     client.views_publish(user_id=event["user"], view=app_home_view)
 
@@ -364,7 +380,7 @@ def handle_message():
     pass
 
 
-def edit(ack: Ack, step: WorkflowStep, configure):
+def edit(ack: Ack, step: dict, configure: Configure):
     ack()
 
     blocks = [
@@ -418,7 +434,7 @@ def save(ack: Ack, view, update):
     update(inputs=inputs, outputs=outputs)
 
 
-def execute(step: WorkflowStep, complete, fail):
+def execute(step: dict, complete: Complete, fail: Fail):
     inputs = step["inputs"]
     # if everything was successful
     # outputs = {
@@ -445,21 +461,70 @@ app.step(ws)
 ###########################
 # Utilities (non-Slack helper tools)
 ############################
-def edit_utils(ack: Ack, step: WorkflowStep, configure):
+def edit_utils(ack: Ack, step: dict, configure: Configure):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
+    print("STEP:", step)
+    existing_inputs = copy.deepcopy(
+        step["inputs"]
+    )  # avoid potential issue when we delete from it
+
+    # TODO: STEP has your saved inputs!!!
+    # "inputs": {
+    #     "conversation_id": {"value": "CP1S57DAB"},
+    #     "selected_utility": {"value": "manual_complete"},
+    # },
     blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
     DEFAULT_ACTION = "webhook"
+    chosen_action = (
+        existing_inputs.get("selected_utility", {}).get("value") or DEFAULT_ACTION
+    )
+    print("Chosen", chosen_action)
+    # update top blocks if existing input selection, hardcoded for now
+    for block in blocks:
+        if block.get("block_id") == "utilities_action_select":
+            block["elements"][0]["initial_option"] = {
+                "text": {
+                    "type": "plain_text",
+                    "text": c.UTILS_ACTION_LABELS[chosen_action],
+                    "emoji": True,
+                },
+                "value": chosen_action,
+            }
+
+    chosen_config_item = c.UTILS_CONFIG[chosen_action]
     blocks.append(
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"{c.UTILS_CONFIG[DEFAULT_ACTION].get('description')}",
+                "text": f"{chosen_config_item.get('description')}",
             },
         }
     )
-    blocks.extend(c.UTILS_CONFIG[DEFAULT_ACTION]["modal_input_blocks"])
+    blocks.extend(chosen_config_item["modal_input_blocks"])
+
+    if existing_inputs:
+        # kinda a crappy way to fill out existing inputs into initial values, but fast enough
+        del existing_inputs["selected_utility"]
+        for input_name, value_obj in existing_inputs.items():
+            prev_input_value = value_obj["value"]
+            curr_input_config = chosen_config_item["inputs"][input_name]
+            print("CURR_INPUT_CONFIG", curr_input_config)
+            # loop through blocks to find it's home
+            for block in blocks:
+                print("BLOCK", block)
+                if block.get("block_id") == curr_input_config["block_id"]:
+                    # add initial placeholder info
+                    if curr_input_config.get("type") == "conversations_select":
+                        block["element"]["initial_conversation"] = prev_input_value
+                    elif curr_input_config.get("type") == "channels_select":
+                        block["element"]["initial_channel"] = prev_input_value
+                    elif curr_input_config.get("type") == "users_select":
+                        block["element"]["initial_user"] = prev_input_value
+                    else:
+                        # assume plain_text_input cuz it's common
+                        block["element"]["initial_value"] = prev_input_value
     configure(blocks=blocks)
 
 
@@ -511,14 +576,21 @@ def save_utils(ack: Ack, view, update, logger: logging.Logger):
     for name, input_config in curr_action_config["inputs"].items():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
-        inputs[name] = {"value": values[block_id][action_id]["value"]}
+        if input_config.get("type") == "channels_select":
+            print("VALUES", values)
+            value = values[block_id][action_id]["selected_channel"]
+        elif input_config.get("type") == "conversations_select":
+            value = values[block_id][action_id]["selected_conversation"]
+        else:
+            value = values[block_id][action_id]["value"]
+        inputs[name] = {"value": value}
 
     logger.debug(f"INPUTS: {inputs}")
     outputs = curr_action_config["outputs"]
     update(inputs=inputs, outputs=outputs)
 
 
-def run_webhook(step: WorkflowStep, complete, fail):
+def run_webhook(step: dict, complete: Complete, fail: Fail):
     # TODO: input validation & error handling
     inputs = step["inputs"]
     url = inputs["webhook_url"]["value"]
@@ -530,7 +602,7 @@ def run_webhook(step: WorkflowStep, complete, fail):
     complete(outputs=outputs)
 
 
-def run_random_int(step: WorkflowStep, complete, fail):
+def run_random_int(step: dict, complete: Complete, fail: Fail):
     # TODO: input validation & error handling
     inputs = step["inputs"]
     lower_bound = int(inputs["lower_bound"]["value"])
@@ -541,13 +613,47 @@ def run_random_int(step: WorkflowStep, complete, fail):
     complete(outputs=outputs)
 
 
-def run_random_uuid(step: WorkflowStep, complete, fail):
+def run_random_uuid(step: dict, complete: Complete, fail: Fail):
     # TODO: input validation & error handling
     outputs = {"random_uuid": str(uuid.uuid4())}
     complete(outputs=outputs)
 
 
-def execute_utils(step: WorkflowStep, complete, fail):
+def run_manual_complete(
+    step: dict, event: dict, client: slack_sdk.WebClient, logger: logging.Logger
+):
+    # https://api.slack.com/methods/chat.postMessage
+    # https://api.slack.com/events/workflow_step_execute
+    inputs = step["inputs"]
+    # TODO: by providing a conversation ID, rather than restricting to something else, it brings up possibility Bot isn't in the channel.
+    # Need to rectify during configuration step for good UX.
+    conversation_id = inputs["conversation_id"]["value"]
+
+    # TODO: where is the execution id hiding?
+    execution_id = event["workflow_step"]["workflow_step_execute_id"]
+
+    # TODO: this message needs to provide context on the workflow it's connected to, otherwise it's just a random ID
+    # TODO: this could be nice as 2 buttons rather than an ID, one for Complete/one for Fail, pops a modal and asks for failure reason then kills it.
+    fallback_text = f"WorkflowBuddy dropping off your execution ID: {execution_id}. Use this to manually complete the workflow once tasks have been completed to your satisfaction."
+    blocks = json.dumps(
+        {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}}
+    )
+    resp = client.chat_postMessage(
+        channel=conversation_id, text=fallback_text, blocks=blocks
+    )
+    logger.info(resp)
+    # Don't even think about calling fail/complete!
+    pass
+
+
+def execute_utils(
+    step: dict,
+    event: dict,
+    complete: Complete,
+    fail: Fail,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
+):
     chosen_action = step["inputs"]["selected_utility"]["value"]
     logging.info(f"Chosen action: {chosen_action}")
     if chosen_action == "webhook":
@@ -556,6 +662,8 @@ def execute_utils(step: WorkflowStep, complete, fail):
         run_random_int(step, complete, fail)
     elif chosen_action == "random_uuid":
         run_random_uuid(step, complete, fail)
+    elif chosen_action == "manual_complete":
+        run_manual_complete(step, event, client, logger)
     else:
         fail()
 
@@ -571,7 +679,7 @@ app.step(utils_ws)
 ###########################
 # Slack Utilities (give Workflow Builder access to more Slack APIs)
 ############################
-def edit_slack_utils(ack: Ack, step: WorkflowStep, configure):
+def edit_slack_utils(ack: Ack, step: dict, configure: Configure):
     ack()
     blocks = copy.deepcopy(c.SLACK_STEP_MODAL_COMMON_BLOCKS)
     DEFAULT_ACTION = "find_user_by_email"
@@ -620,7 +728,7 @@ def slack_utils_update_step_modal(
 
 
 # TODO: this is exactly the same as the other utils func with tiny change, why am i duplicating?
-def save_slack_utils(ack: Ack, view, update, logger: logging.Logger):
+def save_slack_utils(ack: Ack, view: dict, update: Update, logger: logging.Logger):
     values = view["state"]["values"]
     # include this in every event as context
     selected_option_object = values["slack_utilities_action_select"][
@@ -648,7 +756,11 @@ def save_slack_utils(ack: Ack, view, update, logger: logging.Logger):
 
 
 def execute_slack_utils(
-    step: WorkflowStep, complete, fail, client, logger: logging.Logger
+    step: dict,
+    complete: Complete,
+    fail,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
 ):
     # TODO: make sure to log the execution event so it can be killed manually if needed
     inputs = step["inputs"]
