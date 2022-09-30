@@ -7,8 +7,10 @@ EVENT_CHANNEL_CREATED = "channel_created"
 EVENT_CHANNEL_DELETED = "channel_deleted"
 EVENT_CHANNEL_UNARCHIVE = "channel_unarchive"
 EVENT_WORKFLOW_PUBLISHED = "workflow_published"
+EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
+WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
 APP_HOME_HEADER_BLOCKS = [
     {
@@ -76,6 +78,30 @@ APP_HOME_HEADER_BLOCKS = [
     {"type": "divider"},
 ]
 
+URLS = {
+    "images": {
+        "main_logo": "https://s3.happybara.io/happybara/main_logo.png",
+        "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
+        "footer": {
+            "dark": "https://s3.happybara.io/common/bara-footer-dark.jpg",
+            "light": "https://s3.happybara.io/common/bara-footer-light.png",
+            "oceanic": "https://s3.happybara.io/common/bara-footer-oceanic.jpg",
+        },
+    }
+}
+# TODO: borrow images and stuff
+# def app_home_footer_blocks(user_settings):
+#     block_list = []
+#     extension = '.png'
+#     if user_settings['appearance'] != 'light':
+#         extension = '.jpg'
+#     block_list.append(ImageBlock(image_url=c.COMMON_URL + 'bara-footer-' + user_settings['appearance'] + extension, alt_text='happybara.io'))
+#     block_list.extend(spacer_blocks(2))
+#     block_list.extend(logo_context_blocks())
+#     block_list.extend(spacer_blocks(1))
+#     return block_list
+
+
 APP_HOME_FOOTER_BLOCKS = [
     {"type": "section", "text": {"type": "mrkdwn", "text": "  "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
@@ -126,7 +152,7 @@ APP_HOME_FOOTER_BLOCKS = [
         "elements": [
             {
                 "type": "image",
-                "image_url": "https://s3.happybara.io/happybara/main_logo.png",
+                "image_url": URLS["images"]["main_logo"],
                 "alt_text": "happybara.io",
             },
             {
@@ -144,9 +170,19 @@ UTILS_ACTION_LABELS = {
     "manual_complete": "Wait for Manual Complete",
     "conversations_create": "Slack: Channels Create",
     "find_user_by_email": "Slack: Find User by Email",
-    "schedule_message": "Slack: Schedule a Message"
-
+    "schedule_message": "Slack: Schedule a Message",
 }
+
+WEBHOOK_STEP_MODAL_COMMON_BLOCKS = [
+    {
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": "Send an outgoing webhook",
+            "emoji": True,
+        },
+    },
+]
 
 
 # Try to avoid needing variables in blocks, break it down if needed - want to be able to
@@ -212,7 +248,7 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                         },
                         "value": "manual_complete",
                     },
-                     {
+                    {
                         "text": {
                             "type": "plain_text",
                             "text": UTILS_ACTION_LABELS["conversations_create"],
@@ -246,9 +282,9 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
 # # TODO: handle optional API arguments
 UTILS_CONFIG = {
     "webhook": {
+        "step_name": "Send a webhook",
         "draft": False,
-                        "isSlack": False,
-
+        "isSlack": False,
         "description": "Send a webhook to the defined URL.",
         "modal_input_blocks": [
             {
@@ -263,7 +299,67 @@ UTILS_CONFIG = {
                     },
                 },
                 "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
-                # "optional": True,
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "_Open <https://www.jsonformatter.io/|Webhook.site> to get a URL for debugging._",
+                    }
+                ],
+            },
+            {
+                "type": "input",
+                "optional": True,
+                "block_id": "block_checkboxes",
+                "element": {
+                    "type": "checkboxes",
+                    "options": [
+                        {
+                            "text": {"type": "mrkdwn", "text": " "},
+                            "description": {
+                                "type": "mrkdwn",
+                                "text": "_Check this if you want Workflow to halt on server errors, otherwise it can continue._",
+                            },
+                            "value": "fail_on_http_error",
+                        }
+                    ],
+                    "action_id": "action_checkboxes",
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "❌ Fail for HTTP error codes (4xx, 5xx)",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "input",
+                "block_id": "request_json_str_input",
+                "optional": True,
+                "element": {
+                    "type": "plain_text_input",
+                    "multiline": True,
+                    "action_id": "request_json_str_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": '{\n    "key": "value"\n}',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Request JSON Body",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "_Format your JSON using your text editor or a site like <https://www.jsonformatter.io/|JSON Formatter>._",
+                    }
+                ],
             },
         ],
         "inputs": {
@@ -271,20 +367,37 @@ UTILS_CONFIG = {
                 "name": "webhook_url",
                 "block_id": "webhook_url_input",
                 "action_id": "webhook_url_value",
-            }
+            },
+            "bool_flags": {
+                "name": "bool_flags",
+                "type": "checkboxes",
+                "block_id": "block_checkboxes",
+                "action_id": "action_checkboxes",
+            },
+            "request_json_str": {
+                "name": "request_json_str",
+                "is_json": True,
+                "block_id": "request_json_str_input",
+                "action_id": "request_json_str_value",
+            },
         },
         "outputs": [
             {
                 "type": "text",
                 "name": "webhook_status_code",
                 "label": "Webhook Status Code",
-            }
+            },
+            {
+                "type": "text",
+                "name": "webhook_response_text",
+                "label": "Webhook Response Text",
+            },
         ],
     },
     "random_int": {
+        "step_name": "Random Integer",
         "draft": False,
-                        "isSlack": False,
-
+        "isSlack": False,
         "description": "Get a random integer from the range [lower bound - upper bound] (inclusive).",
         "modal_input_blocks": [
             {
@@ -328,15 +441,16 @@ UTILS_CONFIG = {
     },
     "random_uuid": {
         "draft": False,
+        "step_name": "Random UUID",
         "description": "Generated a UUID, e.g. `'9ba98b34-7e54-4b78-8833-ca29380aae08`.",
         "modal_input_blocks": [],
         "inputs": {},
         "outputs": [{"name": "random_uuid", "label": "Random UUID", "type": "text"}],
     },
     "manual_complete": {
-        "draft": True,
-                "isSlack": False,
-
+        "draft": False,
+        "step_name": "Wait for Human",
+        "isSlack": False,
         "description": "Hold in progress until an execution ID is submitted to complete/fail the execution.",
         "modal_input_blocks": [
             {
@@ -366,7 +480,9 @@ UTILS_CONFIG = {
     },
     "conversations_create": {
         "draft": False,
-                "isSlack": True,
+        "isSlack": True,
+        "step_name": "Create a channel",
+        "step_image_url": URLS["images"]["slack_logo"],
         "description": "Create a new channel with your specified channel name.\n⚠️_Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars._",
         "modal_input_blocks": [
             {
@@ -399,7 +515,9 @@ UTILS_CONFIG = {
     },
     "find_user_by_email": {
         "draft": False,
-                "isSlack": True,
+        "isSlack": True,
+        "step_name": "Find user by email",
+        "step_image_url": URLS["images"]["slack_logo"],
         "description": "Find a Slack user based on their account email.",
         "modal_input_blocks": [
             {
@@ -431,6 +549,8 @@ UTILS_CONFIG = {
     "schedule_message": {
         "draft": False,
         "isSlack": True,
+        "step_name": "Schedule a message",
+        "step_image_url": URLS["images"]["slack_logo"],
         "description": "Schedule a message up to 120 days in the future.",
         "modal_input_blocks": [
             {
@@ -500,6 +620,8 @@ UTILS_CONFIG = {
     "set_channel_topic": {
         "draft": True,
         "isSlack": True,
+        "step_name": "Create a channel",
+        "step_image_url": URLS["images"]["slack_logo"],
         "blocks": {"TODO": True},  # TODO
         "inputs": {
             "conversation_id": {

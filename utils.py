@@ -34,8 +34,8 @@ logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 ###################
 
 
-def send_webhook(url, json_body):
-    resp = requests.post(url, json=json_body)
+def send_webhook(url, body: dict):
+    resp = requests.post(url, json=body)
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 

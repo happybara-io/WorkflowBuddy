@@ -13,6 +13,8 @@ features:
   workflow_steps:
     - name: Utilities
       callback_id: utilities
+    - name: Outgoing Webhooks
+      callback_id: outgoing_webhook
 oauth_config:
   scopes:
     bot:
