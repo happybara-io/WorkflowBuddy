@@ -48,7 +48,8 @@
                                     "type": "text",
                                     "label": "Random Int Text"
                                 }
-                            ]
+                            ],
+                            "step_name": "Random Integer"
                         }
                     }
                 },
@@ -76,7 +77,8 @@
                                     "type": "text",
                                     "label": "Random UUID"
                                 }
-                            ]
+                            ],
+                            "step_name": "Random UUID"
                         }
                     }
                 },
@@ -122,7 +124,9 @@
                                     "type": "text",
                                     "label": "Real Name"
                                 }
-                            ]
+                            ],
+                            "step_name": "Find user by email",
+                            "step_image_url": "https://s3.happybara.io/common/slack-logo.png"
                         }
                     }
                 },
@@ -159,7 +163,9 @@
                                     "type": "text",
                                     "label": "Scheduled Message ID"
                                 }
-                            ]
+                            ],
+                            "step_name": "Schedule a message",
+                            "step_image_url": "https://s3.happybara.io/common/slack-logo.png"
                         }
                     }
                 },
@@ -177,8 +183,14 @@
                         },
                         "app_defined_config": {
                             "inputs": {
+                                "bool_flags": {
+                                    "value": "[]"
+                                },
                                 "webhook_url": {
                                     "value": "https://1d38-205-178-24-105.ngrok.io/webhook"
+                                },
+                                "request_json_str": {
+                                    "value": null
                                 },
                                 "selected_utility": {
                                     "value": "webhook"
@@ -189,8 +201,40 @@
                                     "name": "webhook_status_code",
                                     "type": "text",
                                     "label": "Webhook Status Code"
+                                },
+                                {
+                                    "name": "webhook_response_text",
+                                    "type": "text",
+                                    "label": "Webhook Response Text"
                                 }
-                            ]
+                            ],
+                            "step_name": "Send a webhook"
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "5c7487e9-0cb8-446d-8d72-29a765bbd3ff",
+                    "config": {
+                        "app_action": {
+                            "name": "Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "conversation_id": {
+                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==user.id}}"
+                                },
+                                "selected_utility": {
+                                    "value": "manual_complete"
+                                }
+                            },
+                            "outputs": [],
+                            "step_name": "Wait for Human"
                         }
                     }
                 },
@@ -202,7 +246,7 @@
                             "ref": "b44f7526-7c10-474f-8d7f-37dc220f665c==user"
                         },
                         "has_button": false,
-                        "message_text": "Started at {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} by {{b44f7526-7c10-474f-8d7f-37dc220f665c==user}}.\n\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nfound person:  {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}, {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nscheduled message id: {{fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id}}\nwebhook response: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code}}\n\nFinished: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==timestamp_completed}}",
+                        "message_text": "Started at {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} by {{b44f7526-7c10-474f-8d7f-37dc220f665c==user}}.\n\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nfound person:  {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}, {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nscheduled message id: {{fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id}}\nwebhook response: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code}}\n\nTime waiting for approval: ({{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_started}}-{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}})\n\nFinished: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==timestamp_completed}}",
                         "message_blocks": [
                             {
                                 "type": "rich_text",
@@ -291,7 +335,27 @@
                                                 "data_type": "text"
                                             },
                                             {
-                                                "text": "\n\nFinished: ",
+                                                "text": "\n\nTime waiting for approval: (",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_started",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "date"
+                                            },
+                                            {
+                                                "text": "-",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "date"
+                                            },
+                                            {
+                                                "text": ")\n\nFinished: ",
                                                 "type": "text"
                                             },
                                             {

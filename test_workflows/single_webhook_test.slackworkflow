@@ -1,0 +1,64 @@
+{
+    "source_id": "427844251317976517",
+    "version": "1",
+    "workflow": {
+        "name": "Single Webhook Test",
+        "blueprint": {
+            "version": "1",
+            "trigger": {
+                "type": "channel_action",
+                "id": "65591853-edfe-4721-856d-ecd157766461",
+                "config": {
+                    "name": "Test Webhook",
+                    "channels": [
+                        "CP1S57DAB"
+                    ],
+                    "callback_id": "afe3a15a-809c-4c46-bd38-00990dc28b73",
+                    "description": "Test Webhook"
+                }
+            },
+            "steps": [
+                {
+                    "type": "extension_step",
+                    "id": "000f4196-e261-42dc-a941-ef3d69fb7365",
+                    "config": {
+                        "app_action": {
+                            "name": "Outgoing Webhooks",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa04503AK8HF",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "outgoing_webhook"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "bool_flags": {
+                                    "value": "[{\"text\": {\"type\": \"mrkdwn\", \"text\": \" \", \"verbatim\": false}, \"value\": \"fail_on_http_error\", \"description\": {\"type\": \"mrkdwn\", \"text\": \"_Check this if you want Workflow to halt on server errors, otherwise it can continue._\", \"verbatim\": false}}]"
+                                },
+                                "webhook_url": {
+                                    "value": "https://webhook.site/65d96813-1b05-4858-aff3-6d2a7358efb7"
+                                },
+                                "request_json_str": {
+                                    "value": "{\n  \"started_by_person\":  \"{{65591853-edfe-4721-856d-ecd157766461==user.name}}\",\n  \"time\": \"{{65591853-edfe-4721-856d-ecd157766461==current_timestamp}}\"\n}"
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "webhook_status_code",
+                                    "type": "text",
+                                    "label": "Webhook Status Code"
+                                },
+                                {
+                                    "name": "webhook_response_text",
+                                    "type": "text",
+                                    "label": "Webhook Response Text"
+                                }
+                            ],
+                            "step_name": "Send a webhook"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}
