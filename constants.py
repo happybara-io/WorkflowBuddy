@@ -365,6 +365,7 @@ UTILS_CONFIG = {
         "inputs": {
             "webhook_url": {
                 "name": "webhook_url",
+                "validation_type": "url",
                 "block_id": "webhook_url_input",
                 "action_id": "webhook_url_value",
             },
@@ -376,7 +377,7 @@ UTILS_CONFIG = {
             },
             "request_json_str": {
                 "name": "request_json_str",
-                "is_json": True,
+                "validation_type": "json",
                 "block_id": "request_json_str_input",
                 "action_id": "request_json_str_value",
             },
@@ -426,11 +427,13 @@ UTILS_CONFIG = {
         "inputs": {
             "lower_bound": {
                 "name": "lower_bound",
+                "validation_type": "integer",
                 "block_id": "lower_bound_input",
                 "action_id": "lower_bound_value",
             },
             "upper_bound": {
                 "name": "upper_bound",
+                "validation_type": "integer",
                 "block_id": "upper_bound_input",
                 "action_id": "upper_bound_value",
             },
@@ -503,6 +506,7 @@ UTILS_CONFIG = {
         "inputs": {
             "channel_name": {
                 "name": "channel_name",
+                "validation_type": "slack_channel_name",
                 "block_id": "channel_name_input",
                 "action_id": "channel_name_value",
                 "notes": "Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars.",

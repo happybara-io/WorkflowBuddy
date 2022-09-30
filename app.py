@@ -1,4 +1,5 @@
 import logging
+from multiprocessing.sharedctypes import Value
 import random
 from urllib import response
 import uuid
@@ -7,6 +8,8 @@ import constants as c
 import utils
 import json
 import copy
+from typing import Tuple
+import re
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -29,7 +32,7 @@ def log_request(logger: logging.Logger, body: dict, next):
 
 def update_blocks_with_previous_input_based_on_config(
     blocks: list, chosen_action, existing_inputs: dict, action_config_item: dict
-):
+) -> None:
     # kinda a crappy way to fill out existing inputs into initial values, but fast enough
     if existing_inputs:
         for input_name, value_obj in existing_inputs.items():
@@ -58,15 +61,20 @@ def update_blocks_with_previous_input_based_on_config(
                         elif curr_input_config.get("type") == "users_select":
                             block["element"]["initial_user"] = prev_input_value
                         elif curr_input_config.get("type") == "checkboxes":
-                            block["element"]["initial_options"] = json.loads(
-                                prev_input_value
-                            )
+                            initial_options = json.loads(prev_input_value)
+                            if len(initial_options) < 1:
+                                try:
+                                    del block["element"]["initial_options"]
+                                except KeyError:
+                                    pass
+                            else:
+                                block["element"]["initial_options"] = initial_options
                         else:
                             # assume plain_text_input cuz it's common
                             block["element"]["initial_value"] = prev_input_value
 
 
-def build_scheduled_message_modal(client: slack_sdk.WebClient):
+def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
     # https://api.slack.com/methods/chat.scheduledMessages.list
     # TODO: error handling
     resp = client.chat_scheduledMessages_list()
@@ -149,7 +157,7 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient):
     return sm_modal
 
 
-def build_manual_complete_modal(client: slack_sdk.WebClient):
+def build_manual_complete_modal(client: slack_sdk.WebClient) -> dict:
     blocks = [
         {
             "type": "input",
@@ -213,7 +221,7 @@ def build_manual_complete_modal(client: slack_sdk.WebClient):
 
 def finish_an_execution(
     client: slack_sdk.WebClient, execution_id: str, failed=False, err_msg=""
-):
+) -> dict:
     if failed:
         resp = client.workflows_stepFailed(
             workflow_step_execute_id=execution_id, error={"message": err_msg}
@@ -436,7 +444,7 @@ def add_button_clicked(ack: Ack, body: dict, client: slack_sdk.WebClient):
 
 
 @slack_app.view("webhook_form_submission")
-def handle_webhook_submission(
+def handle_config_webhook_submission(
     ack: Ack,
     body: dict,
     client: slack_sdk.WebClient,
@@ -451,11 +459,11 @@ def handle_webhook_submission(
     # Validate the inputs
     logger.info(f"submission: {event_type}|{name}|{webhook_url}")
     errors = {}
-    if (event_type is not None and webhook_url is not None) and webhook_url[
-        :8
-    ] != "https://":
+    if (event_type is not None and webhook_url is not None) and not utils.is_valid_url(
+        webhook_url
+    ):
         block_id = "webhook_url_input"
-        errors[block_id] = "Must be a valid URL with `https://`"
+        errors[block_id] = f"Must be a valid URL with `http(s)://.`"
     if len(errors) > 0:
         ack(response_action="errors", errors=errors)
         return
@@ -477,7 +485,7 @@ def handle_webhook_submission(
 
 
 # TODO: accept any of the keyword args that are allowed?
-def generic_event_proxy(logger: logging.Logger, event: dict, body: dict):
+def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None:
     event_type = event.get("type")
     logger.info(f"||{event_type}|BODY:{body}")
     try:
@@ -523,9 +531,11 @@ def event_channel_unarchive(logger: logging.Logger, event: dict, body: dict):
 def handle_workflow_published_events(body: dict, logger: logging.Logger):
     logger.debug(body)
 
+
 @slack_app.event(c.EVENT_WORKFLOW_STEP_DELETED)
 def handle_workflow_step_deleted_events(body: dict, logger: logging.Logger):
     logger.debug(body)
+
 
 @slack_app.event(c.EVENT_APP_HOME_OPENED)
 def update_app_home(event: dict, logger: logging.Logger, client: slack_sdk.WebClient):
@@ -593,7 +603,13 @@ def utils_update_step_modal(
     logger.info(resp)
 
 
-def save_utils(ack: Ack, view: View, update: Update, logger: logging.Logger):
+def save_utils(
+    ack: Ack,
+    view: View,
+    update: Update,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+):
     logger.debug("view", view)
     values = view["state"]["values"]
     selected_option_object = values["utilities_action_select"][
@@ -601,47 +617,37 @@ def save_utils(ack: Ack, view: View, update: Update, logger: logging.Logger):
     ]
     selected_utility_callback_id = selected_option_object["selected_option"]["value"]
     curr_action_config = c.UTILS_CONFIG[selected_utility_callback_id]
-    ack()
 
     inputs = {
         "selected_utility": {"value": selected_utility_callback_id},
     }
-    for name, input_config in curr_action_config["inputs"].items():
-        block_id = input_config["block_id"]
-        action_id = input_config["action_id"]
-        if input_config.get("type") == "channels_select":
-            value = values[block_id][action_id]["selected_channel"]
-        elif input_config.get("type") == "conversations_select":
-            value = values[block_id][action_id]["selected_conversation"]
-        elif input_config.get("type") == "checkboxes":
-            value = json.dumps(values[block_id][action_id]["selected_options"])
-        else:
-            # plain-text input by default
-            value = values[block_id][action_id]["value"]
-        inputs[name] = {"value": value}
-
-    logger.debug(f"INPUTS: {inputs}")
-    outputs = curr_action_config["outputs"]
-
-    kwargs = {"inputs": inputs, "outputs": outputs}
-    if curr_action_config.get("step_image_url"):
-        kwargs["step_image_url"] = curr_action_config["step_image_url"]
-    if curr_action_config.get("step_name"):
-        # No size limit, it just pushes it off the screen. Newline supported as well.
-        kwargs["step_name"] = curr_action_config["step_name"]
-    update(**kwargs)
+    inputs, errors = parse_values_from_input_config(
+        client, values, inputs, curr_action_config
+    )
+    if errors:
+        ack(response_action="errors", errors=errors)
+    else:
+        ack()
+        outputs = curr_action_config["outputs"]
+        kwargs = {"inputs": inputs, "outputs": outputs}
+        if curr_action_config.get("step_image_url"):
+            kwargs["step_image_url"] = curr_action_config["step_image_url"]
+        if curr_action_config.get("step_name"):
+            # No size limit, it just pushes it off the screen. Newline supported as well.
+            kwargs["step_name"] = curr_action_config["step_name"]
+        update(**kwargs)
 
 
-def run_webhook(step: dict, complete: Complete, fail: Fail):
+def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
     # TODO: input validation & error handling
     inputs = step["inputs"]
     url = inputs["webhook_url"]["value"]
     bool_flags = {"fail_on_http_error": False}
-    request_json_str = inputs["request_json_str"]["value"]
+    request_json_str = inputs.get("request_json_str", {}).get("value", {}) or "{}"
     logging.info(f"sending to url:{url}")
     body = {}
     try:
-        selected_checkboxes = json.loads(inputs["bool_flags"]["value"])
+        selected_checkboxes = json.loads(inputs.get("bool_flags", {}).get("value", []))
         for box_item in selected_checkboxes:
             flag_name = box_item["value"]
             bool_flags[flag_name] = True
@@ -673,7 +679,7 @@ def run_webhook(step: dict, complete: Complete, fail: Fail):
         complete(outputs=outputs)
 
 
-def run_random_int(step: dict, complete: Complete, fail: Fail):
+def run_random_int(step: dict, complete: Complete, fail: Fail) -> None:
     # TODO: input validation & error handling
     inputs = step["inputs"]
     lower_bound = int(inputs["lower_bound"]["value"])
@@ -684,15 +690,14 @@ def run_random_int(step: dict, complete: Complete, fail: Fail):
     complete(outputs=outputs)
 
 
-def run_random_uuid(step: dict, complete: Complete, fail: Fail):
+def run_random_uuid(step: dict, complete: Complete, fail: Fail) -> None:
     outputs = {"random_uuid": str(uuid.uuid4())}
     complete(outputs=outputs)
 
 
-
 def run_manual_complete(
     step: dict, event: dict, client: slack_sdk.WebClient, logger: logging.Logger
-):
+) -> None:
     # https://api.slack.com/methods/chat.postMessage
     # https://api.slack.com/events/workflow_step_execute
     inputs = step["inputs"]
@@ -793,7 +798,6 @@ def execute_utils(
 def edit_webhook(ack: Ack, step: dict, configure: Configure):
     ack()
     existing_inputs = step["inputs"]
-
     blocks = copy.deepcopy(c.WEBHOOK_STEP_MODAL_COMMON_BLOCKS)
     chosen_config_item = c.UTILS_CONFIG["webhook"]
     blocks.append(
@@ -812,13 +816,12 @@ def edit_webhook(ack: Ack, step: dict, configure: Configure):
     configure(blocks=blocks)
 
 
-def save_webhook(ack: Ack, view: View, update: Update, logger: logging.Logger):
-    values = view["state"]["values"]
-    selected_utility_callback_id = "webhook"
-    curr_action_config = c.UTILS_CONFIG[selected_utility_callback_id]
-    # ack()
+def parse_values_from_input_config(
+    client, values: dict, inputs: dict, curr_action_config: dict
+) -> Tuple[dict, dict]:
+    inputs = inputs
+    errors = {}
 
-    inputs = {}
     for name, input_config in curr_action_config["inputs"].items():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
@@ -831,28 +834,66 @@ def save_webhook(ack: Ack, view: View, update: Update, logger: logging.Logger):
         else:
             # plain-text input by default
             value = values[block_id][action_id]["value"]
-            if input_config.get("is_json"):
-                errors = {}
-                try:
-                    json.loads(value)
-                except Exception:
-                    errors[block_id] = "Invalid JSON."
-                    ack(response_action="errors", errors=errors)
-                    return
 
-        ack()
+        validation_type = input_config.get("validation_type")
+        if validation_type == "json" and value:
+            try:
+                json.loads(value)
+            except Exception:
+                errors[block_id] = "Invalid JSON."
+        elif validation_type == "integer":
+            try:
+                int(value)
+            except ValueError:
+                errors[block_id] = f"Must be a valid integer."
+        elif validation_type == "url":
+            if not utils.is_valid_url(value):
+                errors[block_id] = f"Must be a valid URL with `http(s)://.`"
+        elif validation_type == "slack_channel_name":
+            if not utils.is_valid_slack_channel_name(value):
+                errors[
+                    block_id
+                ] = "Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars."
+        elif validation_type == "able_to_post":
+            status = utils.test_if_bot_able_to_post_to_conversation(value, client)
+            if status == "not_in_channel":
+                errors[
+                    block_id
+                ] = f"Bot needs to be invited to conversation before it can post."
         inputs[name] = {"value": value}
 
-    logger.debug(f"INPUTS: {inputs}")
-    outputs = curr_action_config["outputs"]
+    return inputs, errors
 
-    kwargs = {"inputs": inputs, "outputs": outputs}
-    if curr_action_config.get("step_image_url"):
-        kwargs["step_image_url"] = curr_action_config["step_image_url"]
-    if curr_action_config.get("step_name"):
-        # No size limit, it just pushes it off the screen. Newline supported as well.
-        kwargs["step_name"] = curr_action_config["step_name"]
-    update(**kwargs)
+
+def save_webhook(
+    ack: Ack,
+    view: View,
+    update: Update,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+):
+    values = view["state"]["values"]
+    selected_utility_callback_id = "webhook"
+    curr_action_config = c.UTILS_CONFIG[selected_utility_callback_id]
+
+    inputs = {}
+    inputs, errors = parse_values_from_input_config(
+        client, values, inputs, curr_action_config
+    )
+    if errors:
+        ack(response_action="errors", errors=errors)
+    else:
+        ack()
+        logger.debug(f"INPUTS: {inputs}")
+        outputs = curr_action_config["outputs"]
+
+        kwargs = {"inputs": inputs, "outputs": outputs}
+        if curr_action_config.get("step_image_url"):
+            kwargs["step_image_url"] = curr_action_config["step_image_url"]
+        if curr_action_config.get("step_name"):
+            # No size limit, it just pushes it off the screen. Newline supported as well.
+            kwargs["step_name"] = curr_action_config["step_name"]
+        update(**kwargs)
 
 
 def execute_webhook(

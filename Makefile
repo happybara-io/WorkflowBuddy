@@ -9,6 +9,9 @@ ngrok:
 serve:
 	./run.sh
 
+test:
+	poetry run python -m pytest -sv tests/
+
 generate-requirements:
 	poetry export -o requirements.txt
 
