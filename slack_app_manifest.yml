@@ -11,12 +11,8 @@ features:
     display_name: WorkflowBuddy-dev
     always_online: true
   workflow_steps:
-    - name: Slack Utilities
-      callback_id: slack_utils
     - name: Utilities
       callback_id: utilities
-    - name: Demo Step
-      callback_id: demo
 oauth_config:
   scopes:
     bot:

@@ -1,0 +1,313 @@
+{
+    "source_id": "427766349637366512",
+    "version": "1",
+    "workflow": {
+        "name": "workflow-buddy-end-to-end-test",
+        "blueprint": {
+            "version": "1",
+            "trigger": {
+                "type": "channel_action",
+                "id": "b44f7526-7c10-474f-8d7f-37dc220f665c",
+                "config": {
+                    "name": "E2E Test - WorkflowBuddy",
+                    "channels": [
+                        "CP1S57DAB"
+                    ],
+                    "callback_id": "f7023360-4afc-4b0e-9216-b285886ba7f2",
+                    "description": "E2E Test - WorkflowBuddy"
+                }
+            },
+            "steps": [
+                {
+                    "type": "extension_step",
+                    "id": "00a5f67f-1e4f-4b83-8d70-436c42c19a87",
+                    "config": {
+                        "app_action": {
+                            "name": "Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "lower_bound": {
+                                    "value": "7"
+                                },
+                                "upper_bound": {
+                                    "value": "80"
+                                },
+                                "selected_utility": {
+                                    "value": "random_int"
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "random_int_text",
+                                    "type": "text",
+                                    "label": "Random Int Text"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "3c492862-161e-4629-9f82-e9bcf89dbbde",
+                    "config": {
+                        "app_action": {
+                            "name": "Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "selected_utility": {
+                                    "value": "random_uuid"
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "random_uuid",
+                                    "type": "text",
+                                    "label": "Random UUID"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "3ed1760f-952d-423d-b3e5-947ea1b4ab1f",
+                    "config": {
+                        "app_action": {
+                            "name": "Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "user_email": {
+                                    "value": "ben@happybara.io"
+                                },
+                                "selected_utility": {
+                                    "value": "find_user_by_email"
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "user_id",
+                                    "type": "text",
+                                    "label": "User ID"
+                                },
+                                {
+                                    "name": "team_id",
+                                    "type": "text",
+                                    "label": "Team ID"
+                                },
+                                {
+                                    "name": "user",
+                                    "type": "user",
+                                    "label": "User"
+                                },
+                                {
+                                    "name": "real_name",
+                                    "type": "text",
+                                    "label": "Real Name"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "fcc30d8a-76f9-45ce-80fc-a80ec81f0383",
+                    "config": {
+                        "app_action": {
+                            "name": "Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "channel": {
+                                    "value": "CP1S57DAB"
+                                },
+                                "post_at": {
+                                    "value": "1672382349"
+                                },
+                                "msg_text": {
+                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==user.name}}\n\nfound user by email: {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}},{{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}"
+                                },
+                                "selected_utility": {
+                                    "value": "schedule_message"
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "scheduled_message_id",
+                                    "type": "text",
+                                    "label": "Scheduled Message ID"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "96ac98db-57a5-45dc-a7ed-dc295bef187a",
+                    "config": {
+                        "app_action": {
+                            "name": "Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "webhook_url": {
+                                    "value": "https://1d38-205-178-24-105.ngrok.io/webhook"
+                                },
+                                "selected_utility": {
+                                    "value": "webhook"
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "webhook_status_code",
+                                    "type": "text",
+                                    "label": "Webhook Status Code"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "message",
+                    "id": "aec7a5aa-db49-4e1b-a7d7-b62c5db7d7c7",
+                    "config": {
+                        "user": {
+                            "ref": "b44f7526-7c10-474f-8d7f-37dc220f665c==user"
+                        },
+                        "has_button": false,
+                        "message_text": "Started at {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} by {{b44f7526-7c10-474f-8d7f-37dc220f665c==user}}.\n\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nfound person:  {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}, {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nscheduled message id: {{fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id}}\nwebhook response: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code}}\n\nFinished: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==timestamp_completed}}",
+                        "message_blocks": [
+                            {
+                                "type": "rich_text",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [
+                                            {
+                                                "text": "Started at ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "date"
+                                            },
+                                            {
+                                                "text": " by ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "b44f7526-7c10-474f-8d7f-37dc220f665c==user",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "user"
+                                            },
+                                            {
+                                                "text": ".\n\nrandom int: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nrandom uuid: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nfound person:  ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": ", ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nscheduled message id: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nwebhook response: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\n\nFinished: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "96ac98db-57a5-45dc-a7ed-dc295bef187a==timestamp_completed",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "date"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
