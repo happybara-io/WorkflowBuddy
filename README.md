@@ -24,10 +24,13 @@ The most important **Step** this app adds is the `webhook`, which enables users 
 >
 
 - **WorkflowBuddy**
-  - [Available Triggers](#🏁🎬-available-triggers) - **Many**
+  - [Available Event Triggers](#🏁🎬-available-triggers) - **Many**
   - [Available Steps](#🏃available-steps) - **7**
   - [Use Cases](#use-cases)
-- [Run Local Server](#run-local-server) - _test me out!_
+- [Quick Starts] - _test me out!_
+  - [New Event Triggers](#quickstart-new-event-triggers)
+  - [New Steps](#quickstart-new-steps)
+- [Run Local Server](#run-local-server)
 - [Development](#development)
 - [Deployment](#deployment) 
 
@@ -127,6 +130,30 @@ It has a warning at the top though _"Please note, this is a legacy custom integr
 Enable listening for `message`**\*** events, then either directly proxy the event to your webhook (by adding it to the `Event-Webhook Map` in App Home) or use the `Step: Send a Webhook` as part of a longer Workflow.
 
 **\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
+
+---
+
+## Quickstarts
+
+Follow an easy walk-through to get a feel for what the system can do.
+
+### Quickstart: New Event Triggers
+
+We're gonna start with a simple event we can easily control: `app_mention` _(when your bot is `@WorkflowBuddy` in a channel)_. We will use that event to kick off a simple Workflow that just sends us a message.
+
+- _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
+- First we'll set up the Workflow we want triggered.
+  - Download the Workflow template from `event_trigger_example_workflows/trigger_app_mention.slackworkflow`
+- Now we can configure Workflow Buddy to proxy events for us.
+  - Go to the `App Home` of Workflow Buddy (or whatever you named your app)
+- Test it!
+  - You should see an event coming through.
+
+### Quickstart: New Steps
+
+- _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
+- 
+
 
 ---
 
