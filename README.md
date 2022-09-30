@@ -23,16 +23,16 @@ The most important **Step** this app adds is the `webhook`, which enables users 
 > This code is in alpha stage on it's way to a stable v1. It's fully functional, but still needs resiliency features like retrying failed webhooks, retrying Slack API calls when rate-limited, etc.
 >
 
-- **WorkflowBuddy**
-  - [Available Event Triggers](#🏁🎬-available-triggers) - **Many**
-  - [Available Steps](#🏃available-steps) - **7**
+- **About**
+  - [Available Event Triggers](#🏁🎬-available-triggers) - `Many`
+  - [Available Steps](#🏃available-steps) - `7`
   - [Use Cases](#use-cases)
-- [Quick Starts] - _test me out!_
-  - [New Event Triggers](#quickstart-new-event-triggers)
-  - [New Steps](#quickstart-new-steps)
-- [Run Local Server](#run-local-server)
+- **Quick Start** - 🎉 _test me out!_ 🧪
+  - [Run Local Server](#run-local-server)
+  - [Try New Event Triggers](#quickstart-new-event-triggers)
+  - [Try New Steps](#quickstart-new-steps)
 - [Development](#development)
-- [Deployment](#deployment) 
+- [Deployment](#deployment)
 
 ---
 
@@ -143,17 +143,31 @@ We're gonna start with a simple event we can easily control: `app_mention` _(whe
 
 - _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
 - First we'll set up the Workflow we want triggered.
-  - Download the Workflow template from `event_trigger_example_workflows/trigger_app_mention.slackworkflow`
+  - Download the Workflow template from `event_trigger_example_workflows/trigger_app_mention.slackworkflow`.
+  - Open Workflow Builder, `Import`, and `Publish` it!
 - Now we can configure Workflow Buddy to proxy events for us.
-  - Go to the `App Home` of Workflow Buddy (or whatever you named your app)
+  - Go to the `App Home` of Workflow Buddy _(or whatever you named your app)_...
+  - 
 - Test it!
-  - You should see an event coming through.
+  - From any public channel, post a message with `@WorkflowBuddy` _(or whatever you named your app)_.
+  - That message will cause an `app_mention` event to be sent from Slack to your instance of the Workflow Buddy server.
+  - If you correctly configured the `event:webhook` mapping, the event will then be proxied to the test Workflow you added in the first step.
+  - That's it! You now have the abiltity to use all sorts of Slack events as Triggers for your Workflows now!
+
+**Go forth and automate!**
 
 ### Quickstart: New Steps
 
-- _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
-- 
+Try out the new **Steps** by importing a Workflow that has all of them configured (except for ones that make changes to your Slack Workspace, like `Create a channel`. Don't want to cause any weird side-effects during your testing!).
 
+- _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
+- Download the Workflow template from `test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow`.
+- Open Workflow Builder, `Import`, and `Publish` it!
+- _(Optional)_ Click the `Edit` button on each of the configured Steps in the Workflow so you can see how each available action is configured.
+- Run the Workflow and check the outputted message for details of the execution.
+- That's it! You now have the abiltity to use all of the Workflow Buddy Steps for your Workflows now!
+
+**Go forth and automate!**
 
 ---
 
