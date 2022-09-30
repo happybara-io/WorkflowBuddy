@@ -2,11 +2,13 @@ GITHUB_REPO_URL = "https://github.com/happybara-io/WorkflowBuddy"
 
 EVENT_APP_HOME_OPENED = "app_home_opened"
 EVENT_APP_MENTION = "app_mention"
+EVENT_CHANNEL_ARCHIVE = "channel_archive"
 EVENT_CHANNEL_CREATED = "channel_created"
+EVENT_CHANNEL_DELETED = "channel_deleted"
+EVENT_CHANNEL_UNARCHIVE = "channel_unarchive"
 EVENT_WORKFLOW_PUBLISHED = "workflow_published"
 
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
-WORKFLOW_STEP_SLACK_UTILS_CALLBACK_ID = "slack_utils"
 
 APP_HOME_HEADER_BLOCKS = [
     {
@@ -58,6 +60,16 @@ APP_HOME_HEADER_BLOCKS = [
                 },
                 "value": "manage_scheduled_messages",
                 "action_id": "action_manage_scheduled_messages",
+            },
+            {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Manual Complete",
+                    "emoji": True,
+                },
+                "value": "action_manual_complete",
+                "action_id": "action_manual_complete",
             },
         ],
     },
@@ -130,7 +142,12 @@ UTILS_ACTION_LABELS = {
     "random_int": "Random Integer",
     "random_uuid": "Random UUID",
     "manual_complete": "Wait for Manual Complete",
+    "conversations_create": "Slack: Channels Create",
+    "find_user_by_email": "Slack: Find User by Email",
+    "schedule_message": "Slack: Schedule a Message"
+
 }
+
 
 # Try to avoid needing variables in blocks, break it down if needed - want to be able to
 # easily use this with Block Kit Builder
@@ -195,6 +212,30 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                         },
                         "value": "manual_complete",
                     },
+                     {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["conversations_create"],
+                            "emoji": True,
+                        },
+                        "value": "conversations_create",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["find_user_by_email"],
+                            "emoji": True,
+                        },
+                        "value": "find_user_by_email",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["schedule_message"],
+                            "emoji": True,
+                        },
+                        "value": "schedule_message",
+                    },
                 ],
                 "action_id": "utilities_action_select_value",
             }
@@ -202,9 +243,12 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
     },
 ]
 
+# # TODO: handle optional API arguments
 UTILS_CONFIG = {
     "webhook": {
         "draft": False,
+                        "isSlack": False,
+
         "description": "Send a webhook to the defined URL.",
         "modal_input_blocks": [
             {
@@ -239,6 +283,8 @@ UTILS_CONFIG = {
     },
     "random_int": {
         "draft": False,
+                        "isSlack": False,
+
         "description": "Get a random integer from the range [lower bound - upper bound] (inclusive).",
         "modal_input_blocks": [
             {
@@ -289,6 +335,8 @@ UTILS_CONFIG = {
     },
     "manual_complete": {
         "draft": True,
+                "isSlack": False,
+
         "description": "Hold in progress until an execution ID is submitted to complete/fail the execution.",
         "modal_input_blocks": [
             {
@@ -314,76 +362,11 @@ UTILS_CONFIG = {
                 "action_id": "conversation_id_value",
             }
         },
-        "outputs": [{"name": "execution_id", "label": "Execution ID", "type": "text"}],
+        "outputs": [],
     },
-}
-
-SLACK_STEP_MODAL_COMMON_BLOCKS = [
-    {
-        "type": "header",
-        "text": {
-            "type": "plain_text",
-            "text": "Choose Your Slack Action",
-            "emoji": True,
-        },
-    },
-    {
-        "type": "actions",
-        "block_id": "slack_utilities_action_select",
-        "elements": [
-            {
-                "type": "static_select",
-                "placeholder": {
-                    "type": "plain_text",
-                    "text": "Select an item",
-                    "emoji": True,
-                },
-                "initial_option": {
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Find User by Email",
-                        "emoji": True,
-                    },
-                    "value": "find_user_by_email",
-                },
-                "options": [
-                    {
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Channels Create",
-                            "emoji": True,
-                        },
-                        "value": "conversations_create",
-                    },
-                    {
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Find User by Email",
-                            "emoji": True,
-                        },
-                        "value": "find_user_by_email",
-                    },
-                    {
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Schedule a Message",
-                            "emoji": True,
-                        },
-                        "value": "schedule_message",
-                    },
-                ],
-                "action_id": "slack_utilities_action_select_value",
-            }
-        ],
-    },
-]
-
-# TODO: handle optional API arguments
-# TODO: make it easy to copy-paste blocks from block-kit builder
-# and also easy to use the same block id/action id to access the submission
-SLACK_UTILS_CONFIG = {
     "conversations_create": {
         "draft": False,
+                "isSlack": True,
         "description": "Create a new channel with your specified channel name.\n⚠️_Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars._",
         "modal_input_blocks": [
             {
@@ -416,6 +399,7 @@ SLACK_UTILS_CONFIG = {
     },
     "find_user_by_email": {
         "draft": False,
+                "isSlack": True,
         "description": "Find a Slack user based on their account email.",
         "modal_input_blocks": [
             {
@@ -446,6 +430,7 @@ SLACK_UTILS_CONFIG = {
     },
     "schedule_message": {
         "draft": False,
+        "isSlack": True,
         "description": "Schedule a message up to 120 days in the future.",
         "modal_input_blocks": [
             {
@@ -488,6 +473,7 @@ SLACK_UTILS_CONFIG = {
                 "element": {
                     "type": "plain_text_input",
                     "action_id": "msg_text_value",
+                    "multiline": True,
                     "placeholder": {"type": "plain_text", "text": "A great message!"},
                 },
                 "label": {"type": "plain_text", "text": "Message", "emoji": True},
@@ -513,6 +499,7 @@ SLACK_UTILS_CONFIG = {
     },
     "set_channel_topic": {
         "draft": True,
+        "isSlack": True,
         "blocks": {"TODO": True},  # TODO
         "inputs": {
             "conversation_id": {

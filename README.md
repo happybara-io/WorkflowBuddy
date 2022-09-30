@@ -1,21 +1,33 @@
 # Slack Automation - WorkflowBuddy
 
-[Workflow Builder](https://slack.com/features/workflow-automation) is great! _Except_ it's got a very limited selection of built-in Slack triggers _(**4**: shortcut, emoji reaction, new channel member, webhook)_ and **_VERY_** limited selection of built-in Slack actions _(**2**: send a message, send a form)_. You can get creative and do a lot with these building blocks, but what if you want to do more?
+**[Workflow Builder](https://slack.com/features/workflow-automation) is great!**
 
-🥳 ✨ **Ta-da!** ✨
+**... and it has great potential, too!** 😅
 
-This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of Steps available. The most important is the `webhook` functionality, which enables users to plug their Slack Workflow Steps into almost any other application.
+The current implementation you get out of the box is a bit boxed in by:
+- a small selection of built-in Slack triggers (`5`)
+  - _shortcut, new channel member, emoji reaction, schedule, webhook_
+- a **_VERY_** limited selection of built-in Slack actions (`2`)
+  - _send a message, send a form_
+
+_You can get creative and do a lot with these building blocks, but what if you want to do **more**?_
+
+### 🥳 ✨ **Ta-da!** ✨
+
+**This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of Steps available.**
+
+The most important **Step** this app adds is the `webhook`, which enables users to integrate their Slack Workflow Steps with almost any other application.
 
 > **[ℹ️]** Alpha Disclaimer:
 > 
-> This code is in alpha stage on it's way to a stable 1st version. It's fully functional, but still needs resiliency features like retrying failed webhooks, retrying Slack API calls when rate-limited, etc.
+> This code is in alpha stage on it's way to a stable v1. It's fully functional, but still needs resiliency features like retrying failed webhooks, retrying Slack API calls when rate-limited, etc.
 >
 
 - **WorkflowBuddy**
-  - [Available Triggers](#🏁🎬-available-triggers) **Many**
-  - [Available Steps](#🏃available-steps) - **6**
+  - [Available Triggers](#🏁🎬-available-triggers) - **Many**
+  - [Available Steps](#🏃available-steps) - **7**
   - [Use Cases](#use-cases)
-- [Run Locally](#run-locally) - _test me out!_
+- [Run Local Server](#run-local-server) - _test me out!_
 - [Development](#development)
 - [Deployment](#deployment) 
 
@@ -23,15 +35,18 @@ This Slack App acts as an extension of Workflow Builder, providing access to sig
 
 ## 🏁🎬 Available Triggers
 
-All [Slack events](https://api.slack.com/events) proxied through to any **_webhook-triggered_** Workflows.\* See _"Templates to save time"_ for copyable webhook starting points.
+All\* [Slack events](https://api.slack.com/events) proxied through to any **_webhook-triggered_** Workflows.\*\* See _"Templates to save time"_ for copyable webhook starting points.
 
-_*While WorkflowBuddy code will work out of the box as an event proxy, you will need to update your app's OAuth scopes & event subscriptions for your new events, as well as save the webhook event from your Workflow in the config._
+> _\*During alpha stage, only a small number of events have been implemented, but goal is to quickly update to handle 80-90% of uses cases, and eventually 100%._
+> _\*\* While WorkflowBuddy code will work out of the box as an event proxy, you will need to update your app's OAuth scopes & event subscriptions for your new events, as well as save the webhook event from your Workflow in the config._
 
 ![Visualizing the Slack event proxy](/static/workflow-buddy-event-proxy.png)
 
 ### Templates for Event Triggers
 
-When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?). Currently the wrapping payload is not included, but could be an easy contribution in the future.
+When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?). Currently the wrapping payload is not included, but it could be an easy contribution in the future.
+
+> ℹ
 
 ## 🏃Available Steps
 
@@ -40,6 +55,10 @@ The utilities currently available within WorkflowBuddy for use as Workflow Steps
 ### Send a Webhook
 
 Send data from your Slack Workflows to almost any service. You can trigger GitHub repos, Jenkins Builds, Salesforce actions, you name it.
+
+### Wait for human | approval | manual completion
+
+Many names to describe it. In short, have your workflow wait in an `In progress` state until a human has taken action to either `Complete`➡ and let the Workflow continue, or `Fail`❌ it and stop the flow.
 
 ### Random Int
 
@@ -115,11 +134,12 @@ Enable listening for `message`**\*** events, then either directly proxy the even
 
 - [Bolt Python](https://slack.dev/bolt-python/)
 
-## Run locally
+## Run local server
 
 Run the app locally & connect to your workspace Slack app.
 
 ### Setup
+
 - [Create your Slack app](https://api.slack.com/reference/manifests#creating_apps) from the `slack_app_manifest.yml` file.
 - Create a `.env` file that looks like:
   ```
