@@ -190,3 +190,35 @@ def is_valid_slack_channel_name(channel_name: str) -> bool:
 
 def is_valid_url(url: str) -> bool:
     return (url[:8] == "https://") or (url[:7] == "http://")
+
+
+def build_add_webhook_modal():
+    add_webhook_form_blocks = [
+        {
+            "type": "input",
+            "block_id": "event_type_input",
+            "element": {"type": "plain_text_input", "action_id": "event_type_value"},
+            "label": {"type": "plain_text", "text": "Event Type", "emoji": True},
+        },
+        {
+            "type": "input",
+            "block_id": "desc_input",
+            "element": {"type": "plain_text_input", "action_id": "desc_value"},
+            "label": {"type": "plain_text", "text": "Name", "emoji": True},
+        },
+        {
+            "type": "input",
+            "block_id": "webhook_url_input",
+            "element": {"type": "plain_text_input", "action_id": "webhook_url_value"},
+            "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
+        },
+    ]
+
+    add_webhook_modal = {
+        "type": "modal",
+        "callback_id": "webhook_form_submission",
+        "title": {"type": "plain_text", "text": "Add Webhook"},
+        "submit": {"type": "plain_text", "text": "Add"},
+        "blocks": add_webhook_form_blocks,
+    }
+    return add_webhook_modal

@@ -411,35 +411,7 @@ def delete_event_mapping(
 @slack_app.action("action_add_webhook")
 def add_button_clicked(ack: Ack, body: dict, client: slack_sdk.WebClient):
     ack()
-
-    add_webhook_form_blocks = [
-        {
-            "type": "input",
-            "block_id": "event_type_input",
-            "element": {"type": "plain_text_input", "action_id": "event_type_value"},
-            "label": {"type": "plain_text", "text": "Event Type", "emoji": True},
-        },
-        {
-            "type": "input",
-            "block_id": "name_input",
-            "element": {"type": "plain_text_input", "action_id": "name_value"},
-            "label": {"type": "plain_text", "text": "Name", "emoji": True},
-        },
-        {
-            "type": "input",
-            "block_id": "webhook_url_input",
-            "element": {"type": "plain_text_input", "action_id": "webhook_url_value"},
-            "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
-        },
-    ]
-
-    add_webhook_modal = {
-        "type": "modal",
-        "callback_id": "webhook_form_submission",
-        "title": {"type": "plain_text", "text": "Add Webhook"},
-        "submit": {"type": "plain_text", "text": "Add"},
-        "blocks": add_webhook_form_blocks,
-    }
+    add_webhook_modal = utils.build_add_webhook_modal()
     client.views_open(trigger_id=body["trigger_id"], view=add_webhook_modal)
 
 
@@ -454,7 +426,7 @@ def handle_config_webhook_submission(
     values = view["state"]["values"]
     user_id = body["user"]["id"]
     event_type = values["event_type_input"]["event_type_value"]["value"]
-    name = values["name_input"]["name_value"]["value"]
+    name = values["desc_input"]["desc_value"]["value"]
     webhook_url = values["webhook_url_input"]["webhook_url_value"]["value"]
     # Validate the inputs
     logger.info(f"submission: {event_type}|{name}|{webhook_url}")
