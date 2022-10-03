@@ -1,10 +1,13 @@
-# Slack Automation - WorkflowBuddy
+# Workflow Buddy - Super powers for Workflow Builder
+
+---
 
 **[Workflow Builder](https://slack.com/features/workflow-automation) is great!**
 
 **... and it has great potential, too!** 😅
 
 The current implementation you get out of the box is a bit boxed in by:
+
 - a small selection of built-in Slack triggers (`5`)
   - _shortcut, new channel member, emoji reaction, schedule, webhook_
 - a **_VERY_** limited selection of built-in Slack actions (`2`)
@@ -16,7 +19,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 
 **This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of Steps available.**
 
-The most important **Step** this app adds is the `webhook`, which enables users to integrate their Slack Workflow Steps with almost any other application.
+⚡ The most important **Step** this app adds is the `Outgoing Webhook`, which enables users to integrate their Slack Workflow Steps with almost any other application.
 
 > **[ℹ️]** Alpha Disclaimer:
 > 
@@ -32,7 +35,7 @@ The most important **Step** this app adds is the `webhook`, which enables users 
   - [Try New Event Triggers](#quickstart-new-event-triggers)
   - [Try New Steps](#quickstart-new-steps)
 - [Development](#development)
-- [Deployment](#deployment)
+- [Deployment: Self-hosting, Hosted](#deployment)
 
 ---
 
@@ -47,13 +50,15 @@ All\* [Slack events](https://api.slack.com/events) proxied through to any **_web
 
 ### Templates for Event Triggers
 
-When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?). Currently the wrapping payload is not included, but it could be an easy contribution in the future.
+When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?).
 
-> ℹ
+> ℹ Currently the [wrapping payload](https://api.slack.com/types/event) is not included, but it could be an easy contribution in the future.
 
-## 🏃Available Steps
+## 🏃 Available Steps
 
-The utilities currently available within WorkflowBuddy for use as Workflow Steps. To see the exact inputs & outputs without loading up Workflow Builder, see [constants.py](https://github.com/happybara-io/WorkflowBuddy/blob/main/constants.py)
+The utilities currently available within WorkflowBuddy for use as Workflow Steps. To see the exact inputs & outputs without loading up Workflow Builder, see [constants.py](https://github.com/happybara-io/WorkflowBuddy/blob/main/constants.py).
+
+![User choosing which action they want in workflow](static/workflow-buddy-choose-step-action-modal.png)
 
 ### Send a Webhook
 
@@ -63,13 +68,16 @@ Send data from your Slack Workflows to almost any service. You can trigger GitHu
 
 Many names to describe it. In short, have your workflow wait in an `In progress` state until a human has taken action to either `Complete`➡ and let the Workflow continue, or `Fail`❌ it and stop the flow.
 
-### Random Int
+### Random Integer
 
-Generate a random int in the range [`lower_bound`-`upper_bound`], inclusive.
+Generate a random integer in the range [`lower_bound`-`upper_bound`], inclusive.
 
+**Example**: Given `5` - `15`, would output random value like `11`.
 ### Random UUID
 
 Generate a random UUID with [Python's standard library](https://docs.python.org/3/library/uuid.html).
+
+**Example**: `a3b45ac2-d1ba-4c54-9e1c-0d51983ec952`.
 
 ### (Slack) Create a channel
 
@@ -91,37 +99,13 @@ Schedule bot messages to public channels up to 120 days in the future.
 
 ### More to come ....
 
-🥱🔃
+See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for discussion on potential Step actions to add.
 
-Potential ideas seen in the wild for other automation use-cases ([Zapier](https://zapier.com/apps/categories/zapier-tools) and [n8n](https://docs.n8n.io/integrations/builtin/core-nodes/) are good sources):
-- Wait/delay state
-  - Workflow Builder does not have a convenient way to add a pause step - Workflows are long-running, so it should be no problem to have some wait action that doesn't run `complete()` until the duration has passed. The best solution for this may vary by hosting provider, or by integrating with a 3rd-party service.
-- Filter/conditional stop
-  - If a certain condition is not met, stop the workflow. Handy if you only want it to fire on certain conditions and the trigger isn't granular enough.
-- Send email and/or SMS
-  - Might be hard if they want it sent from their own address vs a generic SendGrid-type account.
-- Calendar invites/sending with a link?
-  - This seems like it's mostly covered through the `Send a message` built-in.
-- Suggested Slack actions based on Zapier
-  - Add reminder
-  - Invite user to channel
-  - Send channel message (slack built-in)
-  - Send direct message (slack built-in)
-  - Create channel
-  - Set channel topic (! Cannot be done with a Bot token, only user token 😔)
-  - Update profile
-  - Set status
-  - Find message
-  - find user by ID
-  - Find user by name
-  - Find user by username
-
-
-## Use Cases
+## ⛏ Use Cases
 
 What can you do with these extra triggers and actions?
 
-### Replace the legacy Outgoing Webhooks 
+### Replace the legacy Outgoing Webhooks
 
 Slack used to offer [Outgoing Webhooks](https://slack.com/apps/A0F7VRG6Q-outgoing-webhooks?tab=more_info) as a way to listen for new messages/Trigger Words in Slack messages and then fire a webhook to external URLs.
 
@@ -131,9 +115,18 @@ Enable listening for `message`**\*** events, then either directly proxy the even
 
 **\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
 
+### Send data from Slack Workflow to other apps
+
+Use the customizable `Outgoing Webhook` Step as part of a workflow and fill the JSON body with relevant context. Examples might be triggering Airtable automations when your Workflow is finished, or kicking off GitHub Actions.
+
+
+### Your great idea here
+
+There are tons of awesome use cases we haven't thought of yet, submit a PR or reach out to tell us about yours!
+
 ---
 
-## Quickstarts
+## 🏁 Quickstarts
 
 Follow an easy walk-through to get a feel for what the system can do.
 
@@ -141,18 +134,19 @@ Follow an easy walk-through to get a feel for what the system can do.
 
 We're gonna start with a simple event we can easily control: `app_mention` _(when your bot is `@WorkflowBuddy` in a channel)_. We will use that event to kick off a simple Workflow that just sends us a message.
 
-- _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
-- First we'll set up the Workflow we want triggered.
-  - Download the Workflow template from `event_trigger_example_workflows/trigger_app_mention.slackworkflow`.
-  - Open Workflow Builder, `Import`, and `Publish` it!
-- Now we can configure Workflow Buddy to proxy events for us.
-  - Go to the `App Home` of Workflow Buddy _(or whatever you named your app)_...
-  - 
-- Test it!
+> ℹ  _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
+
+- **First we'll set up the Workflow we want triggered - in Workflow Builder.**
+  - Download the Workflow template from `event_trigger_example_workflows/trigger_app_mention.slackworkflow`[(link)](https://github.com/happybara-io/WorkflowBuddy/blob/main/event_trigger_example_workflows/trigger_app_mention.slackworkflow). You can also start from scratch - the only _**critical**_ step is to choose `Webhook` as your new Workflow's event trigger.
+  - Open Workflow Builder, `Import` (or create), and `Publish` it to get your new `Webhook URL`.
+- **Open Workflow Buddy App Home to connect Workflow -> Event Trigger.**
+  - Go to the `App Home` of Workflow Buddy _(or whatever you named your app)_ and click `Add`. It will display a modal asking you to fill out your desired event trigger & the `Webhook URL` from first step.
+- **Test it!**
   - From any public channel, post a message with `@WorkflowBuddy` _(or whatever you named your app)_.
   - That message will cause an `app_mention` event to be sent from Slack to your instance of the Workflow Buddy server.
-  - If you correctly configured the `event:webhook` mapping, the event will then be proxied to the test Workflow you added in the first step.
-  - That's it! You now have the abiltity to use all sorts of Slack events as Triggers for your Workflows now!
+  - If you correctly configured the `event->webhook` mapping, the event will then be proxied to the test Workflow you added in the first step.
+- **That's it!**
+  - You now have the abiltity to use all sorts of Slack events as Triggers for your Workflows now! _(⚠ So long as you have given your Slack app the OAuth permissions to use them)._
 
 **Go forth and automate!**
 
@@ -160,18 +154,20 @@ We're gonna start with a simple event we can easily control: `app_mention` _(whe
 
 Try out the new **Steps** by importing a Workflow that has all of them configured (except for ones that make changes to your Slack Workspace, like `Create a channel`. Don't want to cause any weird side-effects during your testing!).
 
-- _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
-- Download the Workflow template from `test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow`.
+> ℹ  _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
+
+- Download the Workflow template from `test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow`[(link)](https://github.com/happybara-io/WorkflowBuddy/blob/main/test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow), which contains all the basic functionality of Workflow Buddy Steps.
 - Open Workflow Builder, `Import`, and `Publish` it!
 - _(Optional)_ Click the `Edit` button on each of the configured Steps in the Workflow so you can see how each available action is configured.
 - Run the Workflow and check the outputted message for details of the execution.
-- That's it! You now have the abiltity to use all of the Workflow Buddy Steps for your Workflows now!
+- **That's it!**
+  - You now have the abiltity to use all of the Workflow Buddy Steps for your Workflows now!
 
 **Go forth and automate!**
 
 ---
 
-## Development
+## 👩‍💻 Development
 
 - [Bolt Python](https://slack.dev/bolt-python/)
 
@@ -213,24 +209,20 @@ Alternative to running it with Docker, run the development server.
 
 For the "UI" block surfaces (especially App Home), highly recommend opening in [Block Kit Builder](https://app.slack.com/block-kit-builder/) with the helper utility `get_block_kit_builder_link()`.
 
+```
+# Open Python REPL
+>>> import utils
+>>> utils.get_block_kit_builder_link(view=utils.build_app_home_view())
+# copy the resulting link into address bar, avoiding the '' Python surrounds it with.
+```
+
 ### How it works
 
-For Slack events, this app basically just acts as a proxy. As long as the event is added to the bot's OAuth scopes, it should be able to proxy it through to your **Workflow Builder** flow. 
+For Slack events, this app basically just acts as a proxy. As long as the event is added to the bot's OAuth scopes, it should be able to proxy it through to your **Workflow Builder** flow.
 
 For the new actions, it registers a **Workflow Builder Step** - unfortunately each app is limited to 10 registered with Slack. To get around that limitation, we have the user select from a static select list of actions that have been implemented on the server, then update the modal to give them the appropriate options. For example, if the user wants to `Send a webhook`, we'll then update the modal to have an input for the Webhook URL, and a text box for the body they want to send.
 
-Config data (basically just webhooks for now) is persisted on disk using [Python Shelve](https://docs.python.org/3/library/shelve.html#module-shelve).
-
-### Future Work
-
-As you may have noticed, this is a P.o.C. There is no resiliency baked into this application yet, so don't throw anything mission critical on it yet. A non-exhaustive list of updates it would benefit from:
-
-- Server needs to be productionized and easy to deploy - Docker-Compose is recommended route.
-  - Write up a guide on how to deploy it to [Fly.io](https://fly.io) or similar easy deploy tools.
-- Sending webhooks should have a simple retry mechanism in place, in case it just needs a few seconds before things work hunky dory.
-- Incoming actions should be placed into a resilient queue, that way events aren't lost in the case of downstream failure response, server outage, or etc. 
-  - A DB like SQlite can act as a queue in a pinch, so long as you setup an easy cron option. Rather than figuring out how to setup Celery with Python, why not use one of those services that will send you a webhook on a cron schedule, so all you have to write is an endpoint. [Cronhooks](https://cronhooks.io/) is one such aptly named service.
-- Tracking the timestamps of when the workflows were kicked off and also whether they succeeded or failed would be a nice touch, but that's a lot of data for a PoC app.
+**Data**: Config data (basically just webhooks for now) is persisted on disk using Using a very simple cache + JSON file to persist webhook config data - it's not very robust, so highly recommend keeping a copy of the JSON file as backup to easily import if config is destroyed.
 
 ---
 
@@ -238,13 +230,23 @@ As you may have noticed, this is a P.o.C. There is no resiliency baked into this
 
 Putting your server somewhere more useful than your local machine.
 
-### Fly.io
+### Hosted
+
+Don't want to host it yourself? Happybara will be releasing a hosted version in the near future.
+
+[🏄‍♀️ Snag your spot on the waitlist!](https://tally.so/r/mVLKkj)
+
+### Self-hosted options
+
+#### Fly.io
 
 - Add secrets from `.env.example` using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets). Same secrets setup as in Development section.
 - (Optional) update `fly.toml` config settings.
 - Run `fly deploy`.
 - ⚠️ _Using a very simple cache + JSON file to persist webhook config data - it's not very robust, so highly recommend keeping a copy of the JSON file as backup to easily import if config is destroyed._
 
-### Others
+#### Others
 
 TBD.
+
+---
