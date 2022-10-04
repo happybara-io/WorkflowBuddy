@@ -118,7 +118,7 @@ URLS = {
     }
 }
 
-APP_HOME_FOOTER_BLOCKS = [
+APP_HOME_MIDDLE_BLOCKS = [
     {"type": "section", "text": {"type": "mrkdwn", "text": "  "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
@@ -187,21 +187,7 @@ APP_HOME_FOOTER_BLOCKS = [
             {"type": "plain_text", "text": "• Utils: Get Random UUID", "emoji": True},
         ],
     },
-    {"type": "divider"},
-    {
-        "type": "context",
-        "elements": [
-            {
-                "type": "image",
-                "image_url": URLS["images"]["bara_main_logo"],
-                "alt_text": "happybara.io",
-            },
-            {
-                "type": "mrkdwn",
-                "text": "Proudly built by <https://happybara.io|Happybara>.",
-            },
-        ],
-    },
+    {"type": "divider"}
 ]
 
 UTILS_ACTION_LABELS = {

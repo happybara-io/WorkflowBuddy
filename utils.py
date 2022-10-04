@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import logging
 import requests
@@ -136,7 +137,33 @@ def build_app_home_view() -> dict:
         ]
         blocks.extend(single_event_row)
 
-    blocks.extend(c.APP_HOME_FOOTER_BLOCKS)
+    blocks.extend(c.APP_HOME_MIDDLE_BLOCKS)
+
+    footer_blocks = [
+            {"type": "divider"},
+        {
+        "type": "context",
+        "elements": [
+            {
+                "type": "image",
+                "image_url": c.URLS["images"]["bara_main_logo"],
+                "alt_text": "happybara.io",
+            },
+            {
+                "type": "mrkdwn",
+                "text": "Proudly built by <https://happybara.io|Happybara>.",
+            },
+        ],
+    }
+    ]
+    chosen_image_style = random.choice(['dark', 'light', 'oceanic'])
+    footer_image_url = c.URLS["images"]["footer"][chosen_image_style]
+    footer_blocks.insert(0,{
+        "type": "image",
+        "image_url": footer_image_url,
+        "alt_text": "happybara.io"
+    } )
+    blocks.extend(footer_blocks)
     return {"type": "home", "blocks": blocks}
 
 
