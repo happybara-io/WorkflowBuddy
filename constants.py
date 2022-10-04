@@ -308,7 +308,7 @@ UTILS_CONFIG = {
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "_Open <https://www.jsonformatter.io/|Webhook.site> to get a URL for debugging._",
+                        "text": "_Open <https://webhook.site|Webhook.site> to get a URL for debugging._",
                     }
                 ],
             },

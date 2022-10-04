@@ -226,7 +226,7 @@ def build_add_webhook_modal():
 			"elements": [
 				{
 					"type": "mrkdwn",
-					"text": "<https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide>."
+					"text": "<https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide for reference>."
 				}
 			]
 		},
@@ -234,21 +234,21 @@ def build_add_webhook_modal():
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "_1. (In Workflow Builder) Create a Slack Webhook-triggered Workflow - then save the URL._"
+				"text": "_1. (In Workflow Builder) Create a Slack <https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks|Webhook-triggered Workflow> - then save the URL nearby._"
 			}
 		},
 		{
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "*2. (In Workflow Buddy App Home) Set up the connection between `event` and `webhook URL`.*"
+				"text": "*2. ⭐(Here!) Set up the connection between `event` and `webhook URL`.*"
 			}
 		},
 		{
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "_3. Send a test event to make sure workflow is triggered._"
+				"text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._"
 			}
 		},
 		{
@@ -324,7 +324,7 @@ def build_add_webhook_modal():
 			"elements": [
 				{
 					"type": "mrkdwn",
-					"text": "You should have gotten this Webhook URL from your Slack Workflow, unless you are following the <https://#proxy-slack-events-to-another-service|advanced usage>."
+					"text": "You should have gotten this Webhook URL from your Slack Workflow, unless you are following the <https://github.com/happybara-io/WorkflowBuddy/#proxy-slack-events-to-another-service|advanced usage>."
 				}
 			]
 		}]
