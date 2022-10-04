@@ -82,8 +82,8 @@ URLS = {
     "images": {
         "main_logo": "https://s3.happybara.io/happybara/main_logo.png",
         "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
-        "bara_slack_logo": "https://s3.happybara.io/happybara/main_logo_slack_badge_100.png",
-        "bara_webhook_logo": "https://s3.happybara.io/happybara/main_logo_webhook_badge_50.png",
+        "bara_slack_logo": "https://s3.happybara.io/happybara/main_logo_slack_badge.png",
+        "bara_webhook_logo": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png",
         "footer": {
             "dark": "https://s3.happybara.io/common/bara-footer-dark.jpg",
             "light": "https://s3.happybara.io/common/bara-footer-light.png",
@@ -488,7 +488,7 @@ UTILS_CONFIG = {
         "draft": False,
         "isSlack": True,
         "step_name": "Create a channel",
-        "step_image_url": URLS["images"]["slack_logo"],
+        "step_image_url": URLS["images"]["bara_slack_logo"],
         "description": "Create a new channel with your specified channel name.\n⚠️_Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars._",
         "modal_input_blocks": [
             {
@@ -557,7 +557,7 @@ UTILS_CONFIG = {
         "draft": False,
         "isSlack": True,
         "step_name": "Schedule a message",
-        "step_image_url": URLS["images"]["slack_logo"],
+        "step_image_url": URLS["images"]["bara_slack_logo"],
         "description": "Schedule a message up to 120 days in the future.",
         "modal_input_blocks": [
             {
@@ -628,7 +628,7 @@ UTILS_CONFIG = {
         "draft": True,
         "isSlack": True,
         "step_name": "Create a channel",
-        "step_image_url": URLS["images"]["slack_logo"],
+        "step_image_url": URLS["images"]["bara_slack_logo"],
         "blocks": {"TODO": True},  # TODO
         "inputs": {
             "conversation_id": {
