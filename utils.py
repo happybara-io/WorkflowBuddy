@@ -140,8 +140,24 @@ def build_app_home_view() -> dict:
     return {"type": "home", "blocks": blocks}
 
 
-# TODO: use this to make UX better for if users can select conversation that we might not be able to post to
 def test_if_bot_able_to_post_to_conversation(
+    conversation_id: str, client: slack_sdk.WebClient
+) -> str:
+    try:
+        resp = client.conversations_info(
+            channel=conversation_id,
+        )
+        print(resp)
+        if resp["channel"]["is_member"]:
+            return "is_member"
+        else:
+            return "not_in_channel"
+    except slack_sdk.errors.SlackApiError as e:
+        print(type(e).__name__, e)
+        return "unable_to_test"
+
+# TODO: use this to make UX better for if users can select conversation that we might not be able to post to
+def test_if_bot_able_to_post_to_conversation_deprecated(
     conversation_id: str, client: slack_sdk.WebClient
 ) -> str:
     status = "unknown"

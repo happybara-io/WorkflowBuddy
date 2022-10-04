@@ -87,15 +87,6 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
                 "text": "Messages scheduled to be sent from this bot.",
             },
         },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "_Backticks ` have been replaced with ' only for display._",
-                }
-            ],
-        },
         {"type": "divider"},
     ]
     if resp["ok"]:
@@ -114,14 +105,12 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
             )
         for sm in messages_list:
             text = sm["text"]
-            # backticks were screwing up mine, escaping doesn't seem to work tho
-            safe_text = text.replace("`", "'")
             blocks.append(
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*To:* <#{sm['channel_id']}> *At:* `{sm['post_at']}` *Text:*\n`{safe_text[:100]}{'...' if len(safe_text) > 100 else ''}`",
+                        "text": f"*To:* <#{sm['channel_id']}> *At:* `{sm['post_at']}` *Text:*\n```{text[:100]}{'...' if len(text) > 100 else ''}```",
                     },
                     "accessory": {
                         "type": "button",

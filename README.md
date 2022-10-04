@@ -207,7 +207,7 @@ Alternative to running it with Docker, run the development server.
 - `poetry shell` so all our environment variables are easy.
 - Run the local dev server with `./run.sh`, or a "prod" server with `./run-prod.sh`.
 - Update the Slack App console with new `ngrok` address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
-- (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site)
+- (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site) as well as testing different HTTP error codes [mock.codes](https://mock.codes/).
 
 #### UI/UX Development
 

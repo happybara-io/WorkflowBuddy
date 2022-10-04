@@ -22,14 +22,60 @@ APP_HOME_HEADER_BLOCKS = [
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "Workflow Buddy lets you use any Slack Event as a trigger for Workflow Builder, as well as adding new Steps (e.g. `Send Outbound Webhook`).\nIt requires creating a Webhook-triggered Workflow, then adding the mapping between an event (e.g. `app_mention`) and the webhooks (aka workflows) you want triggered when an event happens. You can have multiple workflows triggered per event.\n_Need Help? :link: <https://github.com/happybara-io/WorkflowBuddy|GitHub Docs>._",
+            "text": "Workflow Buddy lets you use any Slack Event as a trigger for Workflow Builder, as well as adding new Steps (e.g. `Send Outbound Webhook`)."
         },
+    },
+    {
+        "type": "actions",
+        "elements": [
+            {
+				"type": "button",
+				"text": {
+					"type": "plain_text",
+					"text": "🔗GitHub Docs",
+					"emoji": True
+				},
+				"value": GITHUB_REPO_URL,
+				"url": GITHUB_REPO_URL,
+				"action_id": "action_github_repo"
+             },
+        ]
     },
     {"type": "divider"},
     {
         "type": "header",
         "text": {"type": "plain_text", "text": "Event Triggers", "emoji": True},
     },
+    {
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "How to add a new Event Trigger for Slack events. <https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide for reference>."
+				}
+			]
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "_1. (In Workflow Builder) Create a Slack <https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks|Webhook-triggered Workflow> - then save the URL nearby._"
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "*2. (Here) Set up the connection between `event` and `webhook URL`.*"
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._"
+			}
+		},
     {
         "type": "actions",
         "elements": [
@@ -53,6 +99,38 @@ APP_HOME_HEADER_BLOCKS = [
                 "value": "export",
                 "action_id": "action_export",
             },
+        ],
+    },
+    {"type": "divider"},
+]
+
+URLS = {
+    "images": {
+        "bara_main_logo": "https://s3.happybara.io/happybara/main_logo.png",
+        "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
+        "bara_slack_logo": "https://s3.happybara.io/happybara/main_logo_slack_badge.png",
+        "bara_webhook_logo": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png",
+        "footer": {
+            "dark": "https://s3.happybara.io/common/bara-footer-dark.jpg",
+            "light": "https://s3.happybara.io/common/bara-footer-light.png",
+            "oceanic": "https://s3.happybara.io/common/bara-footer-oceanic.jpg",
+        },
+    }
+}
+
+APP_HOME_FOOTER_BLOCKS = [
+    {"type": "section", "text": {"type": "mrkdwn", "text": "  "}},
+    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
+    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
+    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
+    {"type": "divider"},
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": "Step Actions", "emoji": True},
+    },
+    {
+        "type": "actions",
+        "elements": [
             {
                 "type": "button",
                 "text": {
@@ -67,52 +145,13 @@ APP_HOME_HEADER_BLOCKS = [
                 "type": "button",
                 "text": {
                     "type": "plain_text",
-                    "text": "Manual Complete",
+                    "text": "Complete Step Manually",
                     "emoji": True,
                 },
                 "value": "action_manual_complete",
                 "action_id": "action_manual_complete",
-            },
+            }
         ],
-    },
-    {"type": "divider"},
-]
-
-URLS = {
-    "images": {
-        "main_logo": "https://s3.happybara.io/happybara/main_logo.png",
-        "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
-        "bara_slack_logo": "https://s3.happybara.io/happybara/main_logo_slack_badge.png",
-        "bara_webhook_logo": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png",
-        "footer": {
-            "dark": "https://s3.happybara.io/common/bara-footer-dark.jpg",
-            "light": "https://s3.happybara.io/common/bara-footer-light.png",
-            "oceanic": "https://s3.happybara.io/common/bara-footer-oceanic.jpg",
-        },
-    }
-}
-# TODO: borrow images and stuff
-# def app_home_footer_blocks(user_settings):
-#     block_list = []
-#     extension = '.png'
-#     if user_settings['appearance'] != 'light':
-#         extension = '.jpg'
-#     block_list.append(ImageBlock(image_url=c.COMMON_URL + 'bara-footer-' + user_settings['appearance'] + extension, alt_text='happybara.io'))
-#     block_list.extend(spacer_blocks(2))
-#     block_list.extend(logo_context_blocks())
-#     block_list.extend(spacer_blocks(1))
-#     return block_list
-
-
-APP_HOME_FOOTER_BLOCKS = [
-    {"type": "section", "text": {"type": "mrkdwn", "text": "  "}},
-    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
-    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
-    {"type": "section", "text": {"type": "plain_text", "text": "    "}},
-    {"type": "divider"},
-    {
-        "type": "header",
-        "text": {"type": "plain_text", "text": "Step Actions", "emoji": True},
     },
     {
         "type": "section",
@@ -154,7 +193,7 @@ APP_HOME_FOOTER_BLOCKS = [
         "elements": [
             {
                 "type": "image",
-                "image_url": URLS["images"]["main_logo"],
+                "image_url": URLS["images"]["bara_main_logo"],
                 "alt_text": "happybara.io",
             },
             {
@@ -400,6 +439,7 @@ UTILS_CONFIG = {
     },
     "random_int": {
         "step_name": "Random Integer",
+        "step_image_url": URLS["images"]["bara_main_logo"],
         "draft": False,
         "isSlack": False,
         "description": "Get a random integer from the range [lower bound - upper bound] (inclusive).",
@@ -448,6 +488,7 @@ UTILS_CONFIG = {
     "random_uuid": {
         "draft": False,
         "step_name": "Random UUID",
+        "step_image_url": URLS["images"]["bara_main_logo"],
         "description": "Generated a UUID, e.g. `'9ba98b34-7e54-4b78-8833-ca29380aae08`.",
         "modal_input_blocks": [],
         "inputs": {},
@@ -456,6 +497,7 @@ UTILS_CONFIG = {
     "manual_complete": {
         "draft": False,
         "step_name": "Wait for Human",
+        "step_image_url": URLS["images"]["bara_main_logo"],
         "isSlack": False,
         "description": "Hold in progress until an execution ID is submitted to complete/fail the execution.",
         "modal_input_blocks": [
