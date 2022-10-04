@@ -213,6 +213,121 @@ def build_add_webhook_modal():
             "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
         },
     ]
+    add_webhook_form_blocks = [{
+			"type": "header",
+			"text": {
+				"type": "plain_text",
+				"text": "Adding new events as Workflow triggers",
+				"emoji": True
+			}
+		},
+        {
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "<https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide>."
+				}
+			]
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "_1. (In Workflow Builder) Create a Slack Webhook-triggered Workflow - then save the URL._"
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "*2. (In Workflow Buddy App Home) Set up the connection between `event` and `webhook URL`.*"
+			}
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "_3. Send a test event to make sure workflow is triggered._"
+			}
+		},
+		{
+			"type": "divider"
+		},
+		{
+			"type": "input",
+			"block_id": "event_type_input",
+			"element": {
+				"type": "plain_text_input",
+				"action_id": "event_type_value",
+				"placeholder": {
+					"type": "plain_text",
+					"text": "app_mention"
+				}
+			},
+			"label": {
+				"type": "plain_text",
+				"text": "Event Type",
+				"emoji": True
+			}
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "The Slack event type you want to connect to your workflow, e.g. `app_mention`. <https://api.slack.com/events|Full list>."
+				}
+			]
+		},
+		{
+			"type": "input",
+			"block_id": "desc_input",
+			"element": {
+				"type": "plain_text_input",
+				"action_id": "desc_value"
+			},
+			"label": {
+				"type": "plain_text",
+				"text": "Description",
+				"emoji": True
+			}
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "In 6 months you won't remember why you connected `app_mention` to `https://abc.webhook.com`. This field lets you save context for your team."
+				}
+			]
+		},
+		{
+			"type": "input",
+			"block_id": "webhook_url_input",
+			"element": {
+				"type": "plain_text_input",
+				"action_id": "webhook_url_value",
+				"placeholder": {
+					"type": "plain_text",
+					"text": "'https://hooks.slack.com/workflows/..."
+				}
+			},
+			"label": {
+				"type": "plain_text",
+				"text": "Webhook URL",
+				"emoji": True
+			}
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "You should have gotten this Webhook URL from your Slack Workflow, unless you are following the <https://#proxy-slack-events-to-another-service|advanced usage>."
+				}
+			]
+		}]
 
     add_webhook_modal = {
         "type": "modal",

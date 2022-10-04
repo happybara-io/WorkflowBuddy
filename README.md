@@ -73,6 +73,7 @@ Many names to describe it. In short, have your workflow wait in an `In progress`
 Generate a random integer in the range [`lower_bound`-`upper_bound`], inclusive.
 
 **Example**: Given `5` - `15`, would output random value like `11`.
+
 ### Random UUID
 
 Generate a random UUID with [Python's standard library](https://docs.python.org/3/library/uuid.html).
@@ -119,6 +120,9 @@ Enable listening for `message`**\*** events, then either directly proxy the even
 
 Use the customizable `Outgoing Webhook` Step as part of a workflow and fill the JSON body with relevant context. Examples might be triggering Airtable automations when your Workflow is finished, or kicking off GitHub Actions.
 
+### Proxy Slack events to another service
+
+Workflow Buddy was originally intended for expanding the available Workflow Builder triggers within Slack, but it can also be used to proxy Slack events to another service - bypassing Workflow Builder entirely. This can be done by following parts of the [New Event Triggers Guide](#quickstart-new-event-triggers). You can skip creating a workflow, then after double checking your OAuth scopes are all set, you can `Add` a new event-> webhook mapping and connect the event to your external services URL. [](#proxy-slack-events-to-another-service)
 
 ### Your great idea here
 

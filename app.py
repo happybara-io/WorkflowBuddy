@@ -71,6 +71,7 @@ def update_blocks_with_previous_input_based_on_config(
                                 block["element"]["initial_options"] = initial_options
                         else:
                             # assume plain_text_input cuz it's common
+                            print('PROBLEM VALUE', prev_input_value)
                             block["element"]["initial_value"] = prev_input_value
 
 

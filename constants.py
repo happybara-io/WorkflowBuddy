@@ -82,6 +82,8 @@ URLS = {
     "images": {
         "main_logo": "https://s3.happybara.io/happybara/main_logo.png",
         "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
+        "bara_slack_logo": "https://s3.happybara.io/happybara/main_logo_slack_badge_100.png",
+        "bara_webhook_logo": "https://s3.happybara.io/happybara/main_logo_webhook_badge_50.png",
         "footer": {
             "dark": "https://s3.happybara.io/common/bara-footer-dark.jpg",
             "light": "https://s3.happybara.io/common/bara-footer-light.png",
@@ -283,6 +285,7 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
 UTILS_CONFIG = {
     "webhook": {
         "step_name": "Send a webhook",
+        "step_image_url": URLS["images"]["bara_webhook_logo"],
         "draft": False,
         "isSlack": False,
         "description": "Send a webhook to the defined URL.",
@@ -521,7 +524,7 @@ UTILS_CONFIG = {
         "draft": False,
         "isSlack": True,
         "step_name": "Find user by email",
-        "step_image_url": URLS["images"]["slack_logo"],
+        "step_image_url": URLS["images"]["bara_slack_logo"],
         "description": "Find a Slack user based on their account email.",
         "modal_input_blocks": [
             {
