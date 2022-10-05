@@ -433,7 +433,7 @@ def handle_config_webhook_submission(
 
     msg = ""
     try:
-        utils.db_add_webhook_to_event(event_type, name, webhook_url)
+        utils.db_add_webhook_to_event(event_type, name, webhook_url, user_id)
         msg = f"Your addition of {webhook_url} was successful."
     except Exception as e:
         logger.exception(e)
@@ -452,9 +452,10 @@ def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None
     logger.info(f"||{event_type}|BODY:{body}")
     try:
         workflow_webhooks_to_request = utils.db_get_event_config(event_type)
+        utils.db_remove_unhandled_event(event_type)
     except KeyError:
-        raise
-        # TODO: handle errors gracefully
+        utils.db_set_unhandled_event(event_type)
+        return
 
     for webhook in workflow_webhooks_to_request:
         json_body = event

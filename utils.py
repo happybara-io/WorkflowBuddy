@@ -28,10 +28,14 @@ def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
 IN_MEMORY_WRITE_THROUGH_CACHE = {}
 PERSISTED_JSON_FILE = "workflow-buddy-db.json"
 # on startup, load current contents into cache
-with open(PERSISTED_JSON_FILE, "a+") as jf:
+with open(PERSISTED_JSON_FILE, "r") as jf:
     try:
+
         IN_MEMORY_WRITE_THROUGH_CACHE = json.load(jf)
-    except json.decoder.JSONDecodeError:
+        logging.info('Cache loaded from file')
+    except json.decoder.JSONDecodeError as e:
+
+        logging.exception(e)
         IN_MEMORY_WRITE_THROUGH_CACHE = {}
 logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 
@@ -45,6 +49,28 @@ def send_webhook(url, body: dict) -> requests.Response:
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 
+def db_get_unhandled_events() -> dict:
+    try:
+        return IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"]
+    except KeyError:
+        return []
+
+def db_remove_unhandled_event(event_type)-> None:
+    try:
+        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].remove(event_type)
+        logging.info(f'Remove unhandled event: {event_type}')
+        sync_cache_to_disk()
+    except ValueError:
+        pass
+
+def db_set_unhandled_event(event_type) -> None:
+    logging.info(f'Adding unhandled event: {event_type}')
+    try:
+        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].append(event_type)
+    except KeyError:
+        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"] = [event_type]
+    sync_cache_to_disk()
+
 
 def db_get_event_config(event_type) -> dict:
     return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
@@ -57,8 +83,8 @@ def sync_cache_to_disk() -> None:
         jf.write(json_str)
 
 
-def db_add_webhook_to_event(event_type, name, webhook_url) -> None:
-    new_webhook = {"name": name, "webhook_url": webhook_url}
+def db_add_webhook_to_event(event_type, name, webhook_url, adding_user_id) -> None:
+    new_webhook = {"name": name, "webhook_url": webhook_url, "added_by": adding_user_id}
     try:
         IN_MEMORY_WRITE_THROUGH_CACHE[event_type].append(new_webhook)
     except KeyError:
@@ -98,6 +124,24 @@ def build_app_home_view() -> dict:
     data = db_export()
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
+    unhandled_events = db_get_unhandled_events()
+    if len(unhandled_events) > 0:
+        blocks.extend([
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"⚠️ *event types without a destination configured:* `{unhandled_events}` ⚠️",
+                },
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"   ",
+                },
+            },
+        ])
     if len(data.keys()) < 1:
         blocks.append(
             {
@@ -109,6 +153,8 @@ def build_app_home_view() -> dict:
             }
         )
     for event_type, webhook_list in data.items():
+        if event_type == 'unhandled_events':
+            continue
         single_event_row = [
             {
                 "type": "section",
