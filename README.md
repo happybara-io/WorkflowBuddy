@@ -34,6 +34,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [Run Local Server](#run-local-server)
   - [Try New Event Triggers](#quickstart-new-event-triggers)
   - [Try New Steps](#quickstart-new-steps)
+- [FAQ](#faq)
 - [Development](#👩‍💻-development)
 - [Deployment: Self-hosting, Hosted](#deployment)
 
