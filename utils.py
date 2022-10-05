@@ -104,7 +104,7 @@ def build_app_home_view() -> dict:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":shrug: Nothing here yet! Try using the `Add` or `Import` options.",
+                    "text": f"• :shrug: Nothing here yet! Try using the `Add` or `Import` options.",
                 },
             }
         )
@@ -288,10 +288,19 @@ def build_add_webhook_modal():
             },
         },
         {
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": "_Alternatively get a Webhook URL from <https://webhook.site|Webhook.site> if you are just testing events are working._"
+            }
+        ]
+    },
+        {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._",
+            "text": "_3. Send a test event to make sure workflow is triggered (e.g. for `app_mention`, go to a channel and `@WorkflowBuddy`)._",
             },
         },
         {"type": "divider"},

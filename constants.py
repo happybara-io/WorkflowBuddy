@@ -65,14 +65,23 @@ APP_HOME_HEADER_BLOCKS = [
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "*2. (Here) Set up the connection between `event` and `webhook URL`.*",
+            "text": "*2. (Here) Set up the connection between `event` and the `webhook URL` from Step 1 by clicking `Add`.*",
         },
+    },
+    {
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": "_Alternatively get a Webhook URL from <https://webhook.site|Webhook.site> if you are just testing events are working._"
+            }
+        ]
     },
     {
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._",
+            "text": "_3. Send a test event to make sure workflow is triggered (e.g. for `app_mention`, go to a channel and `@WorkflowBuddy`)._",
         },
     },
     {
