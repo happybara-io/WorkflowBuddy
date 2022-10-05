@@ -82,8 +82,10 @@ def sync_cache_to_disk() -> None:
         jf.write(json_str)
 
 
-def db_add_webhook_to_event(event_type, name, webhook_url, adding_user_id) -> None:
+def db_add_webhook_to_event(event_type, name, webhook_url, adding_user_id, filter_reaction=None) -> None:
     new_webhook = {"name": name, "webhook_url": webhook_url, "added_by": adding_user_id}
+    if filter_reaction:
+        new_webhook["filter_reaction"] = filter_reaction
     try:
         IN_MEMORY_WRITE_THROUGH_CACHE[event_type].append(new_webhook)
     except KeyError:
@@ -282,26 +284,6 @@ def is_valid_url(url: str) -> bool:
 def build_add_webhook_modal():
     add_webhook_form_blocks = [
         {
-            "type": "input",
-            "block_id": "event_type_input",
-            "element": {"type": "plain_text_input", "action_id": "event_type_value"},
-            "label": {"type": "plain_text", "text": "Event Type", "emoji": True},
-        },
-        {
-            "type": "input",
-            "block_id": "desc_input",
-            "element": {"type": "plain_text_input", "action_id": "desc_value"},
-            "label": {"type": "plain_text", "text": "Name", "emoji": True},
-        },
-        {
-            "type": "input",
-            "block_id": "webhook_url_input",
-            "element": {"type": "plain_text_input", "action_id": "webhook_url_value"},
-            "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
-        },
-    ]
-    add_webhook_form_blocks = [
-        {
             "type": "header",
             "text": {
                 "type": "plain_text",
@@ -391,7 +373,7 @@ def build_add_webhook_modal():
                 "action_id": "webhook_url_value",
                 "placeholder": {
                     "type": "plain_text",
-                    "text": "'https://hooks.slack.com/workflows/...",
+                    "text": "https://hooks.slack.com/workflows/...",
                 },
             },
             "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
@@ -402,6 +384,29 @@ def build_add_webhook_modal():
                 {
                     "type": "mrkdwn",
                     "text": "You should have gotten this Webhook URL from your Slack Workflow, unless you are following the <https://github.com/happybara-io/WorkflowBuddy/#proxy-slack-events-to-another-service|advanced usage>.",
+                }
+            ],
+        },
+        {
+            "type": "input",
+            "optional": True,
+            "block_id": "filter_reaction_input",
+            "element": {
+                "type": "plain_text_input",
+                "action_id": "filter_reaction_value",
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "smiley",
+                },
+            },
+            "label": {"type": "plain_text", "text": "Filter Reaction", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Optionally filter `reaction_added` events to a single reaction/emoji e.g. :smiley:."
                 }
             ],
         },
@@ -436,3 +441,48 @@ def load_json_body_from_input_str(input_str: str) -> dict:
         '""', '"'
     )  # ran into JSON parsing issues when JSON string inside body string and Slack
     return json.loads(input_str)
+
+
+def should_filter_event(webhook_config: dict, event: dict) -> bool:
+    # from past experience, make sure to explicitly log if you drop in case logic is messed up
+    event_type = event.get("type")
+    should_filter_reason = None
+
+    if event_type == c.EVENT_REACTION_ADDED:
+        # https://api.slack.com/events/reaction_added
+        filter_react = webhook_config.get('filter_react', '')
+        filter_channel = webhook_config.get('filter_channel', '')
+        # allow messy config
+        filter_react = filter_react.replace(':', '')
+        reaction =  event.get('reaction')
+        channel_id = event.get('item', {}).get('channel')
+        if filter_react and filter_react != reaction:
+            should_filter_reason  = f"No emoji match: {filter_react} but got {reaction}."
+        elif filter_channel and filter_channel != channel_id:
+            should_filter_reason = f"No channel match: {filter_channel} but got {channel_id}."
+    elif event_type == c.EVENT_APP_MENTION:
+        # TODO: (optional) filter by channel
+        pass
+
+    return should_filter_reason
+
+
+def flatten_payload_for_slack_workflow_builder(event):
+    flat_payload = {}
+    # see slack limitations - 20 variables max, no nested https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks
+    # this has to match templates
+    if event["type"] == "reaction_added":
+        flat_payload = {
+            "type": event["type"],
+            "user": event["user"],
+            "reaction": event["reaction"],
+            "item_user": event["item_user"],
+            "item_type": event["item"]["type"],
+            "item_channel": event["item"]["channel"],
+            "item_ts": event["item"]["ts"],
+            "event_ts": event["event_ts"]            
+        }
+    else:
+        # TODO: gotta do this for other events, otherwise key info will be missed in nested objects
+        flat_payload = event
+    return flat_payload

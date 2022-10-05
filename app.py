@@ -418,8 +418,9 @@ def handle_config_webhook_submission(
     event_type = values["event_type_input"]["event_type_value"]["value"]
     name = values["desc_input"]["desc_value"]["value"]
     webhook_url = values["webhook_url_input"]["webhook_url_value"]["value"]
+    filter_reaction = values["filter_reaction_input"]["filter_reaction_value"]["value"]
     # Validate the inputs
-    logger.info(f"submission: {event_type}|{name}|{webhook_url}")
+    logger.info(f"submission: {event_type}|{name}|{webhook_url}|{filter_reaction}")
     errors = {}
     if (event_type is not None and webhook_url is not None) and not utils.is_valid_url(
         webhook_url
@@ -433,7 +434,7 @@ def handle_config_webhook_submission(
 
     msg = ""
     try:
-        utils.db_add_webhook_to_event(event_type, name, webhook_url, user_id)
+        utils.db_add_webhook_to_event(event_type, name, webhook_url, user_id, filter_reaction=filter_reaction)
         msg = f"Your addition of {webhook_url} was successful."
     except Exception as e:
         logger.exception(e)
@@ -444,7 +445,6 @@ def handle_config_webhook_submission(
         logger.exception(f"Failed to post a message {e}")
 
     utils.update_app_home(client, user_id)
-
 
 # TODO: accept any of the keyword args that are allowed?
 def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None:
@@ -457,11 +457,19 @@ def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None
         utils.db_set_unhandled_event(event_type)
         return
 
-    for webhook in workflow_webhooks_to_request:
-        json_body = event
-        resp = utils.send_webhook(webhook["webhook_url"], json_body)
+    for webhook_config in workflow_webhooks_to_request:
+        should_filter_reason = utils.should_filter_event(webhook_config, event)
+        if should_filter_reason:
+            logger.info(f"Filtering event. Reason:{should_filter_reason} event:{event}")
+            continue
+
+        if webhook_config.get('raw_event'):
+            json_body = event
+        else:
+            json_body = utils.flatten_payload_for_slack_workflow_builder(event)
+        resp = utils.send_webhook(webhook_config["webhook_url"], json_body)
         if resp.status_code >= 300:
-            logger.error(f"{resp.status_code}:{resp.text}|{webhook}")
+            logger.error(f"{resp.status_code}:{resp.text}|{webhook_config}")
     logger.info("Finished sending all webhooks for event")
 
 
@@ -489,16 +497,18 @@ def event_channel_deleted(logger: logging.Logger, event: dict, body: dict):
 def event_channel_unarchive(logger: logging.Logger, event: dict, body: dict):
     generic_event_proxy(logger, event, body)
 
+@slack_app.event(c.EVENT_REACTION_ADDED)
+def event_reaction_added(logger: logging.Logger, event: dict, body: dict):
+    generic_event_proxy(logger, event, body)
+
 
 @slack_app.event(c.EVENT_WORKFLOW_PUBLISHED)
 def handle_workflow_published_events(body: dict, logger: logging.Logger):
     logger.debug(body)
 
-
 @slack_app.event(c.EVENT_WORKFLOW_STEP_DELETED)
 def handle_workflow_step_deleted_events(body: dict, logger: logging.Logger):
     logger.debug(body)
-
 
 @slack_app.event(c.EVENT_APP_HOME_OPENED)
 def update_app_home(event: dict, logger: logging.Logger, client: slack_sdk.WebClient):
