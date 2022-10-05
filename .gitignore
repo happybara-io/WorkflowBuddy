@@ -7,6 +7,5 @@ ngrok*
 *.dir
 workflow-buddy-db.json
 .idea/
+.pytest_cache/
 
-
-.idea/

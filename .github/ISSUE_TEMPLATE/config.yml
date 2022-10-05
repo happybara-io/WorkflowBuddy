@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🚑 Self-Hosted help and support
+    url: https://happybara.io/support
+    about: Please only reach out with urgent issues that cannot be handled in the normal course of Github Issues.
