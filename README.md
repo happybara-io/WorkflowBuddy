@@ -52,7 +52,15 @@ All\* [Slack events](https://api.slack.com/events) proxied through to any **_web
 
 When using **Workflow Builder Webhooks**, it requires allow-listing any data keys you want to use from the request body. To make this easier, in `event_trigger_example_workflows/`, you can find templates that already have all the requisite keys already in place, matching the [core payload from the Slack API](https://api.slack.com/events?).
 
-> ℹ Currently the [wrapping payload](https://api.slack.com/types/event) is not included, but it could be an easy contribution in the future.
+> ⚠️**Limitations**
+>
+> - [Slack restrictions](https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks)
+>   - Max of `20` variables allowed.
+>   - Cannot handle nested JSON.
+>   - Workflow fails if all variables not present.
+> - Workflow Buddy
+>   - Only a small number of templates have been completed so far, good contribution opportunity!
+>   - Currently the [wrapping payload](https://api.slack.com/types/event) is not included, but it could be an easy contribution in the future.
 
 ## 🏃 Available Steps
 
@@ -106,6 +114,10 @@ See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for dis
 
 What can you do with these extra triggers and actions?
 
+## Trigger Slack Workflows with (almost) any event
+
+Expand beyond the limited number of events that Workflow Builder comes with out of the box.
+
 ### Replace the legacy Outgoing Webhooks
 
 Slack used to offer [Outgoing Webhooks](https://slack.com/apps/A0F7VRG6Q-outgoing-webhooks?tab=more_info) as a way to listen for new messages/Trigger Words in Slack messages and then fire a webhook to external URLs.
@@ -122,7 +134,9 @@ Use the customizable `Outgoing Webhook` Step as part of a workflow and fill the 
 
 ### Proxy Slack events to another service
 
-Workflow Buddy was originally intended for expanding the available Workflow Builder triggers within Slack, but it can also be used to proxy Slack events to another service - bypassing Workflow Builder entirely. This can be done by following parts of the [New Event Triggers Guide](#quickstart-new-event-triggers). You can skip creating a workflow, then after double checking your OAuth scopes are all set, you can `Add` a new event-> webhook mapping and connect the event to your external services URL. [](#proxy-slack-events-to-another-service)
+Workflow Buddy was originally intended for expanding the available Workflow Builder triggers within Slack, but it can also be used to proxy Slack events to another service - bypassing Workflow Builder entirely. This can be done by following parts of the [New Event Triggers Guide](#quickstart-new-event-triggers). You can skip creating a workflow, then after double checking your OAuth scopes are all set, you can `Add` a new event-> webhook mapping and connect the event to your external services URL.
+
+> ℹ️: When using in this advanced manner, you'll want to set your webhook configuration setting `raw_event: true`. Workflow Buddy by default will flatten & limit the JSON it receives to fit with the [Slack limitations](#templates-for-event-triggers) of 20 variables and no nested data.
 
 ### Your great idea here
 

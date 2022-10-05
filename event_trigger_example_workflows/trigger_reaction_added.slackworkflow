@@ -1,0 +1,165 @@
+{
+    "source_id": "428609353587701280",
+    "version": "1",
+    "workflow": {
+        "name": "Reaction Added Trigger",
+        "blueprint": {
+            "version": "1",
+            "trigger": {
+                "type": "webhook",
+                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539",
+                "config": {
+                    "url": "",
+                    "variables": [
+                        {
+                            "type": "text",
+                            "key": "type",
+                            "client_id": "32287e26-8080-4f7e-bc81-39a55a2c27c1"
+                        },
+                        {
+                            "type": "user_id",
+                            "key": "user",
+                            "client_id": "5898c57a-bbd4-423e-9f05-9da39b9fb87b"
+                        },
+                        {
+                            "type": "text",
+                            "key": "reaction",
+                            "client_id": "696d39a9-5dc6-4397-9a53-1fa6f686e594"
+                        },
+                        {
+                            "type": "user_id",
+                            "key": "item_user",
+                            "client_id": "7df73782-34a4-4882-8e89-646d1842cae1"
+                        },
+                        {
+                            "type": "text",
+                            "key": "item_type",
+                            "client_id": "6c3a5a8e-b2ba-409a-a2ec-0cb5bfe997ed"
+                        },
+                        {
+                            "type": "text",
+                            "key": "item_channel",
+                            "client_id": "8bb8bc2c-f7c3-4d10-bd43-48f8e57b229c"
+                        },
+                        {
+                            "type": "text",
+                            "key": "item_ts",
+                            "client_id": "d8556c2c-4fbe-46f6-a99e-477177c3cc59"
+                        },
+                        {
+                            "type": "text",
+                            "key": "event_ts",
+                            "client_id": "6f7c1517-b841-4f18-a44d-b923c67a048b"
+                        }
+                    ],
+                    "revoked_token": false
+                }
+            },
+            "steps": [
+                {
+                    "type": "message",
+                    "id": "3df36602-4b1a-44c8-89a1-d02c10ecaf33",
+                    "config": {
+                        "user": {
+                            "ref": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==5898c57a-bbd4-423e-9f05-9da39b9fb87b==user_id"
+                        },
+                        "has_button": false,
+                        "message_text": "Workflows cannot accept nested JSON, so we have to flatten the data before sending:\n\ntype: {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==32287e26-8080-4f7e-bc81-39a55a2c27c1==text}}\nuser:   {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==5898c57a-bbd4-423e-9f05-9da39b9fb87b==user_id}}\nreaction: {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==696d39a9-5dc6-4397-9a53-1fa6f686e594==text}}\nitem_user: {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==7df73782-34a4-4882-8e89-646d1842cae1==user_id}}\nitem_type: {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==6c3a5a8e-b2ba-409a-a2ec-0cb5bfe997ed==text}}\nitem_channel: {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==8bb8bc2c-f7c3-4d10-bd43-48f8e57b229c==text}}\nitem_ts: {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==d8556c2c-4fbe-46f6-a99e-477177c3cc59==text}}\nevent_ts:  {{40de23a1-19b8-4e4a-8b08-fecdb04dc539==6f7c1517-b841-4f18-a44d-b923c67a048b==text}}",
+                        "message_blocks": [
+                            {
+                                "type": "rich_text",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [
+                                            {
+                                                "text": "Workflows cannot accept nested JSON, so we have to flatten the data before sending:\n\ntype: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==32287e26-8080-4f7e-bc81-39a55a2c27c1==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nuser:   ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==5898c57a-bbd4-423e-9f05-9da39b9fb87b==user_id",
+                                                "property": "",
+                                                "data_type": "user"
+                                            },
+                                            {
+                                                "text": "\nreaction: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==696d39a9-5dc6-4397-9a53-1fa6f686e594==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nitem_user: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==7df73782-34a4-4882-8e89-646d1842cae1==user_id",
+                                                "property": "",
+                                                "data_type": "user"
+                                            },
+                                            {
+                                                "text": "\nitem_type: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==6c3a5a8e-b2ba-409a-a2ec-0cb5bfe997ed==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nitem_channel: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==8bb8bc2c-f7c3-4d10-bd43-48f8e57b229c==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nitem_ts: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==d8556c2c-4fbe-46f6-a99e-477177c3cc59==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nevent_ts:  ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "40de23a1-19b8-4e4a-8b08-fecdb04dc539==6f7c1517-b841-4f18-a44d-b923c67a048b==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}

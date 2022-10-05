@@ -6,6 +6,7 @@ EVENT_CHANNEL_ARCHIVE = "channel_archive"
 EVENT_CHANNEL_CREATED = "channel_created"
 EVENT_CHANNEL_DELETED = "channel_deleted"
 EVENT_CHANNEL_UNARCHIVE = "channel_unarchive"
+EVENT_REACTION_ADDED = "reaction_added"
 EVENT_WORKFLOW_PUBLISHED = "workflow_published"
 EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 

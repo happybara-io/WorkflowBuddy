@@ -2,6 +2,15 @@ import utils as sut
 import json
 import pytest
 
+SLACK_WORKFLOW_BUILDER_WEBHOOK_VARIABLES_MAX = 20
+
+def assert_dict_is_flat(d: dict):
+    for k,v in d.items():
+        assert type(v) != dict
+
+###############################################
+# Tests
+###############################################
 
 def test_is_valid_slack_channel_name_too_long():
     name = "a" * 81
@@ -53,3 +62,20 @@ def test_load_json_body_from_input_with_nested_json():
 """
     body = sut.load_json_body_from_input_str(input_str)
     assert type(body) is dict
+
+def test_flatten_payload_reaction_added():
+    e = {
+        "type": "reaction_added",
+        "user": "U024BE7LH",
+        "reaction": "thumbsup",
+        "item_user": "U0G9QF9C6",
+        "item": {
+            "type": "message",
+            "channel": "C0G9QF9GZ",
+            "ts": "1360782400.498405"
+        },
+        "event_ts": "1360782804.083113"
+    }
+    new_payload = sut.flatten_payload_for_slack_workflow_builder(e)
+    assert len(new_payload.keys()) <= SLACK_WORKFLOW_BUILDER_WEBHOOK_VARIABLES_MAX
+    assert_dict_is_flat(new_payload)
