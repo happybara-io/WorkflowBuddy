@@ -18,14 +18,15 @@ features:
 oauth_config:
   scopes:
     bot:
-      - workflow.steps:execute
-      - chat:write
-      - channels:manage
-      - groups:write
-      - channels:read
       - app_mentions:read
+      - channels:manage
+      - channels:read
+      - chat:write
+      - groups:write
       - users:read
       - users:read.email
+      - workflow.steps:execute
+      - reactions:read
 settings:
   event_subscriptions:
     request_url: https://workflow-buddy.fly.dev/slack/events
@@ -33,6 +34,7 @@ settings:
       - app_home_opened
       - app_mention
       - channel_created
+      - reaction_added
       - workflow_deleted
       - workflow_published
       - workflow_step_deleted
