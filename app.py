@@ -10,6 +10,7 @@ import json
 import copy
 from typing import Tuple
 import re
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -71,7 +72,7 @@ def update_blocks_with_previous_input_based_on_config(
                                 block["element"]["initial_options"] = initial_options
                         else:
                             # assume plain_text_input cuz it's common
-                            block["element"]["initial_value"] = prev_input_value
+                            block["element"]["initial_value"] = prev_input_value or ""
 
 
 def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
@@ -85,15 +86,6 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
                 "type": "mrkdwn",
                 "text": "Messages scheduled to be sent from this bot.",
             },
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "_Backticks ` have been replaced with ' only for display._",
-                }
-            ],
         },
         {"type": "divider"},
     ]
@@ -113,14 +105,12 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
             )
         for sm in messages_list:
             text = sm["text"]
-            # backticks were screwing up mine, escaping doesn't seem to work tho
-            safe_text = text.replace("`", "'")
             blocks.append(
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*To:* <#{sm['channel_id']}> *At:* `{sm['post_at']}` *Text:*\n`{safe_text[:100]}{'...' if len(safe_text) > 100 else ''}`",
+                        "text": f"*To:* <#{sm['channel_id']}> *At:* `{sm['post_at']}` *Text:*\n```{text[:100]}{'...' if len(text) > 100 else ''}```",
                     },
                     "accessory": {
                         "type": "button",
@@ -443,7 +433,7 @@ def handle_config_webhook_submission(
 
     msg = ""
     try:
-        utils.db_add_webhook_to_event(event_type, name, webhook_url)
+        utils.db_add_webhook_to_event(event_type, name, webhook_url, user_id)
         msg = f"Your addition of {webhook_url} was successful."
     except Exception as e:
         logger.exception(e)
@@ -462,9 +452,10 @@ def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None
     logger.info(f"||{event_type}|BODY:{body}")
     try:
         workflow_webhooks_to_request = utils.db_get_event_config(event_type)
+        utils.db_remove_unhandled_event(event_type)
     except KeyError:
-        raise
-        # TODO: handle errors gracefully
+        utils.db_set_unhandled_event(event_type)
+        return
 
     for webhook in workflow_webhooks_to_request:
         json_body = event
@@ -618,17 +609,28 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
     request_json_str = inputs.get("request_json_str", {}).get("value", {}) or "{}"
     logging.info(f"sending to url:{url}")
     body = {}
+    bool_flags_input = inputs.get("bool_flags", {})
     try:
-        selected_checkboxes = json.loads(inputs.get("bool_flags", {}).get("value", []))
+        selected_checkboxes = json.loads(bool_flags_input.get("value", []))
         for box_item in selected_checkboxes:
             flag_name = box_item["value"]
             bool_flags[flag_name] = True
-
-        body = json.loads(request_json_str)
     except json.JSONDecodeError:
+        logging.error(f"JSON Decoding error for Flags: {bool_flags_input}")
         fail(
             error={
-                "message": f"Unable to parse JSON when attempting to send webhook to {url}."
+                "message": f"Unable to parse JSON Flags when preparing to send webhook to {url}. String was: {bool_flags_input}."
+            }
+        )
+        return
+
+    try:
+        body = utils.load_json_body_from_input_str(request_json_str)
+    except json.JSONDecodeError:
+        logging.error(f"JSON Decoding error: {request_json_str}")
+        fail(
+            error={
+                "message": f"Unable to parse JSON when preparing to send webhook to {url}. String was: {request_json_str}."
             }
         )
         return
@@ -636,18 +638,19 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
     resp = utils.send_webhook(url, body)
 
     if bool_flags["fail_on_http_error"] and resp.status_code > 300:
-        # TODO: is there a limit to error message string size?
         fail(
             error={
-                "message": f"fail_on_http_error:true|code:{resp.status_code}|{resp.text[:100]}"
+                "message": f"fail_on_http_error:true|code:{resp.status_code}|{resp.text[:500]}"
             }
         )
     else:
         # TODO: is there a limit to output variable string size?
+        sanitized_resp = utils.sanitize_webhook_response(resp.text)
         outputs = {
             "webhook_status_code": str(resp.status_code),
-            "webhook_response_text": f"{resp.text}",
+            "webhook_response_text": f"{sanitized_resp}",
         }
+        logging.info(f"OUTPUTS: {outputs}")
         complete(outputs=outputs)
 
 
@@ -818,6 +821,9 @@ def parse_values_from_input_config(
                 int(value)
             except ValueError:
                 errors[block_id] = f"Must be a valid integer."
+        elif validation_type == "email":
+            if "@" not in value:
+                errors[block_id] = f"Must be a valid email."
         elif validation_type == "url":
             if not utils.is_valid_url(value):
                 errors[block_id] = f"Must be a valid URL with `http(s)://.`"
@@ -827,11 +833,25 @@ def parse_values_from_input_config(
                     block_id
                 ] = "Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars."
         elif validation_type == "able_to_post":
-            status = utils.test_if_bot_able_to_post_to_conversation(value, client)
+            status = utils.test_if_bot_is_member(value, client)
             if status == "not_in_channel":
                 errors[
                     block_id
-                ] = f"Bot needs to be invited to conversation before it can post."
+                ] = f"Bot needs to be invited to the conversation before it can post."
+        elif validation_type == "future_timestamp":
+            # TODO: must be a valid integer
+            try:
+                timestamp_int = int(value)
+                curr = datetime.now().timestamp()
+                print('DIFF:', timestamp_int - curr)
+                if (timestamp_int - curr) < c.TIME_5_MINS:
+                    readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
+                    errors[
+                            block_id
+                        ] = f"Need a timestamp from > 5 mins in future, but got {readable_bad_dt}."
+            except ValueError:
+                errors[block_id] = f"Must be valid timestamp integer."
+
         inputs[name] = {"value": value}
 
     return inputs, errors

@@ -6,6 +6,7 @@ ngrok*
 *.bak
 *.dir
 workflow-buddy-db.json
+.idea/
 
 
 .idea/

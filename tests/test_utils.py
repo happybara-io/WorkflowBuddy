@@ -1,4 +1,6 @@
 import utils as sut
+import json
+import pytest
 
 
 def test_is_valid_slack_channel_name_too_long():
@@ -36,3 +38,18 @@ def test_is_valid_url_garbage():
     url = "silly other input text"
     is_valid = sut.is_valid_url(url)
     assert not is_valid
+
+
+def test_load_json_body_from_input_with_nested_json():
+    # testing scenario of JSON string output from previous step,
+    # wanting to use it inside the JSON body of another webhook.
+    input_str = """
+{
+"user": "Kevin Quinn",
+"found": "TKM6AU1FG",
+"webhook_status": "200",
+"webhook_resp": ""{  \\"statusCode\\" : 200}""
+}
+"""
+    body = sut.load_json_body_from_input_str(input_str)
+    assert type(body) is dict

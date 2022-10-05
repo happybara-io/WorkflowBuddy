@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import logging
 import requests
@@ -6,7 +7,7 @@ import shelve
 import json
 import copy
 import constants as c
-from urllib import parse
+from urllib import parse, response
 import slack_sdk
 import slack_sdk.errors
 from datetime import datetime, timedelta
@@ -27,10 +28,14 @@ def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
 IN_MEMORY_WRITE_THROUGH_CACHE = {}
 PERSISTED_JSON_FILE = "workflow-buddy-db.json"
 # on startup, load current contents into cache
-with open(PERSISTED_JSON_FILE, "a+") as jf:
+with open(PERSISTED_JSON_FILE, "r") as jf:
     try:
+
         IN_MEMORY_WRITE_THROUGH_CACHE = json.load(jf)
-    except json.decoder.JSONDecodeError:
+        logging.info('Cache loaded from file')
+    except json.decoder.JSONDecodeError as e:
+
+        logging.exception(e)
         IN_MEMORY_WRITE_THROUGH_CACHE = {}
 logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 
@@ -44,6 +49,28 @@ def send_webhook(url, body: dict) -> requests.Response:
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 
+def db_get_unhandled_events() -> dict:
+    try:
+        return IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"]
+    except KeyError:
+        return []
+
+def db_remove_unhandled_event(event_type)-> None:
+    try:
+        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].remove(event_type)
+        logging.info(f'Remove unhandled event: {event_type}')
+        sync_cache_to_disk()
+    except ValueError:
+        pass
+
+def db_set_unhandled_event(event_type) -> None:
+    logging.info(f'Adding unhandled event: {event_type}')
+    try:
+        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].append(event_type)
+    except KeyError:
+        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"] = [event_type]
+    sync_cache_to_disk()
+
 
 def db_get_event_config(event_type) -> dict:
     return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
@@ -56,8 +83,8 @@ def sync_cache_to_disk() -> None:
         jf.write(json_str)
 
 
-def db_add_webhook_to_event(event_type, name, webhook_url) -> None:
-    new_webhook = {"name": name, "webhook_url": webhook_url}
+def db_add_webhook_to_event(event_type, name, webhook_url, adding_user_id) -> None:
+    new_webhook = {"name": name, "webhook_url": webhook_url, "added_by": adding_user_id}
     try:
         IN_MEMORY_WRITE_THROUGH_CACHE[event_type].append(new_webhook)
     except KeyError:
@@ -97,17 +124,37 @@ def build_app_home_view() -> dict:
     data = db_export()
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
+    unhandled_events = db_get_unhandled_events()
+    if len(unhandled_events) > 0:
+        blocks.extend([
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"⚠️ *event types without a destination configured:* `{unhandled_events}` ⚠️",
+                },
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"   ",
+                },
+            },
+        ])
     if len(data.keys()) < 1:
         blocks.append(
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":shrug: Nothing here yet! Try using the `Add` or `Import` options.",
+                    "text": f"• :shrug: Nothing here yet! Try using the `Add` or `Import` options.",
                 },
             }
         )
     for event_type, webhook_list in data.items():
+        if event_type == 'unhandled_events':
+            continue
         single_event_row = [
             {
                 "type": "section",
@@ -136,12 +183,53 @@ def build_app_home_view() -> dict:
         ]
         blocks.extend(single_event_row)
 
-    blocks.extend(c.APP_HOME_FOOTER_BLOCKS)
+    blocks.extend(c.APP_HOME_MIDDLE_BLOCKS)
+
+    footer_blocks = [
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "image",
+                    "image_url": c.URLS["images"]["bara_main_logo"],
+                    "alt_text": "happybara.io",
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": "Proudly built by <https://happybara.io|Happybara>.",
+                },
+            ],
+        },
+    ]
+    chosen_image_style = random.choice(["dark", "light", "oceanic"])
+    footer_image_url = c.URLS["images"]["footer"][chosen_image_style]
+    footer_blocks.insert(
+        0, {"type": "image", "image_url": footer_image_url, "alt_text": "happybara.io"}
+    )
+    blocks.extend(footer_blocks)
     return {"type": "home", "blocks": blocks}
 
 
+def test_if_bot_is_member(
+    conversation_id: str, client: slack_sdk.WebClient
+) -> str:
+    try:
+        resp = client.conversations_info(
+            channel=conversation_id,
+        )
+        print(resp)
+        if resp["channel"]["is_member"]:
+            return "is_member"
+        else:
+            return "not_in_channel"
+    except slack_sdk.errors.SlackApiError as e:
+        print(type(e).__name__, e)
+        return "unable_to_test"
+
+
 # TODO: use this to make UX better for if users can select conversation that we might not be able to post to
-def test_if_bot_able_to_post_to_conversation(
+def test_if_bot_able_to_post_to_conversation_deprecated(
     conversation_id: str, client: slack_sdk.WebClient
 ) -> str:
     status = "unknown"
@@ -213,6 +301,112 @@ def build_add_webhook_modal():
             "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
         },
     ]
+    add_webhook_form_blocks = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "Adding new events as Workflow triggers",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "<https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide for reference>.",
+                }
+            ],
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "_1. (In Workflow Builder) Create a Slack <https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks|Webhook-triggered Workflow> - then save the URL nearby._",
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*2. ⭐(Here!) Set up the connection between `event` and `webhook URL`.*",
+            },
+        },
+        {
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": "_Alternatively get a Webhook URL from <https://webhook.site|Webhook.site> if you are just testing events are working._"
+            }
+        ]
+    },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+            "text": "_3. Send a test event to make sure workflow is triggered (e.g. for `app_mention`, go to a channel and `@WorkflowBuddy`)._",
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "input",
+            "block_id": "event_type_input",
+            "element": {
+                "type": "plain_text_input",
+                "action_id": "event_type_value",
+                "placeholder": {"type": "plain_text", "text": "app_mention"},
+            },
+            "label": {"type": "plain_text", "text": "Event Type", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "The Slack event type you want to connect to your workflow, e.g. `app_mention`. <https://api.slack.com/events|Full list>.",
+                }
+            ],
+        },
+        {
+            "type": "input",
+            "block_id": "desc_input",
+            "element": {"type": "plain_text_input", "action_id": "desc_value"},
+            "label": {"type": "plain_text", "text": "Description", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "In 6 months you won't remember why you connected `app_mention` to `https://abc.webhook.com`. This field lets you save context for your team.",
+                }
+            ],
+        },
+        {
+            "type": "input",
+            "block_id": "webhook_url_input",
+            "element": {
+                "type": "plain_text_input",
+                "action_id": "webhook_url_value",
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "'https://hooks.slack.com/workflows/...",
+                },
+            },
+            "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "You should have gotten this Webhook URL from your Slack Workflow, unless you are following the <https://github.com/happybara-io/WorkflowBuddy/#proxy-slack-events-to-another-service|advanced usage>.",
+                }
+            ],
+        },
+    ]
 
     add_webhook_modal = {
         "type": "modal",
@@ -222,3 +416,24 @@ def build_add_webhook_modal():
         "blocks": add_webhook_form_blocks,
     }
     return add_webhook_modal
+
+
+def sanitize_webhook_response(resp_text: str) -> str:
+    # need to make sure if we get JSON back, it's properly sanitized so it can be used downstream
+    sanitized = resp_text.replace("\n", "")
+    try:
+        # make resp text usable in future webhooks/json elements
+        sanitized = json.dumps(sanitized)
+        sanitized.replace('"', '\\"')
+        logging.debug(f"Escaped resp is {sanitized}")
+    except json.JSONDecodeError:
+        pass
+    return sanitized
+
+
+def load_json_body_from_input_str(input_str: str) -> dict:
+    # TODO: probably need a better handle on this, or make it very obvious to users that we will do it
+    input_str = input_str.replace(
+        '""', '"'
+    )  # ran into JSON parsing issues when JSON string inside body string and Slack
+    return json.loads(input_str)
