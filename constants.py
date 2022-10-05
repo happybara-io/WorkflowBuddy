@@ -12,6 +12,9 @@ EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
 WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
+TIME_5_MINS = 5*60
+TIME_1_DAY = 24 * 3600
+
 APP_HOME_HEADER_BLOCKS = [
     {
         "type": "header",
@@ -22,24 +25,20 @@ APP_HOME_HEADER_BLOCKS = [
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "Workflow Buddy lets you use any Slack Event as a trigger for Workflow Builder, as well as adding new Steps (e.g. `Send Outbound Webhook`)."
+            "text": "Workflow Buddy lets you use any Slack Event as a trigger for Workflow Builder, as well as adding new Steps (e.g. `Send Outbound Webhook`).",
         },
     },
     {
         "type": "actions",
         "elements": [
             {
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"text": "🔗GitHub Docs",
-					"emoji": True
-				},
-				"value": GITHUB_REPO_URL,
-				"url": GITHUB_REPO_URL,
-				"action_id": "action_github_repo"
-             },
-        ]
+                "type": "button",
+                "text": {"type": "plain_text", "text": "🔗GitHub Docs", "emoji": True},
+                "value": GITHUB_REPO_URL,
+                "url": GITHUB_REPO_URL,
+                "action_id": "action_github_repo",
+            },
+        ],
     },
     {"type": "divider"},
     {
@@ -47,35 +46,35 @@ APP_HOME_HEADER_BLOCKS = [
         "text": {"type": "plain_text", "text": "Event Triggers", "emoji": True},
     },
     {
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "How to add a new Event Trigger for Slack events. <https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide for reference>."
-				}
-			]
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "_1. (In Workflow Builder) Create a Slack <https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks|Webhook-triggered Workflow> - then save the URL nearby._"
-			}
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "*2. (Here) Set up the connection between `event` and `webhook URL`.*"
-			}
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._"
-			}
-		},
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": "How to add a new Event Trigger for Slack events. <https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide for reference>.",
+            }
+        ],
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "_1. (In Workflow Builder) Create a Slack <https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks|Webhook-triggered Workflow> - then save the URL nearby._",
+        },
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "*2. (Here) Set up the connection between `event` and `webhook URL`.*",
+        },
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._",
+        },
+    },
     {
         "type": "actions",
         "elements": [
@@ -101,7 +100,7 @@ APP_HOME_HEADER_BLOCKS = [
             },
         ],
     },
-    {"type": "divider"},
+    # {"type": "divider"},
 ]
 
 URLS = {
@@ -150,7 +149,7 @@ APP_HOME_MIDDLE_BLOCKS = [
                 },
                 "value": "action_manual_complete",
                 "action_id": "action_manual_complete",
-            }
+            },
         ],
     },
     {
@@ -181,13 +180,18 @@ APP_HOME_MIDDLE_BLOCKS = [
             },
             {
                 "type": "plain_text",
+                "text": "• Utils: Wait for Human",
+                "emoji": True,
+            },
+            {
+                "type": "plain_text",
                 "text": "• Utils: Get Random Integer from Range",
                 "emoji": True,
             },
             {"type": "plain_text", "text": "• Utils: Get Random UUID", "emoji": True},
         ],
     },
-    {"type": "divider"}
+    {"type": "divider"},
 ]
 
 UTILS_ACTION_LABELS = {
@@ -505,6 +509,7 @@ UTILS_CONFIG = {
         "inputs": {
             "conversation_id": {
                 "name": "conversation_id",
+                "validation_type": "able_to_post",
                 "type": "conversations_select",
                 "block_id": "conversation_id_input",
                 "action_id": "conversation_id_value",
@@ -570,6 +575,7 @@ UTILS_CONFIG = {
         "inputs": {
             "user_email": {
                 "name": "user_email",
+                "validation_type": "email",
                 "block_id": "user_email_input",
                 "action_id": "user_email_value",
             }
@@ -638,10 +644,13 @@ UTILS_CONFIG = {
         "inputs": {
             "channel": {
                 "type": "channels_select",
+                "validation_type": "able_to_post",
                 "block_id": "channel_input",
                 "action_id": "channel_value",
             },
-            "post_at": {"block_id": "post_at_input", "action_id": "post_at_value"},
+            "post_at": {"block_id": "post_at_input",
+             "validation_type": "future_timestamp",
+             "action_id": "post_at_value"},
             "msg_text": {"block_id": "msg_text_input", "action_id": "msg_text_value"},
         },
         "outputs": [

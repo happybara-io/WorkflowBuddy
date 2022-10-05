@@ -7,7 +7,7 @@ import shelve
 import json
 import copy
 import constants as c
-from urllib import parse
+from urllib import parse, response
 import slack_sdk
 import slack_sdk.errors
 from datetime import datetime, timedelta
@@ -140,34 +140,32 @@ def build_app_home_view() -> dict:
     blocks.extend(c.APP_HOME_MIDDLE_BLOCKS)
 
     footer_blocks = [
-            {"type": "divider"},
+        {"type": "divider"},
         {
-        "type": "context",
-        "elements": [
-            {
-                "type": "image",
-                "image_url": c.URLS["images"]["bara_main_logo"],
-                "alt_text": "happybara.io",
-            },
-            {
-                "type": "mrkdwn",
-                "text": "Proudly built by <https://happybara.io|Happybara>.",
-            },
-        ],
-    }
+            "type": "context",
+            "elements": [
+                {
+                    "type": "image",
+                    "image_url": c.URLS["images"]["bara_main_logo"],
+                    "alt_text": "happybara.io",
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": "Proudly built by <https://happybara.io|Happybara>.",
+                },
+            ],
+        },
     ]
-    chosen_image_style = random.choice(['dark', 'light', 'oceanic'])
+    chosen_image_style = random.choice(["dark", "light", "oceanic"])
     footer_image_url = c.URLS["images"]["footer"][chosen_image_style]
-    footer_blocks.insert(0,{
-        "type": "image",
-        "image_url": footer_image_url,
-        "alt_text": "happybara.io"
-    } )
+    footer_blocks.insert(
+        0, {"type": "image", "image_url": footer_image_url, "alt_text": "happybara.io"}
+    )
     blocks.extend(footer_blocks)
     return {"type": "home", "blocks": blocks}
 
 
-def test_if_bot_able_to_post_to_conversation(
+def test_if_bot_is_member(
     conversation_id: str, client: slack_sdk.WebClient
 ) -> str:
     try:
@@ -182,6 +180,7 @@ def test_if_bot_able_to_post_to_conversation(
     except slack_sdk.errors.SlackApiError as e:
         print(type(e).__name__, e)
         return "unable_to_test"
+
 
 # TODO: use this to make UX better for if users can select conversation that we might not be able to post to
 def test_if_bot_able_to_post_to_conversation_deprecated(
@@ -256,121 +255,103 @@ def build_add_webhook_modal():
             "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
         },
     ]
-    add_webhook_form_blocks = [{
-			"type": "header",
-			"text": {
-				"type": "plain_text",
-				"text": "Adding new events as Workflow triggers",
-				"emoji": True
-			}
-		},
+    add_webhook_form_blocks = [
         {
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "<https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide for reference>."
-				}
-			]
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "_1. (In Workflow Builder) Create a Slack <https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks|Webhook-triggered Workflow> - then save the URL nearby._"
-			}
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "*2. ⭐(Here!) Set up the connection between `event` and `webhook URL`.*"
-			}
-		},
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._"
-			}
-		},
-		{
-			"type": "divider"
-		},
-		{
-			"type": "input",
-			"block_id": "event_type_input",
-			"element": {
-				"type": "plain_text_input",
-				"action_id": "event_type_value",
-				"placeholder": {
-					"type": "plain_text",
-					"text": "app_mention"
-				}
-			},
-			"label": {
-				"type": "plain_text",
-				"text": "Event Type",
-				"emoji": True
-			}
-		},
-		{
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "The Slack event type you want to connect to your workflow, e.g. `app_mention`. <https://api.slack.com/events|Full list>."
-				}
-			]
-		},
-		{
-			"type": "input",
-			"block_id": "desc_input",
-			"element": {
-				"type": "plain_text_input",
-				"action_id": "desc_value"
-			},
-			"label": {
-				"type": "plain_text",
-				"text": "Description",
-				"emoji": True
-			}
-		},
-		{
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "In 6 months you won't remember why you connected `app_mention` to `https://abc.webhook.com`. This field lets you save context for your team."
-				}
-			]
-		},
-		{
-			"type": "input",
-			"block_id": "webhook_url_input",
-			"element": {
-				"type": "plain_text_input",
-				"action_id": "webhook_url_value",
-				"placeholder": {
-					"type": "plain_text",
-					"text": "'https://hooks.slack.com/workflows/..."
-				}
-			},
-			"label": {
-				"type": "plain_text",
-				"text": "Webhook URL",
-				"emoji": True
-			}
-		},
-		{
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "You should have gotten this Webhook URL from your Slack Workflow, unless you are following the <https://github.com/happybara-io/WorkflowBuddy/#proxy-slack-events-to-another-service|advanced usage>."
-				}
-			]
-		}]
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "Adding new events as Workflow triggers",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "<https://github.com/happybara-io/WorkflowBuddy#-quickstarts|Quickstart Guide for reference>.",
+                }
+            ],
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "_1. (In Workflow Builder) Create a Slack <https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks|Webhook-triggered Workflow> - then save the URL nearby._",
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*2. ⭐(Here!) Set up the connection between `event` and `webhook URL`.*",
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "_3. Send a test event to make sure workflow is triggered. <https://webhook.site|Webhook.site> can be used for debugging._",
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "input",
+            "block_id": "event_type_input",
+            "element": {
+                "type": "plain_text_input",
+                "action_id": "event_type_value",
+                "placeholder": {"type": "plain_text", "text": "app_mention"},
+            },
+            "label": {"type": "plain_text", "text": "Event Type", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "The Slack event type you want to connect to your workflow, e.g. `app_mention`. <https://api.slack.com/events|Full list>.",
+                }
+            ],
+        },
+        {
+            "type": "input",
+            "block_id": "desc_input",
+            "element": {"type": "plain_text_input", "action_id": "desc_value"},
+            "label": {"type": "plain_text", "text": "Description", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "In 6 months you won't remember why you connected `app_mention` to `https://abc.webhook.com`. This field lets you save context for your team.",
+                }
+            ],
+        },
+        {
+            "type": "input",
+            "block_id": "webhook_url_input",
+            "element": {
+                "type": "plain_text_input",
+                "action_id": "webhook_url_value",
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "'https://hooks.slack.com/workflows/...",
+                },
+            },
+            "label": {"type": "plain_text", "text": "Webhook URL", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "You should have gotten this Webhook URL from your Slack Workflow, unless you are following the <https://github.com/happybara-io/WorkflowBuddy/#proxy-slack-events-to-another-service|advanced usage>.",
+                }
+            ],
+        },
+    ]
 
     add_webhook_modal = {
         "type": "modal",
@@ -380,3 +361,24 @@ def build_add_webhook_modal():
         "blocks": add_webhook_form_blocks,
     }
     return add_webhook_modal
+
+
+def sanitize_webhook_response(resp_text: str) -> str:
+    # need to make sure if we get JSON back, it's properly sanitized so it can be used downstream
+    sanitized = resp_text.replace("\n", "")
+    try:
+        # make resp text usable in future webhooks/json elements
+        sanitized = json.dumps(sanitized)
+        sanitized.replace('"', '\\"')
+        logging.debug(f"Escaped resp is {sanitized}")
+    except json.JSONDecodeError:
+        pass
+    return sanitized
+
+
+def load_json_body_from_input_str(input_str: str) -> dict:
+    # TODO: probably need a better handle on this, or make it very obvious to users that we will do it
+    input_str = input_str.replace(
+        '""', '"'
+    )  # ran into JSON parsing issues when JSON string inside body string and Slack
+    return json.loads(input_str)
