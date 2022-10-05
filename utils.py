@@ -461,13 +461,16 @@ def should_filter_event(webhook_config: dict, event: dict) -> bool:
         elif filter_channel and filter_channel != channel_id:
             should_filter_reason = f"No channel match: {filter_channel} but got {channel_id}."
     elif event_type == c.EVENT_APP_MENTION:
-        # TODO: (optional) filter by channel
-        pass
+        filter_channel = webhook_config.get('filter_channel', '')
+        channel_id = event.get('channel')
+        if filter_channel and filter_channel != channel_id:
+            should_filter_reason = f"No channel match: {filter_channel} but got {channel_id}."
 
     return should_filter_reason
 
 
 def flatten_payload_for_slack_workflow_builder(event):
+    # TODO: seems like a good place to consistently add common data like team_id, etc.
     flat_payload = {}
     # see slack limitations - 20 variables max, no nested https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks
     # this has to match templates

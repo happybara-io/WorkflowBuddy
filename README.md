@@ -28,13 +28,13 @@ _You can get creative and do a lot with these building blocks, but what if you w
 
 - **About**
   - [Available Event Triggers](#🏁🎬-available-triggers) - `Many`
-  - [Available Steps](#🏃available-steps) - `7`
-  - [Use Cases](#use-cases)
+  - [Available Steps](#🏃-available-steps) - `7`
+  - [Use Cases](#⛏-use-cases)
 - **Quick Start** - 🎉 _test me out!_ 🧪
   - [Run Local Server](#run-local-server)
   - [Try New Event Triggers](#quickstart-new-event-triggers)
   - [Try New Steps](#quickstart-new-steps)
-- [Development](#development)
+- [Development](#👩‍💻-development)
 - [Deployment: Self-hosting, Hosted](#deployment)
 
 ---
@@ -47,6 +47,48 @@ All\* [Slack events](https://api.slack.com/events) proxied through to any **_web
 > _\*\* While WorkflowBuddy code will work out of the box as an event proxy, you will need to update your app's OAuth scopes & event subscriptions for your new events, as well as save the webhook event from your Workflow in the config._
 
 ![Visualizing the Slack event proxy](/static/workflow-buddy-event-proxy.png)
+
+### Events
+
+The events that have been tested and are known to be working - other Slack events should work, but have not had the same testing done.
+
+`Options` is the keys you can add to the Webhook config options through App Home. If the option isn't visible in `Add` modal, then it can be added directly by:
+
+- `Export` the config.
+- Edit it to add your desired `Options`.
+- `Import` the updated config.
+
+#### Global Options
+
+Options that work the same across event types.
+
+- `raw_event`: By default, Workflow Buddy will flatten & limit the JSON it receives to fit with the [Slack limitations](#templates-for-event-triggers) of 20 variables and no nested data. Set this to `true` to turn off the transformation.
+
+#### **app_mention** - [_docs_](https://api.slack.com/events/app_mention)
+
+- [x] happy path tested
+- [x] template: `event_trigger_example_workflows/trigger_app_mention.slackworkflow`.
+
+Listen for when your bot gets mentioned across the workspace.
+
+**Options:**
+
+- `filter_channel` - [Channel ID](#how-to-get-channel-id). If you want to filter down to a single channel. Example use case: `Workflow triggered by mentioning bot in a specific channel`.
+
+#### **reaction_added** - [_docs_](https://api.slack.com/events/reaction_added)
+
+- [x] happy path tested
+- [x] template: `event_trigger_example_workflows/trigger_reaction_added.slackworkflow`.
+
+If you only want a single reaction type (e.g. 😀) in a single channel, then you'll want to just use the Workflow Builder built-in. The Workflow Buddy version provides a bit more functionality.
+
+- Listen to **All** reactions coming in - not just a single.
+- Listen across every conversation Workflow Buddy is apart of - not just a single channel. Tested in public & private channels.
+
+**Options:**
+
+- `filter_react` - the emoji/reaction you want to let through.
+- `filter_channel` - [Channel ID](#how-to-get-channel-id). If you want to filter down to a single channel. Example use case: `Workflow triggered by any emoji reaction in a specific channel`.
 
 ### Templates for Event Triggers
 
@@ -103,7 +145,7 @@ Get a user based on their Slack email. Returns the user as both a text `user_id`
 ### (Slack) Schedule a message
 
 - [Core API Method](https://api.slack.com/methods/chat.scheduleMessage)
-
+- [Advanced formatting in Slack messages](https://api.slack.com/reference/surfaces/formatting)
 Schedule bot messages to public channels up to 120 days in the future.
 
 ### More to come ....
@@ -136,7 +178,7 @@ Use the customizable `Outgoing Webhook` Step as part of a workflow and fill the 
 
 Workflow Buddy was originally intended for expanding the available Workflow Builder triggers within Slack, but it can also be used to proxy Slack events to another service - bypassing Workflow Builder entirely. This can be done by following parts of the [New Event Triggers Guide](#quickstart-new-event-triggers). You can skip creating a workflow, then after double checking your OAuth scopes are all set, you can `Add` a new event-> webhook mapping and connect the event to your external services URL.
 
-> ℹ️: When using in this advanced manner, you'll want to set your webhook configuration setting `raw_event: true`. Workflow Buddy by default will flatten & limit the JSON it receives to fit with the [Slack limitations](#templates-for-event-triggers) of 20 variables and no nested data.
+> ℹ️: When using in this advanced manner, you'll want to set your webhook configuration setting `raw_event: true`.  See [Raw Event in Options](#global-options).
 
 ### Your great idea here
 
@@ -182,6 +224,17 @@ Try out the new **Steps** by importing a Workflow that has all of them configure
   - You now have the abiltity to use all of the Workflow Buddy Steps for your Workflows now!
 
 **Go forth and automate!**
+
+---
+
+## FAQ
+
+### How to get channel ID
+
+- Navigate to the desired channel in Slack, then click it's name at the top to open `Channel details`.
+- Scroll to the bottom of that modal, and you'll see a copyable channel ID that looks like:
+
+  `Channel ID: GMZE58GD9`
 
 ---
 
