@@ -110,7 +110,7 @@ Options that work the same across event types.
 #### **app_mention** - [_docs_](https://api.slack.com/events/app_mention)
 
 - [x] happy path tested
-- [x] template: `event_trigger_example_workflows/trigger_app_mention.slackworkflow`.
+- [x] template: [`event_trigger_example_workflows/trigger_app_mention.slackworkflow`](https://raw.githubusercontent.com/happybara-io/WorkflowBuddy/main/event_trigger_example_workflows/trigger_app_mention.slackworkflow).
 
 Listen for when your bot gets mentioned across the workspace.
 
@@ -121,14 +121,14 @@ Listen for when your bot gets mentioned across the workspace.
 #### **channel_created** - [_docs_](https://api.slack.com/events/channel_created)
 
 - [x] happy path tested
-- [x] template: `event_trigger_example_workflows/trigger_channel_created.slackworkflow`
+- [x] template: [`event_trigger_example_workflows/trigger_channel_created.slackworkflow`](https://raw.githubusercontent.com/happybara-io/WorkflowBuddy/main/event_trigger_example_workflows/trigger_channel_created.slackworkflow).
 
 Listen for new channels being created.
 
 #### **reaction_added** - [_docs_](https://api.slack.com/events/reaction_added)
 
 - [x] happy path tested
-- [x] template: `event_trigger_example_workflows/trigger_reaction_added.slackworkflow`.
+- [x] template: [`event_trigger_example_workflows/trigger_reaction_added.slackworkflow`](https://raw.githubusercontent.com/happybara-io/WorkflowBuddy/main/event_trigger_example_workflows/trigger_reaction_added.slackworkflow).
 
 If you only want a single reaction type (e.g. 😀) in a single channel, then you'll want to just use the Workflow Builder built-in. The Workflow Buddy version provides a bit more functionality.
 
