@@ -29,7 +29,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 >
 
 - **About**
-  - [Demo]()
+  - [Demos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
   - [Available Steps](#-available-steps) - `+7`
   - [Use Cases](#-use-cases)
@@ -47,7 +47,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 
 _Hate reading and would rather see videos of it in action?_
 - [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/app_mention_e2e_flow.md) showing a [custom event](#-available-triggers) triggering a Workflow which runs the majority of the [available Step actions](#-available-steps). 
-
+- [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/importing-from-trigger-and-outgoing-webhooks.md) showing how to go from [downloaded template](#templates-for-event-triggers) to triggering a Workflow that sends an [`Outgoing Webhook`](#send-a-webhook), along with a bonus of showing how to [proxy slack events to another service](#proxy-slack-events-to-another-service).
 ---
 
 ## ⛏ Use Cases
