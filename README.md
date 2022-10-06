@@ -1,5 +1,7 @@
 # Workflow Buddy - Super powers for Workflow Builder
 
+_| Open-source | [Hosted](https://tally.so/r/mVLKkj) |_
+
 ---
 
 **[Workflow Builder](https://slack.com/features/workflow-automation) is great!**
@@ -27,9 +29,9 @@ _You can get creative and do a lot with these building blocks, but what if you w
 >
 
 - **About**
-  - [Available Event Triggers](#🏁🎬-available-triggers) - `Many`
-  - [Available Steps](#🏃-available-steps) - `7`
-  - [Use Cases](#⛏-use-cases)
+  - [Available Event Triggers](#-available-triggers) - `+Many`
+  - [Available Steps](#-available-steps) - `+7`
+  - [Use Cases](#-use-cases)
 - **Quick Start** - 🎉 _test me out!_ 🧪
   - [Run Local Server](#run-local-server)
   - [Try New Event Triggers](#quickstart-new-event-triggers)
@@ -37,6 +39,46 @@ _You can get creative and do a lot with these building blocks, but what if you w
 - [FAQ](#faq)
 - [Development](#👩‍💻-development)
 - [Deployment: Self-hosting, Hosted](#deployment)
+
+---
+
+## ⛏ Use Cases
+
+What can you do with these extra triggers and actions?
+
+### Trigger Slack Workflows with (almost) any event
+
+Expand beyond the limited number of events that Workflow Builder comes with out of the box.
+
+### Replace the legacy Outgoing Webhooks
+
+Slack used to offer [Outgoing Webhooks](https://slack.com/apps/A0F7VRG6Q-outgoing-webhooks?tab=more_info) as a way to listen for new messages/Trigger Words in Slack messages and then fire a webhook to external URLs.
+
+It has a warning at the top though _"Please note, this is a legacy custom integration - an outdated way for teams to integrate with Slack. These integrations lack newer features and they will be deprecated and possibly removed in the future."_. To avoid any issues, you can alternatively use WorkflowBuddy to accomplish the same thing (in 2 ways!).
+
+Enable listening for `message`**\*** events, then either directly proxy the event to your webhook (by adding it to the `Event-Webhook Map` in App Home) or use the `Step: Send a Webhook` as part of a longer Workflow.
+
+**\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
+
+### Have as many events as you want trigger a Workflow
+
+With Slack Workflow Builder, you can only configure a **single** event to trigger your Workflow (e.g. _person added to a specific channel). Workflow Buddy has no restrictions on the number or variety of `event->webhook` mappings you configure. Maybe you want all the `channel_*` event types to kick off a workflow, or you want to have incoming events sent in parallel to a [Webhook testing site](https://webhook.site) while you're debugging your workflow.
+
+> ⚠: _"Webhook workflows are limited to one request per second."-[src](https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks)._ You can enable numerous events, but you also can't hammer the service with 50K workflow executions, so be careful when using the high-volume events like `message`.
+
+### Send data from Slack Workflow to other apps
+
+Use the customizable `Outgoing Webhook` Step as part of a workflow and fill the JSON body with relevant context. Examples might be triggering Airtable automations when your Workflow is finished, or kicking off GitHub Actions.
+
+### Proxy Slack events to another service
+
+Workflow Buddy was originally intended for expanding the available Workflow Builder triggers within Slack, but it can also be used to proxy Slack events to another service - bypassing Workflow Builder entirely. This can be done by following parts of the [New Event Triggers Guide](#quickstart-new-event-triggers). You can skip creating a workflow, then after double checking your OAuth scopes are all set, you can `Add` a new event-> webhook mapping and connect the event to your external services URL.
+
+> ℹ️: When using in this advanced manner, you'll want to set your webhook configuration setting `raw_event: true`.  See [Raw Event in Options](#global-options).
+
+### Your great idea here
+
+There are tons of awesome use cases we haven't thought of yet, submit a PR or reach out to tell us about yours!
 
 ---
 
@@ -152,38 +194,6 @@ Schedule bot messages to public channels up to 120 days in the future.
 ### More to come ....
 
 See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for discussion on potential Step actions to add.
-
-## ⛏ Use Cases
-
-What can you do with these extra triggers and actions?
-
-## Trigger Slack Workflows with (almost) any event
-
-Expand beyond the limited number of events that Workflow Builder comes with out of the box.
-
-### Replace the legacy Outgoing Webhooks
-
-Slack used to offer [Outgoing Webhooks](https://slack.com/apps/A0F7VRG6Q-outgoing-webhooks?tab=more_info) as a way to listen for new messages/Trigger Words in Slack messages and then fire a webhook to external URLs.
-
-It has a warning at the top though _"Please note, this is a legacy custom integration - an outdated way for teams to integrate with Slack. These integrations lack newer features and they will be deprecated and possibly removed in the future."_. To avoid any issues, you can alternatively use WorkflowBuddy to accomplish the same thing (in 2 ways!).
-
-Enable listening for `message`**\*** events, then either directly proxy the event to your webhook (by adding it to the `Event-Webhook Map` in App Home) or use the `Step: Send a Webhook` as part of a longer Workflow.
-
-**\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
-
-### Send data from Slack Workflow to other apps
-
-Use the customizable `Outgoing Webhook` Step as part of a workflow and fill the JSON body with relevant context. Examples might be triggering Airtable automations when your Workflow is finished, or kicking off GitHub Actions.
-
-### Proxy Slack events to another service
-
-Workflow Buddy was originally intended for expanding the available Workflow Builder triggers within Slack, but it can also be used to proxy Slack events to another service - bypassing Workflow Builder entirely. This can be done by following parts of the [New Event Triggers Guide](#quickstart-new-event-triggers). You can skip creating a workflow, then after double checking your OAuth scopes are all set, you can `Add` a new event-> webhook mapping and connect the event to your external services URL.
-
-> ℹ️: When using in this advanced manner, you'll want to set your webhook configuration setting `raw_event: true`.  See [Raw Event in Options](#global-options).
-
-### Your great idea here
-
-There are tons of awesome use cases we haven't thought of yet, submit a PR or reach out to tell us about yours!
 
 ---
 
