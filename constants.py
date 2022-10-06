@@ -13,7 +13,7 @@ EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
 WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
-TIME_5_MINS = 5*60
+TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
 
 APP_HOME_HEADER_BLOCKS = [
@@ -74,9 +74,9 @@ APP_HOME_HEADER_BLOCKS = [
         "elements": [
             {
                 "type": "mrkdwn",
-                "text": "_Alternatively get a Webhook URL from <https://webhook.site|Webhook.site> if you are just testing events are working._"
+                "text": "_Alternatively get a Webhook URL from <https://webhook.site|Webhook.site> if you are just testing events are working._",
             }
-        ]
+        ],
     },
     {
         "type": "section",
@@ -658,9 +658,11 @@ UTILS_CONFIG = {
                 "block_id": "channel_input",
                 "action_id": "channel_value",
             },
-            "post_at": {"block_id": "post_at_input",
-             "validation_type": "future_timestamp",
-             "action_id": "post_at_value"},
+            "post_at": {
+                "block_id": "post_at_input",
+                "validation_type": "future_timestamp",
+                "action_id": "post_at_value",
+            },
             "msg_text": {"block_id": "msg_text_input", "action_id": "msg_text_value"},
         },
         "outputs": [

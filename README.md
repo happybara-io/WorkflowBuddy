@@ -118,6 +118,13 @@ Listen for when your bot gets mentioned across the workspace.
 
 - `filter_channel` - [Channel ID](#how-to-get-channel-id). If you want to filter down to a single channel. Example use case: `Workflow triggered by mentioning bot in a specific channel`.
 
+#### **channel_created** - [_docs_](https://api.slack.com/events/channel_created)
+
+- [x] happy path tested
+- [x] template: `event_trigger_example_workflows/trigger_channel_created.slackworkflow`
+
+Listen for new channels being created.
+
 #### **reaction_added** - [_docs_](https://api.slack.com/events/reaction_added)
 
 - [x] happy path tested

@@ -1,0 +1,120 @@
+{
+    "source_id": "428725752100304457",
+    "version": "1",
+    "workflow": {
+        "name": "Channel Created Trigger",
+        "blueprint": {
+            "version": "1",
+            "trigger": {
+                "type": "webhook",
+                "id": "b4b66224-434f-428a-b9db-dbf544cc32ef",
+                "config": {
+                    "url": "",
+                    "variables": [
+                        {
+                            "type": "text",
+                            "key": "type",
+                            "client_id": "1d9e6e65-de76-4ff4-93a5-7d9be8945f51"
+                        },
+                        {
+                            "type": "text",
+                            "key": "channel_id",
+                            "client_id": "6fd56e8a-aa2f-4737-9fa9-875f1efeb3dd"
+                        },
+                        {
+                            "type": "text",
+                            "key": "channel_name",
+                            "client_id": "ae67dee7-97b1-4a9d-8860-701df2d1b4e1"
+                        },
+                        {
+                            "type": "text",
+                            "key": "channel_created",
+                            "client_id": "08c9f221-7c8e-43c4-953b-de4fd90fcf14"
+                        },
+                        {
+                            "type": "text",
+                            "key": "channel_creator",
+                            "client_id": "9c6286f1-e29f-4fc0-8580-1f03cfe8ffe4"
+                        }
+                    ],
+                    "revoked_token": false
+                }
+            },
+            "steps": [
+                {
+                    "type": "message",
+                    "id": "21da2643-a61f-4000-afb3-f89be571ff66",
+                    "config": {
+                        "user": {
+                            "value": "UMTUPT124"
+                        },
+                        "has_button": false,
+                        "message_text": "Channel created event happened:\ntype: {{b4b66224-434f-428a-b9db-dbf544cc32ef==1d9e6e65-de76-4ff4-93a5-7d9be8945f51==text}}\nchannel_id: {{b4b66224-434f-428a-b9db-dbf544cc32ef==6fd56e8a-aa2f-4737-9fa9-875f1efeb3dd==text}}\nchannel_name: {{b4b66224-434f-428a-b9db-dbf544cc32ef==ae67dee7-97b1-4a9d-8860-701df2d1b4e1==text}}\nchannel_created: {{b4b66224-434f-428a-b9db-dbf544cc32ef==08c9f221-7c8e-43c4-953b-de4fd90fcf14==text}}\nchannel_creator: {{b4b66224-434f-428a-b9db-dbf544cc32ef==9c6286f1-e29f-4fc0-8580-1f03cfe8ffe4==text}}",
+                        "message_blocks": [
+                            {
+                                "type": "rich_text",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [
+                                            {
+                                                "text": "Channel created event happened:\ntype: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "b4b66224-434f-428a-b9db-dbf544cc32ef==1d9e6e65-de76-4ff4-93a5-7d9be8945f51==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nchannel_id: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "b4b66224-434f-428a-b9db-dbf544cc32ef==6fd56e8a-aa2f-4737-9fa9-875f1efeb3dd==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nchannel_name: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "b4b66224-434f-428a-b9db-dbf544cc32ef==ae67dee7-97b1-4a9d-8860-701df2d1b4e1==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nchannel_created: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "b4b66224-434f-428a-b9db-dbf544cc32ef==08c9f221-7c8e-43c4-953b-de4fd90fcf14==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nchannel_creator: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "type": "workflowtoken",
+                                                "id": "b4b66224-434f-428a-b9db-dbf544cc32ef==9c6286f1-e29f-4fc0-8580-1f03cfe8ffe4==text",
+                                                "property": "",
+                                                "data_type": "text"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
