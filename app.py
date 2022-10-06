@@ -434,7 +434,9 @@ def handle_config_webhook_submission(
 
     msg = ""
     try:
-        utils.db_add_webhook_to_event(event_type, name, webhook_url, user_id, filter_reaction=filter_reaction)
+        utils.db_add_webhook_to_event(
+            event_type, name, webhook_url, user_id, filter_reaction=filter_reaction
+        )
         msg = f"Your addition of {webhook_url} was successful."
     except Exception as e:
         logger.exception(e)
@@ -446,69 +448,46 @@ def handle_config_webhook_submission(
 
     utils.update_app_home(client, user_id)
 
-# TODO: accept any of the keyword args that are allowed?
-def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None:
-    event_type = event.get("type")
-    logger.info(f"||{event_type}|BODY:{body}")
-    try:
-        workflow_webhooks_to_request = utils.db_get_event_config(event_type)
-        utils.db_remove_unhandled_event(event_type)
-    except KeyError:
-        utils.db_set_unhandled_event(event_type)
-        return
-
-    for webhook_config in workflow_webhooks_to_request:
-        should_filter_reason = utils.should_filter_event(webhook_config, event)
-        if should_filter_reason:
-            logger.info(f"Filtering event. Reason:{should_filter_reason} event:{event}")
-            continue
-
-        if webhook_config.get('raw_event'):
-            json_body = event
-        else:
-            json_body = utils.flatten_payload_for_slack_workflow_builder(event)
-        resp = utils.send_webhook(webhook_config["webhook_url"], json_body)
-        if resp.status_code >= 300:
-            logger.error(f"{resp.status_code}:{resp.text}|{webhook_config}")
-    logger.info("Finished sending all webhooks for event")
-
 
 @slack_app.event(c.EVENT_APP_MENTION)
 def event_app_mention(logger: logging.Logger, event: dict, body: dict):
-    generic_event_proxy(logger, event, body)
+    utils.generic_event_proxy(logger, event, body)
 
 
 @slack_app.event(c.EVENT_CHANNEL_ARCHIVE)
 def event_channel_archive(logger: logging.Logger, event: dict, body: dict):
-    generic_event_proxy(logger, event, body)
+    utils.generic_event_proxy(logger, event, body)
 
 
 @slack_app.event(c.EVENT_CHANNEL_CREATED)
 def event_channel_created(logger: logging.Logger, event: dict, body: dict):
-    generic_event_proxy(logger, event, body)
+    utils.generic_event_proxy(logger, event, body)
 
 
 @slack_app.event(c.EVENT_CHANNEL_DELETED)
 def event_channel_deleted(logger: logging.Logger, event: dict, body: dict):
-    generic_event_proxy(logger, event, body)
+    utils.generic_event_proxy(logger, event, body)
 
 
 @slack_app.event(c.EVENT_CHANNEL_UNARCHIVE)
 def event_channel_unarchive(logger: logging.Logger, event: dict, body: dict):
-    generic_event_proxy(logger, event, body)
+    utils.generic_event_proxy(logger, event, body)
+
 
 @slack_app.event(c.EVENT_REACTION_ADDED)
 def event_reaction_added(logger: logging.Logger, event: dict, body: dict):
-    generic_event_proxy(logger, event, body)
+    utils.generic_event_proxy(logger, event, body)
 
 
 @slack_app.event(c.EVENT_WORKFLOW_PUBLISHED)
 def handle_workflow_published_events(body: dict, logger: logging.Logger):
     logger.debug(body)
 
+
 @slack_app.event(c.EVENT_WORKFLOW_STEP_DELETED)
 def handle_workflow_step_deleted_events(body: dict, logger: logging.Logger):
     logger.debug(body)
+
 
 @slack_app.event(c.EVENT_APP_HOME_OPENED)
 def update_app_home(event: dict, logger: logging.Logger, client: slack_sdk.WebClient):
@@ -853,12 +832,12 @@ def parse_values_from_input_config(
             try:
                 timestamp_int = int(value)
                 curr = datetime.now().timestamp()
-                print('DIFF:', timestamp_int - curr)
+                print("DIFF:", timestamp_int - curr)
                 if (timestamp_int - curr) < c.TIME_5_MINS:
                     readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
                     errors[
-                            block_id
-                        ] = f"Need a timestamp from > 5 mins in future, but got {readable_bad_dt}."
+                        block_id
+                    ] = f"Need a timestamp from > 5 mins in future, but got {readable_bad_dt}."
             except ValueError:
                 errors[block_id] = f"Must be valid timestamp integer."
 

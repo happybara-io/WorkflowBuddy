@@ -121,7 +121,7 @@ Listen for when your bot gets mentioned across the workspace.
 #### **channel_created** - [_docs_](https://api.slack.com/events/channel_created)
 
 - [x] happy path tested
-- [ ] template: `?`.
+- [x] template: `event_trigger_example_workflows/trigger_channel_created.slackworkflow`
 
 Listen for new channels being created.
 

@@ -24,9 +24,9 @@ with open(PERSISTED_JSON_FILE, "r") as jf:
     try:
 
         IN_MEMORY_WRITE_THROUGH_CACHE = json.load(jf)
-        logging.info('Cache loaded from file')
+        logging.info("Cache loaded from file")
     except json.decoder.JSONDecodeError as e:
-        logging.warning('Unable to load from file, starting empty cache.')
+        logging.warning("Unable to load from file, starting empty cache.")
         IN_MEMORY_WRITE_THROUGH_CACHE = {}
 logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 
@@ -43,10 +43,39 @@ def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
     return parse.quote(f"{block_kit_base_url}#{json_str}", safe="/:?=&#")
 
 
+# TODO: accept any of the keyword args that are allowed?
+def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None:
+    event_type = event.get("type")
+    logger.info(f"||{event_type}|BODY:{body}")
+    try:
+        workflow_webhooks_to_request = db_get_event_config(event_type)
+        db_remove_unhandled_event(event_type)
+    except KeyError:
+        db_set_unhandled_event(event_type)
+        return
+
+    for webhook_config in workflow_webhooks_to_request:
+        should_filter_reason = should_filter_event(webhook_config, event)
+        if should_filter_reason:
+            logger.info(f"Filtering event. Reason:{should_filter_reason} event:{event}")
+            continue
+
+        if webhook_config.get("raw_event"):
+            json_body = event
+        else:
+            json_body = flatten_payload_for_slack_workflow_builder(event)
+        resp = send_webhook(webhook_config["webhook_url"], json_body)
+        if resp.status_code >= 300:
+            logger.error(f"{resp.status_code}:{resp.text}|config:{webhook_config}")
+    logger.info("Finished sending all webhooks for event")
+
+
 def send_webhook(url, body: dict) -> requests.Response:
+    logging.debug(f"body to send:{body}")
     resp = requests.post(url, json=body)
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
+
 
 def db_get_unhandled_events() -> dict:
     try:
@@ -54,16 +83,18 @@ def db_get_unhandled_events() -> dict:
     except KeyError:
         return []
 
-def db_remove_unhandled_event(event_type)-> None:
+
+def db_remove_unhandled_event(event_type) -> None:
     try:
         IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].remove(event_type)
-        logging.info(f'Remove unhandled event: {event_type}')
+        logging.info(f"Remove unhandled event: {event_type}")
         sync_cache_to_disk()
     except ValueError:
         pass
 
+
 def db_set_unhandled_event(event_type) -> None:
-    logging.info(f'Adding unhandled event: {event_type}')
+    logging.info(f"Adding unhandled event: {event_type}")
     try:
         IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].append(event_type)
     except KeyError:
@@ -82,7 +113,9 @@ def sync_cache_to_disk() -> None:
         jf.write(json_str)
 
 
-def db_add_webhook_to_event(event_type, name, webhook_url, adding_user_id, filter_reaction=None) -> None:
+def db_add_webhook_to_event(
+    event_type, name, webhook_url, adding_user_id, filter_reaction=None
+) -> None:
     new_webhook = {"name": name, "webhook_url": webhook_url, "added_by": adding_user_id}
     if filter_reaction:
         new_webhook["filter_reaction"] = filter_reaction
@@ -127,22 +160,24 @@ def build_app_home_view() -> dict:
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
     unhandled_events = db_get_unhandled_events()
     if len(unhandled_events) > 0:
-        blocks.extend([
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"⚠️ *event types without a destination configured:* `{unhandled_events}` ⚠️",
+        blocks.extend(
+            [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"⚠️ *event types without a destination configured:* `{unhandled_events}` ⚠️",
+                    },
                 },
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"   ",
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"   ",
+                    },
                 },
-            },
-        ])
+            ]
+        )
     if len(data.keys()) < 1:
         blocks.append(
             {
@@ -154,7 +189,7 @@ def build_app_home_view() -> dict:
             }
         )
     for event_type, webhook_list in data.items():
-        if event_type == 'unhandled_events':
+        if event_type == "unhandled_events":
             continue
         single_event_row = [
             {
@@ -212,9 +247,7 @@ def build_app_home_view() -> dict:
     return {"type": "home", "blocks": blocks}
 
 
-def test_if_bot_is_member(
-    conversation_id: str, client: slack_sdk.WebClient
-) -> str:
+def test_if_bot_is_member(conversation_id: str, client: slack_sdk.WebClient) -> str:
     try:
         resp = client.conversations_info(
             channel=conversation_id,
@@ -315,19 +348,19 @@ def build_add_webhook_modal():
             },
         },
         {
-        "type": "context",
-        "elements": [
-            {
-                "type": "mrkdwn",
-                "text": "_Alternatively get a Webhook URL from <https://webhook.site|Webhook.site> if you are just testing events are working._"
-            }
-        ]
-    },
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "_Alternatively get a Webhook URL from <https://webhook.site|Webhook.site> if you are just testing events are working._",
+                }
+            ],
+        },
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-            "text": "_3. Send a test event to make sure workflow is triggered (e.g. for `app_mention`, go to a channel and `@WorkflowBuddy`)._",
+                "text": "_3. Send a test event to make sure workflow is triggered (e.g. for `app_mention`, go to a channel and `@WorkflowBuddy`)._",
             },
         },
         {"type": "divider"},
@@ -406,7 +439,7 @@ def build_add_webhook_modal():
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": "Optionally filter `reaction_added` events to a single reaction/emoji e.g. :smiley:."
+                    "text": "Optionally filter `reaction_added` events to a single reaction/emoji e.g. :smiley:.",
                 }
             ],
         },
@@ -450,21 +483,25 @@ def should_filter_event(webhook_config: dict, event: dict) -> bool:
 
     if event_type == c.EVENT_REACTION_ADDED:
         # https://api.slack.com/events/reaction_added
-        filter_react = webhook_config.get('filter_react', '')
-        filter_channel = webhook_config.get('filter_channel', '')
+        filter_react = webhook_config.get("filter_react", "")
+        filter_channel = webhook_config.get("filter_channel", "")
         # allow messy config
-        filter_react = filter_react.replace(':', '')
-        reaction =  event.get('reaction')
-        channel_id = event.get('item', {}).get('channel')
+        filter_react = filter_react.replace(":", "")
+        reaction = event.get("reaction")
+        channel_id = event.get("item", {}).get("channel")
         if filter_react and filter_react != reaction:
-            should_filter_reason  = f"No emoji match: {filter_react} but got {reaction}."
+            should_filter_reason = f"No emoji match: {filter_react} but got {reaction}."
         elif filter_channel and filter_channel != channel_id:
-            should_filter_reason = f"No channel match: {filter_channel} but got {channel_id}."
+            should_filter_reason = (
+                f"No channel match: {filter_channel} but got {channel_id}."
+            )
     elif event_type == c.EVENT_APP_MENTION:
-        filter_channel = webhook_config.get('filter_channel', '')
-        channel_id = event.get('channel')
+        filter_channel = webhook_config.get("filter_channel", "")
+        channel_id = event.get("channel")
         if filter_channel and filter_channel != channel_id:
-            should_filter_reason = f"No channel match: {filter_channel} but got {channel_id}."
+            should_filter_reason = (
+                f"No channel match: {filter_channel} but got {channel_id}."
+            )
 
     return should_filter_reason
 
@@ -474,16 +511,25 @@ def flatten_payload_for_slack_workflow_builder(event):
     flat_payload = {}
     # see slack limitations - 20 variables max, no nested https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks
     # this has to match templates
-    if event["type"] == "reaction_added":
+    et = event["type"]
+    if et == "reaction_added":
         flat_payload = {
-            "type": event["type"],
+            "type": et,
             "user": event["user"],
             "reaction": event["reaction"],
             "item_user": event["item_user"],
             "item_type": event["item"]["type"],
             "item_channel": event["item"]["channel"],
             "item_ts": event["item"]["ts"],
-            "event_ts": event["event_ts"]            
+            "event_ts": event["event_ts"],
+        }
+    elif et == "channel_created":
+        flat_payload = {
+            "type": et,
+            "channel_id": event["channel"]["id"],
+            "channel_name": event["channel"]["name"],
+            "channel_created": str(event["channel"]["created"]),
+            "channel_creator": event["channel"]["creator"],
         }
     else:
         # TODO: gotta do this for other events, otherwise key info will be missed in nested objects
