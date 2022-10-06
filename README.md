@@ -29,6 +29,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 >
 
 - **About**
+  - [Demo]()
   - [Available Event Triggers](#-available-triggers) - `+Many`
   - [Available Steps](#-available-steps) - `+7`
   - [Use Cases](#-use-cases)
@@ -39,6 +40,13 @@ _You can get creative and do a lot with these building blocks, but what if you w
 - [FAQ](#faq)
 - [Development](#👩‍💻-development)
 - [Deployment: Self-hosting, Hosted](#deployment)
+
+---
+
+## Demos
+
+_Hate reading and would rather see videos of it in action?_
+- [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/app_mention_e2e_flow.md) showing a [custom event](#-available-triggers) triggering a Workflow which runs the majority of the [available Step actions](#-available-steps). 
 
 ---
 
