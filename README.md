@@ -68,6 +68,16 @@ Enable listening for `message`**\*** events, then either directly proxy the even
 
 **\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
 
+### Reuse the same Workflow for multiple channels across a Workspace
+
+Slack Workflows are currently tied to a single channel, which can be a hold up if you want to track events across multiple. To stick within Workflow Builder, you need to download and duplicate the same workflow for every possible channel you want..... or just use Workflow Buddy and proxy all the events to a single Workflow.
+
+Example for `reaction added`:
+- Invite Workflow Buddy to each of the channels you want it to listen for reactions in
+- Set up your desired Workflow as a `Webhook-triggered` in Workflow Builder. Publish and copy the URL.
+- In the Workflow Buddy App Home, configure the `reaction_added` event with the Webhook from previous step.
+- 🧪 Test by reacting to some messages! Any channel the bot has been invited to will send their events through Workflow Buddy - and onward to your Workflow.
+
 ### Have as many events as you want trigger a Workflow
 
 With Slack Workflow Builder, you can only configure a **single** event to trigger your Workflow (e.g. _person added to a specific channel). Workflow Buddy has no restrictions on the number or variety of `event->webhook` mappings you configure. Maybe you want all the `channel_*` event types to kick off a workflow, or you want to have incoming events sent in parallel to a [Webhook testing site](https://webhook.site) while you're debugging your workflow.
