@@ -265,12 +265,20 @@ Try out the new **Steps** by importing a Workflow that has all of them configure
 
 ## FAQ
 
-### How to get channel ID
+### How to get a channel ID?
 
 - Navigate to the desired channel in Slack, then click it's name at the top to open `Channel details`.
 - Scroll to the bottom of that modal, and you'll see a copyable channel ID that looks like:
 
   `Channel ID: GMZE58GD9`
+
+### Is this a replacement for Workflow Builder?
+
+❌ No! This acts as a complement to Workflow Builder, enhancing it's functionality to do even more awesome things.
+
+### Isn't Slack going to eventually add this functionality to Workflow Builder?
+
+Maybe, but until then, you have an option rather than waiting impatiently. Plus, since it is an extension of Workflow Builder, it won't stop working if Slack decides to add new functionality to the core tool. For those unaware, Slack is planning to release [conditional logic and other features in Q1 2023](https://techcrunch.com/2022/09/01/slack-gains-new-automation-features-including-conditional-logic-for-workflows/?guccounter=1).
 
 ---
 
