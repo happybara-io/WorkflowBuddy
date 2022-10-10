@@ -71,9 +71,18 @@ def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None
     logger.info("Finished sending all webhooks for event")
 
 
-def send_webhook(url, body: dict) -> requests.Response:
+def send_webhook(
+    url: str,
+    body: dict,
+    method="POST",
+    params=None,
+    headers={"Content-Type": "application/json"},
+) -> requests.Response:
     logging.debug(f"body to send:{body}")
-    resp = requests.post(url, json=body)
+    print("METHOD:", method)
+    resp = requests.request(
+        method=method, url=url, json=body, params=params, headers=headers
+    )
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 

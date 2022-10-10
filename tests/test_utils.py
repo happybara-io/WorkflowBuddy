@@ -21,7 +21,9 @@ def assert_dict_is_flat_and_all_keys_are_strings(d: dict):
     # Got error when I sent an integer instead of string to Slack for a variable
     # {"error":"invalid_webhook_format","ok":false,"response_metadata":{"messages":["[ERROR] invalid required field: 'channel_created'"]}}
     for k, v in d.items():
-        assert type(v) == str, f"key:`{k}` was wrong type: {type(v)} vs str." # implicitly, not dict
+        assert (
+            type(v) == str
+        ), f"key:`{k}` was wrong type: {type(v)} vs str."  # implicitly, not dict
 
 
 ###############################################
@@ -88,7 +90,6 @@ def test_flatten_payload(name, event):
     assert num_keys <= SLACK_WORKFLOW_BUILDER_WEBHOOK_VARIABLES_MAX
     assert num_keys > 2
     assert_dict_is_flat_and_all_keys_are_strings(new_payload)
-
 
 
 @pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))

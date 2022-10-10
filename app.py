@@ -59,6 +59,15 @@ def update_blocks_with_previous_input_based_on_config(
                             block["element"]["initial_conversation"] = prev_input_value
                         elif curr_input_config.get("type") == "channels_select":
                             block["element"]["initial_channel"] = prev_input_value
+                        elif curr_input_config.get("type") == "static_select":
+                            block["element"]["initial_option"] = {
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": prev_input_value.upper(),
+                                        "emoji": True
+                                    },
+                                    "value": prev_input_value
+                                }
                         elif curr_input_config.get("type") == "users_select":
                             block["element"]["initial_user"] = prev_input_value
                         elif curr_input_config.get("type") == "checkboxes":
@@ -795,6 +804,8 @@ def parse_values_from_input_config(
             value = values[block_id][action_id]["selected_conversation"]
         elif input_config.get("type") == "checkboxes":
             value = json.dumps(values[block_id][action_id]["selected_options"])
+        elif input_config.get("type") == "static_select":
+            value = values[block_id][action_id]["selected_option"]["value"]
         else:
             # plain-text input by default
             value = values[block_id][action_id]["value"]

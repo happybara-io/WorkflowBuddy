@@ -376,6 +376,63 @@ UTILS_CONFIG = {
                 },
             },
             {
+                "type": "actions",
+                "block_id": "http_method_action_select",
+                "elements": [
+                    {
+                        "type": "static_select",
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "HTTP Method",
+                            "emoji": True,
+                        },
+                        "initial_option": {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "POST",
+                                "emoji": True,
+                            },
+                            "value": "POST",
+                        },
+                        "options": [
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "POST",
+                                    "emoji": True,
+                                },
+                                "value": "POST",
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "GET",
+                                    "emoji": True,
+                                },
+                                "value": "GET",
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "PUT",
+                                    "emoji": True,
+                                },
+                                "value": "PUT",
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "DELETE",
+                                    "emoji": True,
+                                },
+                                "value": "DELETE",
+                            },
+                        ],
+                        "action_id": "http_method_action_select_value",
+                    }
+                ],
+            },
+            {
                 "type": "input",
                 "block_id": "request_json_str_input",
                 "optional": True,
@@ -403,6 +460,44 @@ UTILS_CONFIG = {
                     }
                 ],
             },
+            {
+                "type": "input",
+                "block_id": "headers_json_str_input",
+                "optional": True,
+                "element": {
+                    "type": "plain_text_input",
+                    "multiline": True,
+                    "action_id": "headers_json_str_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": '{\n    "Authorization": "Bearer ..."\n}',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Headers JSON",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "input",
+                "block_id": "query_params_json_str_input",
+                "optional": True,
+                "element": {
+                    "type": "plain_text_input",
+                    "multiline": True,
+                    "action_id": "query_params_json_str_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": '{\n    "q": "abc"\n}',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Query Params JSON",
+                    "emoji": True,
+                },
+            },
         ],
         "inputs": {
             "webhook_url": {
@@ -417,11 +512,29 @@ UTILS_CONFIG = {
                 "block_id": "block_checkboxes",
                 "action_id": "action_checkboxes",
             },
+            "http_method": {
+                "name": "http_method",
+                "type": "static_select",
+                "block_id": "http_method_action_select",
+                "action_id": "http_method_action_select_value"
+            },
             "request_json_str": {
                 "name": "request_json_str",
                 "validation_type": "json",
                 "block_id": "request_json_str_input",
                 "action_id": "request_json_str_value",
+            },
+            "headers_json_str": {
+                "name": "headers_json_str",
+                "validation_type": "json",
+                "block_id": "headers_json_str_input",
+                "action_id": "headers_json_str_value",
+            },
+            "query_params_json_str": {
+                "name": "query_params_json_str",
+                "validation_type": "json",
+                "block_id": "query_params_json_str_input",
+                "action_id": "query_params_json_str_value",
             },
         },
         "outputs": [
