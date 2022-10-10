@@ -78,6 +78,10 @@ Example for `reaction added`:
 - In the Workflow Buddy App Home, configure the `reaction_added` event with the Webhook from previous step.
 - 🧪 Test by reacting to some messages! Any channel the bot has been invited to will send their events through Workflow Buddy - and onward to your Workflow.
 
+## Start other Worflows from the middle of a Workflow
+
+With the power of webhooks, you can use actions and outcomes in the middle of a Workflow to start other Slack Workflows or automation in other tools. E.g. send a receipt to a customer while you're in the middle of processing the Workflow.
+
 ### Have as many events as you want trigger a Workflow
 
 With Slack Workflow Builder, you can only configure a **single** event to trigger your Workflow (e.g. _person added to a specific channel). Workflow Buddy has no restrictions on the number or variety of `event->webhook` mappings you configure. Maybe you want all the `channel_*` event types to kick off a workflow, or you want to have incoming events sent in parallel to a [Webhook testing site](https://webhook.site) while you're debugging your workflow.
