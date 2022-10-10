@@ -33,8 +33,8 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [Available Event Triggers](#-available-triggers) - `+Many`
   - [Available Steps](#-available-steps) - `+7`
   - [Use Cases](#-use-cases)
-- **Quick Start** - 🎉 _test me out!_ 🧪
-  - [Run Local Server](#run-local-server)
+- **Quick Start/ Installation** - 🎉 _test me out!_ 🧪
+  - [Local Install](#run-local-server)
   - [Try New Event Triggers](#quickstart-new-event-triggers)
   - [Try New Steps](#quickstart-new-steps)
 - [FAQ](#faq)
@@ -292,26 +292,29 @@ Maybe, but until then, you have an option rather than waiting impatiently. Plus,
 
 ## Run local server
 
-Run the app locally & connect to your workspace Slack app.
+To run the Slack app locally you will:
+
+1. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
+2. Run a local server on your laptop either using `Python` or `Docker` with the credentials you got in step `1`.
+3. Run a proxy tool that lets Slack talk to your `localhost` (local server).
+4. Use the bot through your regular Slack desktop! 💃
 
 ### Setup
 
-- [Create your Slack app](https://api.slack.com/reference/manifests#creating_apps) from the `slack_app_manifest.yml` file.
-- Create a `.env` file that looks like:
-  ```
-  SLACK_BOT_TOKEN=xoxb-********
-  SLACK_SIGNING_SECRET=********
-  ```
+- **[Create your Slack app](https://api.slack.com/reference/manifests#creating_apps) from the `slack_app_manifest.yml` file.**
+  - _⚠ MAKE SURE TO CLICK `from an app manifest` WHEN THE MODAL POPS UP!_.
+  - After a couple simple confirmation modals to go through.
+  - Go to the `OAuth & Permissions` section and click `Install App` to grant permissions for your new app on the workspace. This will generate the access tokens you will need for the next step.
+- **Now create a `.env` file in your repo. We will be populating it with values from the Slack App you created.**
+  - Get the `SLACK_BOT_TOKEN` from the `OAuth & Permissions` tab of your Slack app.
+  - Get the `SLACK_SIGNING_SECRET` from the `Basic Information` tab of your Slack app.
+  - The final result should look like:
+    ```
+    SLACK_BOT_TOKEN=xoxb-********
+    SLACK_SIGNING_SECRET=********
+    ```
 
-### Run
-
-Use [`ngrok`](https://ngrok.com) to tunnel your local port to the public internet, then run the server with Docker.
-
-```
-make ngrok
-# (in a separate terminal)
-make up
-```
+> ⚠ There may be a warning about `request_url` verification - you can ignore that until we have spun up our local server and proxy. Once that's done we will update in the Slack App website with your URLs.
 
 ### Local Development
 
@@ -321,8 +324,19 @@ Alternative to running it with Docker, run the development server.
 - _(in a separate terminal)_ `make ngrok`.
 - `poetry shell` so all our environment variables are easy.
 - Run the local dev server with `./run.sh`, or a "prod" server with `./run-prod.sh`.
-- Update the Slack App console with new `ngrok` address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
-- (_Testing Webhooks_) [Handy tool to debug with](https://webhook.site) as well as testing different HTTP error codes [mock.codes](https://mock.codes/).
+
+### Run Proxy server
+
+- Use [`ngrok`](https://ngrok.com) to tunnel your local port to the public internet.
+  ```
+  make ngrok
+  # (in a separate terminal)
+  make up
+  ```
+- `!` Update the Slack App console with new `ngrok` address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
+- (_Optional: Testing Webhooks_) [Handy tool to debug with](https://webhook.site) as well as testing different HTTP error codes [mock.codes](https://mock.codes/).
+
+---
 
 #### UI/UX Development
 
@@ -347,7 +361,7 @@ For the new actions, it registers a **Workflow Builder Step** - unfortunately ea
 
 ## Deployment
 
-Putting your server somewhere more useful than your local machine.
+Putting your server somewhere more useful than your local machine. [**Looking for running a local installation?**](#run-local-server)
 
 ### Hosted
 
