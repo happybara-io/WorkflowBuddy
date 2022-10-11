@@ -97,7 +97,7 @@
                         "app_defined_config": {
                             "inputs": {
                                 "user_email": {
-                                    "value": "ben@happybara.io"
+                                    "value": ""
                                 },
                                 "selected_utility": {
                                     "value": "find_user_by_email"

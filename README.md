@@ -32,11 +32,12 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [Demos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
   - [Available Steps](#-available-steps) - `+7`
-  - [Use Cases](#-use-cases)
-- **Quick Start/ Installation** - 🎉 _test me out!_ 🧪
-  - [Local Install](#run-local-server)
-  - [Try New Event Triggers](#quickstart-new-event-triggers)
-  - [Try New Steps](#quickstart-new-steps)
+  - [Common Use Cases](#-use-cases)
+- **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
+  - [Local Install](#run-local-server) - (~30 mins)
+  - [(Beginner) Simple Workflow ](#beginner-quickstart-create-a-simple-workflow) - (~10 mins)
+  - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
+  - [(Advanced) Try New Steps](#advanced-quickstart-run-all-new-steps) - (~25 mins)
 - [FAQ](#faq)
 - [Development](#👩‍💻-development)
 - [Deployment: Self-hosting, Hosted](#deployment)
@@ -111,7 +112,7 @@ All\* [Slack events](https://api.slack.com/events) proxied through to any **_web
 > _\*During alpha stage, only a small number of events have been implemented, but goal is to quickly update to handle 80-90% of uses cases, and eventually 100%._
 > _\*\* While WorkflowBuddy code will work out of the box as an event proxy, you will need to update your app's OAuth scopes & event subscriptions for your new events, as well as save the webhook event from your Workflow in the config._
 
-![Visualizing the Slack event proxy](/static/workflow-buddy-event-proxy.png)
+![Visualizing the Slack event proxy](/assets/workflow-buddy-event-proxy.png)
 
 ### Events
 
@@ -180,7 +181,7 @@ When using **Workflow Builder Webhooks**, it requires allow-listing any data key
 
 The utilities currently available within WorkflowBuddy for use as Workflow Steps. To see the exact inputs & outputs without loading up Workflow Builder, see [constants.py](https://github.com/happybara-io/WorkflowBuddy/blob/main/constants.py).
 
-![User choosing which action they want in workflow](static/workflow-buddy-choose-step-action-modal.png)
+![User choosing which action they want in workflow](/assets/workflow-buddy-choose-step-action-modal.png)
 
 ### Send a Webhook
 
@@ -228,9 +229,69 @@ See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for dis
 
 ## 🏁 Quickstarts
 
-Follow an easy walk-through to get a feel for what the system can do.
+Follow a walk-through to get a feel for what the system can do.
 
-### Quickstart: New Event Triggers
+### Beginner Quickstart: Create a Simple Workflow
+
+Let's open up Workflow Builder and put together a simple Workflow that starts from a [Slack Shortcut](https://slack.com/help/articles/360057554553-Take-actions-quickly-with-shortcuts-in-Slack), uses some of the simple utilities that Workflow Buddy provides, then sends you a message with the output.
+
+> ⚠ If you don't already have a channel for testing purposes, go create one. We don't want to annoy any of your team mates with random messages.
+
+> ℹ  _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
+
+- Open up Workflow Builder (Top left Workspace menu -> `Tools` -> `Workflow Builder`)
+- Click `Create`.
+- Give it a name, like `workflow buddy test`.
+- Select `Shortcut` from the Trigger options.
+- Select your **testing channel** as the location. Add the short name.
+
+🙌 **Awesome!** You just built a minimal `no-op` (_do nothing_) workflow. Let's make it do something more fun!
+
+- Add Step 1
+  - Click `Add Step`. You should see a couple _Workflow Buddy_ actions available along with other Steps available in your workspace.
+  - choose `Utilities` from _Workflow Buddy_. Then once the modal appears, change the drop down to `Random UUID`. 
+  - **Save!**
+- Add Step 2
+  - Click `Add Step` again.
+  - Choose `Send a message`. In the modal, choose `Person who clicked...` as the recipient. In the **Message text** section, try `Insert a variable` and choose `Random UUID` from the dropdown to add it to your message text. Feel free to add any other sentences you want alongside the `UUID` variable.
+    > _**What did we just do?**_
+    >
+    > - Slack lets you access the outputs of previous steps as **Variables**. Next to any text input box you will see that `Insert a variable` option. Sometimes it even lets you use them in drop downs, like when you selected the `Person who clicked..` - that's a variable representing anyone who clicks the workflow!
+    > - The majority of Workflow Buddy actions will provide **Outputs** that you can use in future Steps - webhook response codes, random numbers, Slack users, etc. Try and get creative - sending a message with the info is only the beginning of possibilities. _How might you link multiple actions together with variables?_
+    > 
+  - **Save!**
+- Click `Publish`.
+
+🧪 **The Workflow is now ready for testing!** Go to your test channel you added the Workflow to, open up the Shortcuts menu, and you should see your `Short name` you chose in the options. Click it!
+
+If everything was correct, you should receive a message with a random UUID value and the text you wrote!
+
+✅**You successfully created a Slack Workflow using Steps from both Workflow Buddy and Slack, awesome!**
+
+_If you are looking to explore more advanced concepts like Triggers or advanced Workflow Buddy Steps, check out the **Advanced Quickstarts** below. Otherwise feel free to keep poking around on your own in Workflow Builder. There's endless possibilities, so **automate everything!**_
+
+### Advanced Quickstart: Run All New Steps
+
+Try out the new **Steps** by importing a Workflow that has all of them configured (except for ones that make changes to your Slack Workspace, like `Create a channel`. Don't want to cause any weird side-effects during your testing!).
+
+> ℹ  _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
+
+- Download the Workflow template from `test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow`[(link)](https://github.com/happybara-io/WorkflowBuddy/blob/main/test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow), which contains all the basic functionality of Workflow Buddy Steps.
+- Open Workflow Builder, `Import`, and `Publish` it!
+- Click the `Edit` button on each of the configured Steps in the Workflow so you can see how each available action is configured. **Several require updates:**
+  - You'll need to fill in a test email for `find by email`; do your own to start.
+  - In `Send a webhook`, update the URL to be `https://<your ngrok or server URL>/webhook` to hit your own Workflow Buddy server's extra endpoint.
+  - In `Schedule message`, you'll likely need to update the `timestamp`.
+- Run the Workflow and check the outputted message for details of the execution.
+
+✅ **That's it!**
+
+- You now have the abiltity to use all of the Workflow Buddy Steps for your Workflows now!
+
+**Go forth and automate!**
+
+
+### Advanced Quickstart: New Event Triggers
 
 We're gonna start with a simple event we can easily control: `app_mention` _(when your bot is `@WorkflowBuddy` in a channel)_. We will use that event to kick off a simple Workflow that just sends us a message.
 
@@ -245,23 +306,10 @@ We're gonna start with a simple event we can easily control: `app_mention` _(whe
   - From any public channel, post a message with `@WorkflowBuddy` _(or whatever you named your app)_.
   - That message will cause an `app_mention` event to be sent from Slack to your instance of the Workflow Buddy server.
   - If you correctly configured the `event->webhook` mapping, the event will then be proxied to the test Workflow you added in the first step.
-- **That's it!**
-  - You now have the abiltity to use all sorts of Slack events as Triggers for your Workflows now! _(⚠ So long as you have given your Slack app the OAuth permissions to use them)._
 
-**Go forth and automate!**
+✅**That's it!**
 
-### Quickstart: New Steps
-
-Try out the new **Steps** by importing a Workflow that has all of them configured (except for ones that make changes to your Slack Workspace, like `Create a channel`. Don't want to cause any weird side-effects during your testing!).
-
-> ℹ  _If you haven't yet, you'll need to get a [server instance running + a Slack app](#run-local-server). Come back when you're ready._
-
-- Download the Workflow template from `test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow`[(link)](https://github.com/happybara-io/WorkflowBuddy/blob/main/test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow), which contains all the basic functionality of Workflow Buddy Steps.
-- Open Workflow Builder, `Import`, and `Publish` it!
-- _(Optional)_ Click the `Edit` button on each of the configured Steps in the Workflow so you can see how each available action is configured.
-- Run the Workflow and check the outputted message for details of the execution.
-- **That's it!**
-  - You now have the abiltity to use all of the Workflow Buddy Steps for your Workflows now!
+- You now have the abiltity to use all sorts of Slack events as Triggers for your Workflows now! _(⚠ So long as you have given your Slack app the OAuth permissions to use them)._
 
 **Go forth and automate!**
 
@@ -302,6 +350,7 @@ To run the Slack app locally you will:
 ### Setup
 
 - **[Create your Slack app](https://api.slack.com/reference/manifests#creating_apps) from the `slack_app_manifest.yml` file.**
+  - _(Optional) Change the app name, but only if you don't like `Workflow Buddy`🙁._
   - _⚠ MAKE SURE TO CLICK `from an app manifest` WHEN THE MODAL POPS UP!_.
   - After a couple simple confirmation modals to go through.
   - Go to the `OAuth & Permissions` section and click `Install App` to grant permissions for your new app on the workspace. This will generate the access tokens you will need for the next step.
@@ -313,32 +362,72 @@ To run the Slack app locally you will:
     SLACK_BOT_TOKEN=xoxb-********
     SLACK_SIGNING_SECRET=********
     ```
-
+- **Next, you'll spin up the two local servers.**
 > ⚠ There may be a warning about `request_url` verification - you can ignore that until we have spun up our local server and proxy. Once that's done we will update in the Slack App website with your URLs.
 
 ### Local Development
 
-Alternative to running it with Docker, run the development server.
+The easiest way to run the server is with Docker, though you can also run it with Python directly.
 
-- `poetry install` (or install with your preferred Python tool using the `requirements.txt`).
-- _(in a separate terminal)_ `make ngrok`.
-- `poetry shell` so all our environment variables are easy.
-- Run the local dev server with `./run.sh`, or a "prod" server with `./run-prod.sh`.
+#### Run with the server with `Docker`
 
-### Run Proxy server
+- `make up`
 
-- Use [`ngrok`](https://ngrok.com) to tunnel your local port to the public internet.
-  ```
-  make ngrok
-  # (in a separate terminal)
-  make up
-  ```
-- `!` Update the Slack App console with new `ngrok` address - for [Event Subscriptions](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), Interactivity - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack App console.
-- (_Optional: Testing Webhooks_) [Handy tool to debug with](https://webhook.site) as well as testing different HTTP error codes [mock.codes](https://mock.codes/).
+#### Run the server with `Python`
+
+Another choice! Can either use [Poetry](https://python-poetry.org), or any build tool that understands `requirements.txt` that you're comfortable with.
+
+- `Poetry`
+  - `poetry install`
+  - `poetry shell` (activates virtual environment)
+- **OR** _< insert your favorite python build tool like `pip`, `Pipenv`, etc.>_
+  - Install dependencies from `requirements.txt`
+  - Activate a virtual environment
+- With dependencies in place, run the local dev server with `./run.sh`, or a "prod" server with `./run-prod.sh`.
 
 ---
 
-#### UI/UX Development
+Either way you choose, you should see a server waiting for requests.
+
+🔁 You're almost there! One last step and you can use your Slack app.
+
+### Run Proxy server
+
+- Use [`ngrok`](https://ngrok.com) to tunnel your local port to the public internet. You can either download through a package manager and have it show up in your `$PATH`, or unzip the file and execute it directly `./ngrok`.
+ _(⚠ in a separate terminal from your server)_
+  ```
+  # if you installed with Brew or similar
+  make ngrok
+  # OR if you just unzipped the file somewhere on your machine
+  ./ngrok http 4747
+  ```
+- You should see a black screen with a bunch of info printed on it. That's good!
+- Copy the `ngrok` forwarding URL that shows up, e.g. `https://4342423423.ngrok.io`
+- Update the Slack API site with your new ngrok URL - for [**Event Subscriptions**](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), & **Interactivity**.
+  - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack API site. Replace the base URL _(`https://example.com` but keep the path `/slack/events`)._
+  ```
+  # example-manifest.yml
+  ...
+  request_url: https://4342423423.ngrok.io/slack/events
+  ....
+  request_url: https://4342423423.ngrok.io/slack/events
+  ....
+  ```
+- After updating the URLs on the Slack API website, there will be a warning  `Click here to verify` - click it, and if your servers are running correctly, you'll get a success ✅ from Slack.
+- (_Optional: Testing Webhooks_) [Handy tools to debug requests](https://webhook.site) as well as testing different HTTP responses [mock.codes](https://mock.codes/).
+
+### 🎉 Use the app
+
+🥂 You did it! Your `Workflow Buddy` is running locally and ready to interact with. Let's open App Home to see it working, open Workflow Builder, then try out a **Quickstart** to get your feet wet.
+
+- 🏠 Open the Worflow Buddy App Home by searching `@Workflow Buddy` in Slack and selecting the bot. You should see something like the following:
+  ![Image of Workflow Buddy App Home](/assets/workflow-buddy-app-home-orange-bg-sm.png)
+- 🛠Take a look around, and now you'll want to open Slack Workflow Builder.  Up by the ✍ `New message` icon you can click your Workspace name and a drop down menu will appear. `<Workspace Name>`-> `Tools` -> `Workflow Builder`. It will open in a new window.
+- 👩‍🏫 Now that you have everything open, let's learn how to **[create a simple Workflow (Beginner Quickstart)](#beginner-quickstart-create-a-simple-workflow)!**
+
+---
+
+### UI/UX Development
 
 For the "UI" block surfaces (especially App Home), highly recommend opening in [Block Kit Builder](https://app.slack.com/block-kit-builder/) with the helper utility `get_block_kit_builder_link()`.
 

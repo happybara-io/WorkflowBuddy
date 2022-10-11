@@ -1,5 +1,5 @@
 display_information:
-  name: WorkflowBuddy-dev
+  name: WorkflowBuddy
   description: Automating the Slack workspace.
   background_color: "#ad650c"
 features:
@@ -8,7 +8,7 @@ features:
     messages_tab_enabled: false
     messages_tab_read_only_enabled: false
   bot_user:
-    display_name: WorkflowBuddy-dev
+    display_name: WorkflowBuddy
     always_online: true
   workflow_steps:
     - name: Utilities
@@ -29,7 +29,7 @@ oauth_config:
       - reactions:read
 settings:
   event_subscriptions:
-    request_url: https://workflow-buddy.fly.dev/slack/events
+    request_url: https://example.com/slack/events
     bot_events:
       - app_home_opened
       - app_mention
@@ -42,7 +42,7 @@ settings:
       - workflow_unpublished
   interactivity:
     is_enabled: true
-    request_url: https://workflow-buddy.fly.dev/slack/events
+    request_url: https://example.com/slack/events
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
