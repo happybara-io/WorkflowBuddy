@@ -83,6 +83,10 @@ def update_blocks_with_previous_input_based_on_config(
                         else:
                             # assume plain_text_input cuz it's common
                             block["element"]["initial_value"] = prev_input_value or ""
+    else:
+        logging.debug(
+            "No previous inputs to reload, anything you see is happening because of bad coding."
+        )
 
 
 def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
@@ -511,7 +515,6 @@ def edit_utils(ack: Ack, step: dict, configure: Configure, logger: logging.Logge
     existing_inputs = copy.deepcopy(
         step["inputs"]
     )  # avoid potential issue when we delete from input dict
-    logger.debug(f"inbound STEP: {step}")
 
     blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
     DEFAULT_ACTION = "webhook"
@@ -528,7 +531,8 @@ def edit_utils(ack: Ack, step: dict, configure: Configure, logger: logging.Logge
             },
         }
     )
-    blocks.extend(chosen_config_item["modal_input_blocks"])
+    # have to make sure we aren't accidentally editing config blocks in memory
+    blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
     update_blocks_with_previous_input_based_on_config(
         blocks, chosen_action, existing_inputs, chosen_config_item
     )
@@ -802,7 +806,7 @@ def execute_utils(
 
 def edit_webhook(ack: Ack, step: dict, configure: Configure):
     ack()
-    existing_inputs = step["inputs"]
+    existing_inputs = copy.deepcopy(step["inputs"])
     blocks = copy.deepcopy(c.WEBHOOK_STEP_MODAL_COMMON_BLOCKS)
     chosen_config_item = c.UTILS_CONFIG["webhook"]
     blocks.append(
@@ -814,7 +818,8 @@ def edit_webhook(ack: Ack, step: dict, configure: Configure):
             },
         }
     )
-    blocks.extend(chosen_config_item["modal_input_blocks"])
+    # have to make sure we aren't accidentally editing config blocks in memory
+    blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
     update_blocks_with_previous_input_based_on_config(
         blocks, "webhook", existing_inputs, chosen_config_item
     )
