@@ -92,6 +92,25 @@ def test_flatten_payload(name, event):
     assert_dict_is_flat_and_all_keys_are_strings(new_payload)
 
 
+@pytest.mark.parametrize(
+    "value, expected_result",
+    [
+        (
+            "I am a value with {{65591853-edfe-4721-856d-ecd157766461==user.name}} in it",
+            True,
+        ),
+        ("abc@example.com", False),
+        ("5", False),
+        (None, False),
+    ],
+)
+def test_includes_slack_workflow_variable(value, expected_result):
+    result = sut.includes_slack_workflow_variable(value)
+    assert (
+        result == expected_result
+    ), "Unexpected outcome when testing for Workflow variables."
+
+
 @pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
 @mock.patch("utils.send_webhook")
 def test_generic_event_proxy(patched_send, name, event):

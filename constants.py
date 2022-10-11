@@ -13,6 +13,8 @@ EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
 WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
+DB_UNHANDLED_EVENTS_KEY = "unhandled_events"
+
 TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
 
@@ -376,17 +378,26 @@ UTILS_CONFIG = {
                 },
             },
             {
-                "type": "actions",
+                "type": "input",
                 "block_id": "http_method_action_select",
-                "elements": [
-                    {
-                        "type": "static_select",
-                        "placeholder": {
+                "label": {"type": "plain_text", "text": "HTTP Method", "emoji": True},
+                "element": {
+                    "type": "static_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "HTTP Method",
+                        "emoji": True,
+                    },
+                    "initial_option": {
+                        "text": {
                             "type": "plain_text",
-                            "text": "HTTP Method",
+                            "text": "POST",
                             "emoji": True,
                         },
-                        "initial_option": {
+                        "value": "POST",
+                    },
+                    "options": [
+                        {
                             "text": {
                                 "type": "plain_text",
                                 "text": "POST",
@@ -394,43 +405,33 @@ UTILS_CONFIG = {
                             },
                             "value": "POST",
                         },
-                        "options": [
-                            {
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "POST",
-                                    "emoji": True,
-                                },
-                                "value": "POST",
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "GET",
+                                "emoji": True,
                             },
-                            {
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "GET",
-                                    "emoji": True,
-                                },
-                                "value": "GET",
+                            "value": "GET",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "PUT",
+                                "emoji": True,
                             },
-                            {
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "PUT",
-                                    "emoji": True,
-                                },
-                                "value": "PUT",
+                            "value": "PUT",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "DELETE",
+                                "emoji": True,
                             },
-                            {
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "DELETE",
-                                    "emoji": True,
-                                },
-                                "value": "DELETE",
-                            },
-                        ],
-                        "action_id": "http_method_action_select_value",
-                    }
-                ],
+                            "value": "DELETE",
+                        },
+                    ],
+                    "action_id": "http_method_action_select_value",
+                },
             },
             {
                 "type": "input",
@@ -516,7 +517,7 @@ UTILS_CONFIG = {
                 "name": "http_method",
                 "type": "static_select",
                 "block_id": "http_method_action_select",
-                "action_id": "http_method_action_select_value"
+                "action_id": "http_method_action_select_value",
             },
             "request_json_str": {
                 "name": "request_json_str",
