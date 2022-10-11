@@ -13,7 +13,7 @@ test:
 	poetry run python -m pytest -sv tests/
 
 generate-requirements:
-	poetry export -o requirements.txt
+	poetry export -o requirements.txt --without-hashes
 
 up:
 	docker compose up

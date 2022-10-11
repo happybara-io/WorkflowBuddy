@@ -13,6 +13,8 @@ EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
 WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
+DB_UNHANDLED_EVENTS_KEY = "unhandled_events"
+
 TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
 
@@ -377,6 +379,62 @@ UTILS_CONFIG = {
             },
             {
                 "type": "input",
+                "block_id": "http_method_action_select",
+                "label": {"type": "plain_text", "text": "HTTP Method", "emoji": True},
+                "element": {
+                    "type": "static_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "HTTP Method",
+                        "emoji": True,
+                    },
+                    "initial_option": {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "POST",
+                            "emoji": True,
+                        },
+                        "value": "POST",
+                    },
+                    "options": [
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "POST",
+                                "emoji": True,
+                            },
+                            "value": "POST",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "GET",
+                                "emoji": True,
+                            },
+                            "value": "GET",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "PUT",
+                                "emoji": True,
+                            },
+                            "value": "PUT",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "DELETE",
+                                "emoji": True,
+                            },
+                            "value": "DELETE",
+                        },
+                    ],
+                    "action_id": "http_method_action_select_value",
+                },
+            },
+            {
+                "type": "input",
                 "block_id": "request_json_str_input",
                 "optional": True,
                 "element": {
@@ -403,6 +461,44 @@ UTILS_CONFIG = {
                     }
                 ],
             },
+            {
+                "type": "input",
+                "block_id": "headers_json_str_input",
+                "optional": True,
+                "element": {
+                    "type": "plain_text_input",
+                    "multiline": True,
+                    "action_id": "headers_json_str_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": '{\n    "Authorization": "Bearer ..."\n}',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Headers JSON",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "input",
+                "block_id": "query_params_json_str_input",
+                "optional": True,
+                "element": {
+                    "type": "plain_text_input",
+                    "multiline": True,
+                    "action_id": "query_params_json_str_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": '{\n    "q": "abc"\n}',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Query Params JSON",
+                    "emoji": True,
+                },
+            },
         ],
         "inputs": {
             "webhook_url": {
@@ -417,11 +513,29 @@ UTILS_CONFIG = {
                 "block_id": "block_checkboxes",
                 "action_id": "action_checkboxes",
             },
+            "http_method": {
+                "name": "http_method",
+                "type": "static_select",
+                "block_id": "http_method_action_select",
+                "action_id": "http_method_action_select_value",
+            },
             "request_json_str": {
                 "name": "request_json_str",
                 "validation_type": "json",
                 "block_id": "request_json_str_input",
                 "action_id": "request_json_str_value",
+            },
+            "headers_json_str": {
+                "name": "headers_json_str",
+                "validation_type": "json",
+                "block_id": "headers_json_str_input",
+                "action_id": "headers_json_str_value",
+            },
+            "query_params_json_str": {
+                "name": "query_params_json_str",
+                "validation_type": "json",
+                "block_id": "query_params_json_str_input",
+                "action_id": "query_params_json_str_value",
             },
         },
         "outputs": [

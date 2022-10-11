@@ -1,3 +1,4 @@
+from typing import Union
 import os
 import random
 import re
@@ -12,6 +13,7 @@ import slack_sdk
 import slack_sdk.errors
 from datetime import datetime, timedelta
 from pathlib import Path
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -51,7 +53,7 @@ def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None
         workflow_webhooks_to_request = db_get_event_config(event_type)
         db_remove_unhandled_event(event_type)
     except KeyError as e:
-        logger.exception(e)
+        logger.debug(f"KeyError - setting unhandled event for {event_type}:{e}")
         db_set_unhandled_event(event_type)
         return
 
@@ -71,23 +73,32 @@ def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None
     logger.info("Finished sending all webhooks for event")
 
 
-def send_webhook(url, body: dict) -> requests.Response:
+def send_webhook(
+    url: str,
+    body: dict,
+    method="POST",
+    params=None,
+    headers={"Content-Type": "application/json"},
+) -> requests.Response:
     logging.debug(f"body to send:{body}")
-    resp = requests.post(url, json=body)
+    print("METHOD:", method)
+    resp = requests.request(
+        method=method, url=url, json=body, params=params, headers=headers
+    )
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 
 
 def db_get_unhandled_events() -> dict:
     try:
-        return IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"]
+        return IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
     except KeyError:
         return []
 
 
 def db_remove_unhandled_event(event_type) -> None:
     try:
-        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].remove(event_type)
+        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
         logging.info(f"Remove unhandled event: {event_type}")
         sync_cache_to_disk()
     except (ValueError, KeyError):
@@ -97,9 +108,9 @@ def db_remove_unhandled_event(event_type) -> None:
 def db_set_unhandled_event(event_type) -> None:
     logging.info(f"Adding unhandled event: {event_type}")
     try:
-        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].append(event_type)
+        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].append(event_type)
     except KeyError:
-        IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"] = [event_type]
+        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
     sync_cache_to_disk()
 
 
@@ -157,6 +168,8 @@ def update_app_home(client, user_id, view=None) -> None:
 
 def build_app_home_view() -> dict:
     data = db_export()
+    curr_events = list(data.keys)
+    curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
     unhandled_events = db_get_unhandled_events()
@@ -179,7 +192,7 @@ def build_app_home_view() -> dict:
                 },
             ]
         )
-    if len(data.keys()) < 1:
+    if len(curr_events) < 1:
         blocks.append(
             {
                 "type": "section",
@@ -190,7 +203,7 @@ def build_app_home_view() -> dict:
             }
         )
     for event_type, webhook_list in data.items():
-        if event_type == "unhandled_events":
+        if event_type == c.DB_UNHANDLED_EVENTS_KEY:
             continue
         single_event_row = [
             {
@@ -536,3 +549,12 @@ def flatten_payload_for_slack_workflow_builder(event):
         # TODO: gotta do this for other events, otherwise key info will be missed in nested objects
         flat_payload = event
     return flat_payload
+
+
+def includes_slack_workflow_variable(value: Union[str, None]) -> bool:
+    # Slack includes them like I am a value with {{65591853-edfe-4721-856d-ecd157766461==user.name}} in it
+    if value is None:
+        return False
+
+    pattern = "^.*{{.*==.*}}.*$"
+    return re.search(pattern, value) is not None

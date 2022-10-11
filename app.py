@@ -34,6 +34,7 @@ def log_request(logger: logging.Logger, body: dict, next):
 def update_blocks_with_previous_input_based_on_config(
     blocks: list, chosen_action, existing_inputs: dict, action_config_item: dict
 ) -> None:
+    # TODO: workflow builder keeps pulling old input on the step even when you are creating it totally new 🤔
     # kinda a crappy way to fill out existing inputs into initial values, but fast enough
     if existing_inputs:
         for input_name, value_obj in existing_inputs.items():
@@ -59,6 +60,15 @@ def update_blocks_with_previous_input_based_on_config(
                             block["element"]["initial_conversation"] = prev_input_value
                         elif curr_input_config.get("type") == "channels_select":
                             block["element"]["initial_channel"] = prev_input_value
+                        elif curr_input_config.get("type") == "static_select":
+                            block["element"]["initial_option"] = {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": prev_input_value.upper(),
+                                    "emoji": True,
+                                },
+                                "value": prev_input_value,
+                            }
                         elif curr_input_config.get("type") == "users_select":
                             block["element"]["initial_user"] = prev_input_value
                         elif curr_input_config.get("type") == "checkboxes":
@@ -73,6 +83,10 @@ def update_blocks_with_previous_input_based_on_config(
                         else:
                             # assume plain_text_input cuz it's common
                             block["element"]["initial_value"] = prev_input_value or ""
+    else:
+        logging.debug(
+            "No previous inputs to reload, anything you see is happening because of bad coding."
+        )
 
 
 def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
@@ -495,7 +509,7 @@ def update_app_home(event: dict, logger: logging.Logger, client: slack_sdk.WebCl
     client.views_publish(user_id=event["user"], view=app_home_view)
 
 
-def edit_utils(ack: Ack, step: dict, configure: Configure):
+def edit_utils(ack: Ack, step: dict, configure: Configure, logger: logging.Logger):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
     existing_inputs = copy.deepcopy(
@@ -517,7 +531,8 @@ def edit_utils(ack: Ack, step: dict, configure: Configure):
             },
         }
     )
-    blocks.extend(chosen_config_item["modal_input_blocks"])
+    # have to make sure we aren't accidentally editing config blocks in memory
+    blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
     update_blocks_with_previous_input_based_on_config(
         blocks, chosen_action, existing_inputs, chosen_config_item
     )
@@ -595,7 +610,12 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
     inputs = step["inputs"]
     url = inputs["webhook_url"]["value"]
     bool_flags = {"fail_on_http_error": False}
+    http_method = inputs["http_method"]["value"]
     request_json_str = inputs.get("request_json_str", {}).get("value", {}) or "{}"
+    headers_json_str = inputs.get("headers_json_str", {}).get("value", {}) or "{}"
+    query_params_json_str = (
+        inputs.get("query_params_json_str", {}).get("value", {}) or "{}"
+    )
     logging.info(f"sending to url:{url}")
     body = {}
     bool_flags_input = inputs.get("bool_flags", {})
@@ -624,7 +644,32 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
         )
         return
 
-    resp = utils.send_webhook(url, body)
+    try:
+        new_headers = utils.load_json_body_from_input_str(headers_json_str)
+    except json.JSONDecodeError:
+        logging.error(f"JSON Decoding error: {headers_json_str}")
+        fail(
+            error={
+                "message": f"Unable to parse JSON Headers when preparing to send webhook to {url}. String was: {request_json_str}."
+            }
+        )
+        return
+
+    try:
+        query_params = utils.load_json_body_from_input_str(query_params_json_str)
+    except json.JSONDecodeError:
+        logging.error(f"JSON Decoding error: {query_params_json_str}")
+        fail(
+            error={
+                "message": f"Unable to parse JSON Query Params when preparing to send webhook to {url}. String was: {request_json_str}."
+            }
+        )
+        return
+
+    logging.debug(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
+    resp = utils.send_webhook(
+        url, body, method=http_method, params=query_params, headers=new_headers
+    )
 
     if bool_flags["fail_on_http_error"] and resp.status_code > 300:
         fail(
@@ -761,7 +806,7 @@ def execute_utils(
 
 def edit_webhook(ack: Ack, step: dict, configure: Configure):
     ack()
-    existing_inputs = step["inputs"]
+    existing_inputs = copy.deepcopy(step["inputs"])
     blocks = copy.deepcopy(c.WEBHOOK_STEP_MODAL_COMMON_BLOCKS)
     chosen_config_item = c.UTILS_CONFIG["webhook"]
     blocks.append(
@@ -773,7 +818,8 @@ def edit_webhook(ack: Ack, step: dict, configure: Configure):
             },
         }
     )
-    blocks.extend(chosen_config_item["modal_input_blocks"])
+    # have to make sure we aren't accidentally editing config blocks in memory
+    blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
     update_blocks_with_previous_input_based_on_config(
         blocks, "webhook", existing_inputs, chosen_config_item
     )
@@ -795,39 +841,45 @@ def parse_values_from_input_config(
             value = values[block_id][action_id]["selected_conversation"]
         elif input_config.get("type") == "checkboxes":
             value = json.dumps(values[block_id][action_id]["selected_options"])
+        elif input_config.get("type") == "static_select":
+            value = values[block_id][action_id]["selected_option"]["value"]
         else:
             # plain-text input by default
             value = values[block_id][action_id]["value"]
 
         validation_type = input_config.get("validation_type")
+        # have to consider that people can pass variables, which would mess with some of validation
+        value_has_workflow_variable = utils.includes_slack_workflow_variable(value)
         if validation_type == "json" and value:
             try:
                 json.loads(value)
             except Exception:
                 errors[block_id] = "Invalid JSON."
-        elif validation_type == "integer":
+        elif validation_type == "integer" and not value_has_workflow_variable:
             try:
                 int(value)
             except ValueError:
                 errors[block_id] = f"Must be a valid integer."
-        elif validation_type == "email":
+        elif validation_type == "email" and not value_has_workflow_variable:
             if "@" not in value:
                 errors[block_id] = f"Must be a valid email."
-        elif validation_type == "url":
+        elif validation_type == "url" and not value_has_workflow_variable:
             if not utils.is_valid_url(value):
                 errors[block_id] = f"Must be a valid URL with `http(s)://.`"
-        elif validation_type == "slack_channel_name":
+        elif (
+            validation_type == "slack_channel_name" and not value_has_workflow_variable
+        ):
             if not utils.is_valid_slack_channel_name(value):
                 errors[
                     block_id
                 ] = "Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars."
-        elif validation_type == "able_to_post":
+        elif validation_type == "able_to_post" and not value_has_workflow_variable:
             status = utils.test_if_bot_is_member(value, client)
             if status == "not_in_channel":
                 errors[
                     block_id
                 ] = f"Bot needs to be invited to the conversation before it can post."
-        elif validation_type == "future_timestamp":
+        elif validation_type == "future_timestamp" and not value_has_workflow_variable:
             # TODO: must be a valid integer
             try:
                 timestamp_int = int(value)
