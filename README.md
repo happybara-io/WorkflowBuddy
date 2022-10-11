@@ -39,7 +39,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
   - [(Advanced) Try New Steps](#advanced-quickstart-run-all-new-steps) - (~25 mins)
 - [FAQ](#faq)
-- [Development](#👩‍💻-development)
+- [Development](#-development)
 - [Deployment: Self-hosting, Hosted](#deployment)
 
 ---
@@ -365,7 +365,7 @@ To run the Slack app locally you will:
 - **Next, you'll spin up the two local servers.**
 > ⚠ There may be a warning about `request_url` verification - you can ignore that until we have spun up our local server and proxy. Once that's done we will update in the Slack App website with your URLs.
 
-### Local Development
+### Run Local App Server
 
 The easiest way to run the server is with Docker, though you can also run it with Python directly.
 
@@ -421,7 +421,9 @@ Either way you choose, you should see a server waiting for requests.
 🥂 You did it! Your `Workflow Buddy` is running locally and ready to interact with. Let's open App Home to see it working, open Workflow Builder, then try out a **Quickstart** to get your feet wet.
 
 - 🏠 Open the Worflow Buddy App Home by searching `@Workflow Buddy` in Slack and selecting the bot. You should see something like the following:
+
   ![Image of Workflow Buddy App Home](/assets/workflow-buddy-app-home-orange-bg-sm.png)
+
 - 🛠Take a look around, and now you'll want to open Slack Workflow Builder.  Up by the ✍ `New message` icon you can click your Workspace name and a drop down menu will appear. `<Workspace Name>`-> `Tools` -> `Workflow Builder`. It will open in a new window.
 - 👩‍🏫 Now that you have everything open, let's learn how to **[create a simple Workflow (Beginner Quickstart)](#beginner-quickstart-create-a-simple-workflow)!**
 
