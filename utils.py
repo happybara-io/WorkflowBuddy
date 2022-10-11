@@ -50,7 +50,8 @@ def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None
     try:
         workflow_webhooks_to_request = db_get_event_config(event_type)
         db_remove_unhandled_event(event_type)
-    except KeyError:
+    except KeyError as e:
+        logger.exception(e)
         db_set_unhandled_event(event_type)
         return
 
@@ -89,7 +90,7 @@ def db_remove_unhandled_event(event_type) -> None:
         IN_MEMORY_WRITE_THROUGH_CACHE["unhandled_events"].remove(event_type)
         logging.info(f"Remove unhandled event: {event_type}")
         sync_cache_to_disk()
-    except ValueError:
+    except (ValueError, KeyError):
         pass
 
 
@@ -166,7 +167,7 @@ def build_app_home_view() -> dict:
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"⚠️ *event types without a destination configured:* `{unhandled_events}` ⚠️",
+                        "text": f"⚠️ *events being received, but no URL destination to send to:* `{unhandled_events}` ⚠️",
                     },
                 },
                 {

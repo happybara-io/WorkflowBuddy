@@ -437,10 +437,10 @@ def handle_config_webhook_submission(
         utils.db_add_webhook_to_event(
             event_type, name, webhook_url, user_id, filter_reaction=filter_reaction
         )
-        msg = f"Your addition of {webhook_url} was successful."
+        msg = f"Your addition of {event_type}:{webhook_url} was successful."
     except Exception as e:
         logger.exception(e)
-        msg = f"There was an error attempting to add {webhook_url}."
+        msg = f"There was an error attempting to add {event_type}:{webhook_url}."
     try:
         client.chat_postMessage(channel=user_id, text=msg)
     except e:
