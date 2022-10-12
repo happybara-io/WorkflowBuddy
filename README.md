@@ -79,7 +79,7 @@ Example for `reaction added`:
 - In the Workflow Buddy App Home, configure the `reaction_added` event with the Webhook from previous step.
 - 🧪 Test by reacting to some messages! Any channel the bot has been invited to will send their events through Workflow Buddy - and onward to your Workflow.
 
-## Start other Worflows from the middle of a Workflow
+### Start other Worflows from the middle of a Workflow
 
 With the power of webhooks, you can use actions and outcomes in the middle of a Workflow to start other Slack Workflows or automation in other tools. E.g. send a receipt to a customer while you're in the middle of processing the Workflow.
 
