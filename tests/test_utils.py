@@ -117,3 +117,18 @@ def test_generic_event_proxy(patched_send, name, event):
     # TODO: Gotta mock out DB for each run to actually test something useful, otherwise it's unkown what you're hitting
     patched_send.return_value = FakeResponse(201, {"body": True})
     sut.generic_event_proxy(test_logger, event, {})
+
+
+@pytest.mark.parametrize(
+    "input_json_str, expected_result",
+    [
+        (
+            '{“dq”:“Double quote”}',
+            '{"dq":"Double quote"}',
+        ),
+    ],
+)
+def test_weird_quotes_cleaned_up_for_json(input_json_str, expected_result):
+    output = sut.clean_json_quotes(input_json_str)
+    assert output == expected_result
+    json.loads(output)

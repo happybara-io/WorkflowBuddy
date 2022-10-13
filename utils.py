@@ -569,3 +569,10 @@ def includes_slack_workflow_variable(value: Union[str, None]) -> bool:
 
     pattern = "^.*{{.*==.*}}.*$"
     return re.search(pattern, value) is not None
+
+def clean_json_quotes(s: str) -> str:
+    # slack adding weird smart quotes on Mac, try to handle any smart quotes.
+    # Need to use this utility likely wherever we allow JSON input from users.
+    s = s.replace('“', '"')
+    s = s.replace('”', '"')
+    return s
