@@ -6,8 +6,8 @@ fmt:
 ngrok:
 	ngrok http 4747
 
-serve:
-	./run.sh
+run-dev:
+	./run-dev.sh
 
 test:
 	poetry run python -m pytest -sv tests/

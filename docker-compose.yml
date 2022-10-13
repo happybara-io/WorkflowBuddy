@@ -1,11 +1,19 @@
 version: '3'
 
+volumes:
+  workflow-buddy:
+    name: workflow-buddy
+
 services:
   workflow-buddy:
     build: '.'
     ports:
       - '4747:4747'
+    volumes:
+      - workflow-buddy:/usr/app/data/
     environment:
     # Docker Compose loads from .env file automatically
+      ENV: PROD
+      WB_DATA_DIR: /usr/app/data/
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}

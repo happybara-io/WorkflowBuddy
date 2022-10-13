@@ -9,4 +9,4 @@ workflow-buddy-db.json
 .idea/
 .pytest_cache/
 slack_app_bara_manifest.yml
-
+workflow-buddy-data/

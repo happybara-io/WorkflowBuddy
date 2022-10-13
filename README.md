@@ -383,7 +383,7 @@ Another choice! Can either use [Poetry](https://python-poetry.org), or any build
 - **OR** _< insert your favorite python build tool like `pip`, `Pipenv`, etc.>_
   - Install dependencies from `requirements.txt`
   - Activate a virtual environment
-- With dependencies in place, run the local dev server with `./run.sh`, or a "prod" server with `./run-prod.sh`.
+- With dependencies in place, run the local dev server with `./run-dev.sh`, or a "prod" server with `./run-prod.sh`.
 
 ---
 
@@ -460,17 +460,43 @@ Don't want to host it yourself? Happybara will be releasing a hosted version in 
 
 [🏄‍♀️ Snag your spot on the waitlist!](https://tally.so/r/mVLKkj)
 
+### Where is the configuration data store?
+
+It's using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed.
+
+Depending on your deployment options, you may need to take extra steps to persist the local file data until a more persistent data store is added.
+
 ### Self-hosted options
 
 #### Fly.io
 
 - Add secrets from `.env.example` using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets). Same secrets setup as in Development section.
 - (Optional) update `fly.toml` config settings.
+- If you want your **data to persist between deployments**:
+  - Create a volume for your instance. I set this to 1 GB, but you get up to 3 GB on the free tier. I also picked `ord` since I'm in the US, but pick any [region near you](https://fly.io/docs/reference/regions/).
+    `flyctl volumes create workflowbuddy_vol --size 1 -r ord`
+  - Update the `fly.toml` with your new mount
+    ```
+    [mounts]
+        source="workflowbuddy_vol"
+        destination="/usr/app/data/"
+    ```
 - Run `fly deploy`.
-- ⚠️ _Using a very simple cache + JSON file to persist webhook config data - it's not very robust, so highly recommend keeping a copy of the JSON file as backup to easily import if config is destroyed._
+- ⚠️ _Currently using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed._
+
+##### Updating Workflow Buddy on Fly
+
+Currently the recommended best practice for updating Workflow Buddy:
+
+- In Slack, go to `@Worfklow Buddy App Home` and `Export` any existing configurations, save them to a local file as a backup.
+- `cd` to your cloned WB repo, `git stash` any of your changes, `git pull` the latest updates, then `git stash pop` to reapply your small edits for app name or volume information. Alternatively, you could create a separate file and specify it directly with `fly deploy -c ./your-file.toml`.
+- (if necessary) manually create any volumes that hadn't existed before.
+- Run `fly deploy` to put your changes in to the wild!
 
 #### Others
 
 TBD.
+
+- [Serverless/ Cloudflare Workers was suggested](https://github.com/happybara-io/WorkflowBuddy/issues/29)
 
 ---
