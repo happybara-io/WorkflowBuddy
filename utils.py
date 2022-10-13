@@ -14,13 +14,20 @@ import slack_sdk.errors
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
 logging.basicConfig(level=logging.DEBUG)
+
+ENV = os.environ.get('ENV', 'TEST')
+WB_DATA_DIR = os.getenv("WB_DATA_DIR") or ("./workflow-buddy-test/" if ENV == "TEST" else "/usr/app/data/")
+logging.info(f"ENV: {ENV} WB_DATA_DIR:{WB_DATA_DIR}")
+
+
+Path(WB_DATA_DIR).mkdir(parents=True, exist_ok=True)
+PERSISTED_JSON_FILE = f"{WB_DATA_DIR}/workflow-buddy-db.json"
+Path(PERSISTED_JSON_FILE).touch()
+logging.info(f'Using DB file path: {PERSISTED_JSON_FILE}...')
 
 # !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
 IN_MEMORY_WRITE_THROUGH_CACHE = {}
-PERSISTED_JSON_FILE = "workflow-buddy-db.json"
-Path(PERSISTED_JSON_FILE).touch()
 # on startup, load current contents into cache
 with open(PERSISTED_JSON_FILE, "r") as jf:
     try:
@@ -168,8 +175,12 @@ def update_app_home(client, user_id, view=None) -> None:
 
 def build_app_home_view() -> dict:
     data = db_export()
-    curr_events = list(data.keys)
-    curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
+    curr_events = list(data.keys())
+    try:
+        curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
+    except ValueError:
+        # already gone
+        pass
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
     unhandled_events = db_get_unhandled_events()
@@ -558,3 +569,10 @@ def includes_slack_workflow_variable(value: Union[str, None]) -> bool:
 
     pattern = "^.*{{.*==.*}}.*$"
     return re.search(pattern, value) is not None
+
+def clean_json_quotes(s: str) -> str:
+    # slack adding weird smart quotes on Mac, try to handle any smart quotes.
+    # Need to use this utility likely wherever we allow JSON input from users.
+    s = s.replace('“', '"')
+    s = s.replace('”', '"')
+    return s

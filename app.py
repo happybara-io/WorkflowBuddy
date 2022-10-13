@@ -851,6 +851,7 @@ def parse_values_from_input_config(
         # have to consider that people can pass variables, which would mess with some of validation
         value_has_workflow_variable = utils.includes_slack_workflow_variable(value)
         if validation_type == "json" and value:
+            value = utils.clean_json_quotes(value)
             try:
                 json.loads(value)
             except Exception:
