@@ -475,7 +475,7 @@ Depending on your deployment options, you may need to take extra steps to persis
 - If you want your **data to persist between deployments**:
   - Create a volume for your instance. I set this to 1 GB, but you get up to 3 GB on the free tier. I also picked `ord` since I'm in the US, but pick any [region near you](https://fly.io/docs/reference/regions/).
     `flyctl volumes create workflowbuddy_vol --size 1 -r ord`
-  - Update the `fly.toml` with your new mount
+  - _(Optional, if using alternate name)_ Ensure `fly.toml` has the mount:
     ```
     [mounts]
         source="workflowbuddy_vol"
@@ -488,9 +488,11 @@ Depending on your deployment options, you may need to take extra steps to persis
 
 Currently the recommended best practice for updating Workflow Buddy:
 
-- In Slack, go to `@Worfklow Buddy App Home` and `Export` any existing configurations, save them to a local file as a backup.
-- `cd` to your cloned WB repo, `git stash` any of your changes, `git pull` the latest updates, then `git stash pop` to reapply your small edits for app name or volume information. Alternatively, you could create a separate file and specify it directly with `fly deploy -c ./your-file.toml`.
-- (if necessary) manually create any volumes that hadn't existed before.
+- Backup previous config.
+  - In Slack, go to `@Workflow Buddy` _App Home_ and `Export` any existing configurations, save them to a local file as a backup.
+- _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
+- `cd` to your cloned WB repo. Run `git stash` in case you made changes, `git pull` the latest updates, then `git stash pop` to reapply any small edits for app name or volume information.
+  - If you made any changes to `fly.toml`, to avoid potential git conflicts in the future, you could create a separate `your-fly-config.toml` and specify it directly with `fly deploy -c ./your-fly-config.toml`.
 - Run `fly deploy` to put your changes in to the wild!
 
 #### Others
