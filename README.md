@@ -468,6 +468,8 @@ Depending on your deployment options, you may need to take extra steps to persis
 
 ### Self-hosted options
 
+⚠ No matter where you deploy the server, you'll need to start by creating your Slack app to get credentials - [Step 1 - #Setup, from #Run Local Server](#setup).
+
 #### Fly.io
 
 - Add secrets from `.env.example` using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets). Same secrets setup as in Development section.
