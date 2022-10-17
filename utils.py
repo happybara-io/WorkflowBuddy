@@ -1,3 +1,4 @@
+import contextlib
 from typing import Union
 import os
 import random
@@ -16,15 +17,17 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.DEBUG)
 
-ENV = os.environ.get('ENV', 'TEST')
-WB_DATA_DIR = os.getenv("WB_DATA_DIR") or ("./workflow-buddy-test/" if ENV == "TEST" else "/usr/app/data/")
+ENV = os.environ.get("ENV", "TEST")
+WB_DATA_DIR = os.getenv("WB_DATA_DIR") or (
+    "./workflow-buddy-test/" if ENV == "TEST" else "/usr/app/data/"
+)
 logging.info(f"ENV: {ENV} WB_DATA_DIR:{WB_DATA_DIR}")
 
 
 Path(WB_DATA_DIR).mkdir(parents=True, exist_ok=True)
 PERSISTED_JSON_FILE = f"{WB_DATA_DIR}/workflow-buddy-db.json"
 Path(PERSISTED_JSON_FILE).touch()
-logging.info(f'Using DB file path: {PERSISTED_JSON_FILE}...')
+logging.info(f"Using DB file path: {PERSISTED_JSON_FILE}...")
 
 # !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
 IN_MEMORY_WRITE_THROUGH_CACHE = {}
@@ -104,12 +107,10 @@ def db_get_unhandled_events() -> dict:
 
 
 def db_remove_unhandled_event(event_type) -> None:
-    try:
+    with contextlib.suppress(ValueError, KeyError):
         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
         logging.info(f"Remove unhandled event: {event_type}")
         sync_cache_to_disk()
-    except (ValueError, KeyError):
-        pass
 
 
 def db_set_unhandled_event(event_type) -> None:
@@ -151,7 +152,6 @@ def db_remove_event(event_type) -> None:
         sync_cache_to_disk()
     except KeyError:
         logging.info("Key doesnt exist to delete")
-        pass
 
 
 def db_import(new_data) -> None:
@@ -176,12 +176,8 @@ def update_app_home(client, user_id, view=None) -> None:
 def build_app_home_view() -> dict:
     data = db_export()
     curr_events = list(data.keys())
-    try:
+    with contextlib.suppress(ValueError):
         curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
-    except ValueError:
-        # already gone
-        pass
-
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
     unhandled_events = db_get_unhandled_events()
     if len(unhandled_events) > 0:
@@ -203,16 +199,17 @@ def build_app_home_view() -> dict:
                 },
             ]
         )
-    if len(curr_events) < 1:
+    if not curr_events:
         blocks.append(
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"• :shrug: Nothing here yet! Try using the `Add` or `Import` options.",
+                    "text": "• :shrug: Nothing here yet! Try using the `Add` or `Import` options.",
                 },
             }
         )
+
     for event_type, webhook_list in data.items():
         if event_type == c.DB_UNHANDLED_EVENTS_KEY:
             continue
@@ -321,22 +318,20 @@ def test_if_bot_able_to_post_to_conversation_deprecated(
 
 def is_valid_slack_channel_name(channel_name: str) -> bool:
     # Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars.
-    if (
-        len(channel_name) <= 80
-        and re.search(r"\d+", channel_name)
-        and re.search(r"[a-z]+", channel_name)
-        and re.search(r"[A-Z]+", channel_name)
-        and re.search(r"\W+", channel_name)
-        and not re.search(r"\s+", channel_name)
-    ):
-        return True
-    else:
-        return False
-    # return len(channel_name) <= 80 and re.match("^[a-z0-9_-]*$", channel_name)
+    return bool(
+        (
+            len(channel_name) <= 80
+            and re.search(r"\d+", channel_name)
+            and re.search(r"[a-z]+", channel_name)
+            and re.search(r"[A-Z]+", channel_name)
+            and re.search(r"\W+", channel_name)
+            and not re.search(r"\s+", channel_name)
+        )
+    )
 
 
 def is_valid_url(url: str) -> bool:
-    return (url[:8] == "https://") or (url[:7] == "http://")
+    return url.startswith("https://") or url.startswith("http://")
 
 
 def build_add_webhook_modal():
@@ -483,13 +478,11 @@ def build_add_webhook_modal():
 def sanitize_webhook_response(resp_text: str) -> str:
     # need to make sure if we get JSON back, it's properly sanitized so it can be used downstream
     sanitized = resp_text.replace("\n", "")
-    try:
+    with contextlib.suppress(json.JSONDecodeError):
         # make resp text usable in future webhooks/json elements
         sanitized = json.dumps(sanitized)
         sanitized.replace('"', '\\"')
         logging.debug(f"Escaped resp is {sanitized}")
-    except json.JSONDecodeError:
-        pass
     return sanitized
 
 
@@ -532,6 +525,7 @@ def should_filter_event(webhook_config: dict, event: dict) -> bool:
 
 
 def flatten_payload_for_slack_workflow_builder(event):
+    # sourcery skip: lift-return-into-if, switch
     # TODO: seems like a good place to consistently add common data like team_id, etc.
     flat_payload = {}
     # see slack limitations - 20 variables max, no nested https://slack.com/help/articles/360041352714-Create-more-advanced-workflows-using-webhooks
@@ -570,9 +564,10 @@ def includes_slack_workflow_variable(value: Union[str, None]) -> bool:
     pattern = "^.*{{.*==.*}}.*$"
     return re.search(pattern, value) is not None
 
+
 def clean_json_quotes(s: str) -> str:
     # slack adding weird smart quotes on Mac, try to handle any smart quotes.
     # Need to use this utility likely wherever we allow JSON input from users.
-    s = s.replace('“', '"')
-    s = s.replace('”', '"')
+    s = s.replace("“", '"')
+    s = s.replace("”", '"')
     return s

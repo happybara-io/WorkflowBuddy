@@ -123,7 +123,7 @@ def test_generic_event_proxy(patched_send, name, event):
     "input_json_str, expected_result",
     [
         (
-            '{“dq”:“Double quote”}',
+            "{“dq”:“Double quote”}",
             '{"dq":"Double quote"}',
         ),
     ],

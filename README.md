@@ -530,4 +530,12 @@ It's using a very simple cache + JSON file to persist webhook config data - it's
 
 Depending on your deployment options, you may need to take extra steps to persist the local file data until a more persistent data store is added.
 
+
+### Tools
+
+We use a number of tools in & around this repo to improve the code quality:
+
+- Black formatter
+- [Sourcery.ai - improved code suggestions for Python](https://docs.sourcery.ai/Welcome/)
+
 ---
