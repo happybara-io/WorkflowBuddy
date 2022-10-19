@@ -377,8 +377,8 @@ def import_config_view_submission(
     try:
         data = json.loads(json_config_str)
         ack()
-    except Exception:
-        errors["json_config_input"] = "Invalid JSON."
+    except json.JSONDecodeError as e:
+        errors["json_config_input"] = f"Invalid JSON. Error: {str(e)}"
         ack(response_action="errors", errors=errors)
         return
 
@@ -624,46 +624,35 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
         for box_item in selected_checkboxes:
             flag_name = box_item["value"]
             bool_flags[flag_name] = True
-    except json.JSONDecodeError:
-        logging.error(f"JSON Decoding error for Flags: {bool_flags_input}")
-        fail(
-            error={
-                "message": f"Unable to parse JSON Flags when preparing to send webhook to {url}. String was: {bool_flags_input}."
-            }
-        )
+    except json.JSONDecodeError as e:
+        full_err_msg = f"Unable to parse JSON Flags when preparing to send webhook to {url}. Error: {str(e)}. Input was: {bool_flags_input}."
+        logging.error(full_err_msg)
+        fail(error={"message": full_err_msg})
         return
 
     try:
         body = utils.load_json_body_from_input_str(request_json_str)
-    except json.JSONDecodeError:
-        logging.error(f"JSON Decoding error: {request_json_str}")
-        fail(
-            error={
-                "message": f"Unable to parse JSON when preparing to send webhook to {url}. String was: {request_json_str}."
-            }
-        )
+    except json.JSONDecodeError as e:
+        # e.g. Expecting ':' delimiter: line 1 column 22 (char 21)
+        full_err_msg = f"Unable to parse JSON when preparing to send webhook to {url}.  Error: {str(e)}. Input was: {request_json_str}."
+        logging.error(full_err_msg)
+        fail(error={"message": full_err_msg})
         return
 
     try:
         new_headers = utils.load_json_body_from_input_str(headers_json_str)
-    except json.JSONDecodeError:
-        logging.error(f"JSON Decoding error: {headers_json_str}")
-        fail(
-            error={
-                "message": f"Unable to parse JSON Headers when preparing to send webhook to {url}. String was: {request_json_str}."
-            }
-        )
+    except json.JSONDecodeError as e:
+        full_err_msg = f"Unable to parse JSON Headers when preparing to send webhook to {url}. Error: {str(e)}. Input was: {request_json_str}."
+        logging.error(full_err_msg)
+        fail(error={"message": full_err_msg})
         return
 
     try:
         query_params = utils.load_json_body_from_input_str(query_params_json_str)
-    except json.JSONDecodeError:
-        logging.error(f"JSON Decoding error: {query_params_json_str}")
-        fail(
-            error={
-                "message": f"Unable to parse JSON Query Params when preparing to send webhook to {url}. String was: {request_json_str}."
-            }
-        )
+    except json.JSONDecodeError as e:
+        full_err_msg = f"Unable to parse JSON Query Params when preparing to send webhook to {url}. Error: {str(e)}. Input was: {request_json_str}."
+        logging.error(full_err_msg)
+        fail(error={"message": full_err_msg})
         return
 
     logging.debug(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
@@ -854,8 +843,8 @@ def parse_values_from_input_config(
             value = utils.clean_json_quotes(value)
             try:
                 json.loads(value)
-            except Exception:
-                errors[block_id] = "Invalid JSON."
+            except json.JSONDecodeError as e:
+                errors[block_id] = f"Invalid JSON. Error: {str(e)}"
         elif validation_type == "integer" and not value_has_workflow_variable:
             try:
                 int(value)
