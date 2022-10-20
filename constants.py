@@ -424,6 +424,14 @@ UTILS_CONFIG = {
                         {
                             "text": {
                                 "type": "plain_text",
+                                "text": "PATCH",
+                                "emoji": True,
+                            },
+                            "value": "PATCH",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
                                 "text": "DELETE",
                                 "emoji": True,
                             },
@@ -457,7 +465,7 @@ UTILS_CONFIG = {
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "_Format your JSON using your text editor or a site like <https://www.jsonformatter.io/|JSON Formatter>._",
+                        "text": '_Format your JSON using your text editor or a site like <https://www.jsonformatter.io/|JSON Formatter>._\n_ℹIf you prefix a key with `__`; e.g. `__key`, Buddy will convert it to a JSON list based on newlines. If no newlines (`\\n`) are found, it will be a list of 1 item (e.g. `["abc"]`)._',
                     }
                 ],
             },

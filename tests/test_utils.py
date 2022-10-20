@@ -94,6 +94,37 @@ new_lined_value"
     assert type(body) is dict
 
 
+def test_load_json_body_newlines_converted_to_list():
+    converting_key = "__key"
+    nonconvert_key = "nonconvert_key"
+    input_str = """
+{
+    "__key": "value_1
+value_2
+value_3",
+"nonconvert_key": "value_1
+value_2
+value_3",
+"__convert_to_single_list": "abc",
+"regular_data": 5,
+"__regular_data": 5
+}
+"""
+    body = sut.load_json_body_from_input_str(input_str)
+    print(body)
+    assert type(body) is dict
+    new_list = body[converting_key]
+    assert type(new_list) is list
+    assert len(new_list) == 3
+    assert type(body[nonconvert_key]) is str
+    test_if_no_characters_is_still_string = body["__convert_to_single_list"]
+    assert (
+        type(test_if_no_characters_is_still_string) is list
+        and len(test_if_no_characters_is_still_string) == 1
+    )
+    assert type(body["__regular_data"]) is int
+
+
 @pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
 def test_flatten_payload(name, event):
     new_payload = sut.flatten_payload_for_slack_workflow_builder(event)

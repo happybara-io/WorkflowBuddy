@@ -1,4 +1,6 @@
-.PHONY: fmt
+.PHONY: fmt test
+
+prep: fmt test
 
 fmt:
 	poetry run black .

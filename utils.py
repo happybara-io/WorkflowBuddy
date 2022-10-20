@@ -492,7 +492,14 @@ def load_json_body_from_input_str(input_str: str) -> dict:
         '""', '"'
     )  # ran into JSON parsing issues when JSON string inside body string and Slack
     deny_control_characters = False
-    return json.loads(input_str, strict=deny_control_characters)
+    data = json.loads(input_str, strict=deny_control_characters)
+
+    for k, v in data.items():
+        convert_newline_to_list = k.startswith("__")
+        if convert_newline_to_list:
+            # do our best to handle any odd data without causing errors
+            data[k] = v.split("\n") if type(v) == str else v
+    return data
 
 
 def should_filter_event(webhook_config: dict, event: dict) -> bool:
