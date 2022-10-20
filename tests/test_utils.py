@@ -83,6 +83,17 @@ def test_load_json_body_from_input_with_nested_json():
     assert type(body) is dict
 
 
+def test_load_json_body_with_control_characters():
+    input_str = """
+{
+    "key": "value
+new_lined_value"
+}
+"""
+    body = sut.load_json_body_from_input_str(input_str)
+    assert type(body) is dict
+
+
 @pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
 def test_flatten_payload(name, event):
     new_payload = sut.flatten_payload_for_slack_workflow_builder(event)
