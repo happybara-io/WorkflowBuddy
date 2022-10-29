@@ -1,6 +1,6 @@
 # Workflow Buddy - Super powers for Workflow Builder
 
-_| Open-source | [Hosted](https://tally.so/r/mVLKkj) |_
+_| Open-source | [🧪 Installable Demo App](#demo-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) |_
 
 ---
 
@@ -343,14 +343,24 @@ Don't want to host servers yourself, but still want to use Buddy? Happybara plan
 
 ## Running Workflow Buddy
 
-You have 3 options to run Buddy: locally on your computer, self-hosted on a cloud service, or [hosted by Happybara](#hosted) _(coming soon)_.
+> 🧪 _Just want to experiment? Install the [demo app](#demo-app) to your Slack workspace and skip setting up servers until you're ready._
 
-To run Buddy yourself, you will:
+You have several options to run a Buddy server: locally on your computer, self-hosted on a cloud service, or [hosted by Happybara](#hosted) _(coming soon)_.
+
+To run a Buddy server yourself, you will:
 
 1. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
 2. Run a Buddy server either **A)** on your laptop, or **B)** in the cloud.
 3. Update Slack connection info.
 4. Use the bot through your regular Slack desktop! 💃
+
+### Demo App
+
+There is a demo version of Workflow Buddy that can be [installed to your workspace](https://workflow-buddy-demo.fly.dev/slack/install) rather than setting up Slack apps & servers just to sample it.
+
+> ⚠️
+> This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below.
+>
 
 ### Slack App Setup
 
@@ -369,6 +379,9 @@ To run Buddy yourself, you will:
     ```
     SLACK_BOT_TOKEN=xoxb-********
     SLACK_SIGNING_SECRET=********
+    # only oauth demo app should need
+    SLACK_CLIENT_ID=********
+    SLACK_CLIENT_SECRET=********
     ```
 
 - **Next, you'll spin up the two local servers or a cloud server.**
@@ -436,6 +449,8 @@ To self-host Buddy in the cloud, you will:
 You will need to create an account with cc details💳, though this should run on the free tier. You will then need to [install the `flyctl`](https://fly.io/docs/flyctl/installing/) tool and `flyctl auth login` so it gets connected.
 
 - Copy `fly.template.toml` to `fly.toml`. Open `fly.toml` and customize the _app name_ on the first line of the file.
+- 🥂 Run `flyctl launch` to get the app initialized with _Fly.io_. Choose `No` when it asks _"Would you like to deploy now?"_.
+  - _You can choose any name you want for it, it won't be visible except in your [Fly dashboard](https://fly.io/dashboard/personal)._
 - If you want your **data to persist between deployments**:
   - Create a volume for your instance. I set this to 1 GB, but you get up to 3 GB on the free tier. I also picked `ord` since I'm in the US, but pick any [region near you](https://fly.io/docs/reference/regions/).
     `flyctl volumes create workflowbuddy_vol --size 1 -r ord`
@@ -448,11 +463,12 @@ You will need to create an account with cc details💳, though this should run o
     ```
 
   - _(Optional)_ update `fly.toml` config settings.
-- Add secrets from `.env` to the Fly environnment using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
+- Add secrets from `.env` _(documented above)_ to the Fly environnment using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
   - For each one, run: `flyctl secrets set <name>='<secret>'`.
-- 🥂 Run `flyctl launch` to get a running app!
+  - 🚀 Finally, get a running app with `flyctl deploy`!
+    - _If you run into issues with remote builders, you can always do it locally with `flyctl deploy --local-only`._
 
-> ⚠️ _Currently using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed._
+> ⚠️ _Currently it uses using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed._
 
 ##### Updating Workflow Buddy on Fly
 
