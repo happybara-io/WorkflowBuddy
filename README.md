@@ -429,9 +429,13 @@ To run a Buddy server yourself, you will:
 
 ### Demo App
 
+<<<<<<< HEAD
 There is a demo version of Workflow Buddy that can be [installed to your workspace](https://workflow-buddy-demo.fly.dev/slack/install) rather than setting up Slack apps & servers just to sample it.
 
 Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts** to learn what is possible with Workflow Buddy.
+=======
+There is a demo version of Workflow Buddy that can be [installed to your workspace](https://workflow-buddy-demo.fly.dev/slack/install/) rather than setting up Slack apps & servers just to sample it.
+>>>>>>> Update readme
 
 > ⚠️
 > This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below.
