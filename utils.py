@@ -1,6 +1,7 @@
 import contextlib
 from typing import Union, List, Tuple
 import os
+from collections import defaultdict
 import random
 import re
 import logging
@@ -31,7 +32,8 @@ Path(PERSISTED_JSON_FILE).touch()
 logging.info(f"Using DB file path: {PERSISTED_JSON_FILE}...")
 
 # !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
-IN_MEMORY_WRITE_THROUGH_CACHE = {}
+# TODO: try defaultdict instead of basic?
+IN_MEMORY_WRITE_THROUGH_CACHE = defaultdict(lambda: {})
 # on startup, load current contents into cache
 with open(PERSISTED_JSON_FILE, "r") as jf:
     try:
@@ -47,6 +49,16 @@ logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 ###################
 # Utils
 ###################
+
+
+def get_team_item(team_id):
+    try:
+        _ = IN_MEMORY_WRITE_THROUGH_CACHE[team_id]
+    except KeyError:
+        IN_MEMORY_WRITE_THROUGH_CACHE[team_id] = {}
+    return IN_MEMORY_WRITE_THROUGH_CACHE[team_id]
+
+
 def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
     block_kit_base_url = "https://app.slack.com/block-kit-builder/"
     payload = view
@@ -57,15 +69,17 @@ def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
 
 
 # TODO: accept any of the keyword args that are allowed?
-def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None:
+def generic_event_proxy(
+    logger: logging.Logger, event: dict, body: dict, team_id: str
+) -> None:
     event_type = event.get("type")
     logger.info(f"||{event_type}|BODY:{body}")
     try:
-        workflow_webhooks_to_request = db_get_event_config(event_type)
-        db_remove_unhandled_event(event_type)
+        workflow_webhooks_to_request = db_get_event_config(team_id, event_type)
+        db_remove_unhandled_event(team_id, event_type)
     except KeyError as e:
         logger.debug(f"KeyError - setting unhandled event for {event_type}:{e}")
-        db_set_unhandled_event(event_type)
+        db_set_unhandled_event(team_id, event_type)
         return
 
     for webhook_config in workflow_webhooks_to_request:
@@ -99,89 +113,111 @@ def send_webhook(
     return resp
 
 
-def db_get_unhandled_events() -> dict:
+def db_get_unhandled_events(team_id: str) -> dict:
+    team_item = get_team_item(team_id)
     try:
-        return IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
+        return team_item[c.DB_UNHANDLED_EVENTS_KEY]
     except KeyError:
         return []
 
 
-def db_remove_unhandled_event(event_type) -> None:
+def db_remove_unhandled_event(team_id: str, event_type: str) -> None:
     with contextlib.suppress(ValueError, KeyError):
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
+        team_item = get_team_item(team_id)
+        team_item[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
         logging.info(f"Remove unhandled event: {event_type}")
         sync_cache_to_disk()
 
 
-def db_set_unhandled_event(event_type) -> None:
+def db_set_unhandled_event(team_id: str, event_type: str) -> None:
     logging.info(f"Adding unhandled event: {event_type}")
+    team_item = get_team_item(team_id)
     try:
-        curr = IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
+        curr = team_item[c.DB_UNHANDLED_EVENTS_KEY]
         curr.append(event_type)
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = list(set(curr))
+        team_item[c.DB_UNHANDLED_EVENTS_KEY] = list(set(curr))
     except KeyError:
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
+        print("got the expected keyerror :D")
+        team_item[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
     sync_cache_to_disk()
 
 
-def db_get_event_config(event_type) -> dict:
-    return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
+def db_get_event_config(team_id: str, event_type: str) -> dict:
+    team_item = get_team_item(team_id)
+    return team_item[event_type]
 
 
-def sync_cache_to_disk() -> None:
-    logging.debug(f"Syncing cache to disk - {IN_MEMORY_WRITE_THROUGH_CACHE}")
-    json_str = json.dumps(IN_MEMORY_WRITE_THROUGH_CACHE, indent=2)
+def sync_cache_to_disk(override_data=None) -> None:
+    global IN_MEMORY_WRITE_THROUGH_CACHE
+    data_to_write = IN_MEMORY_WRITE_THROUGH_CACHE
+    if type(override_data) is dict:
+        data_to_write = override_data
+        IN_MEMORY_WRITE_THROUGH_CACHE = data_to_write
+    logging.debug(f"Syncing cache to disk - {data_to_write}")
+    json_str = json.dumps(data_to_write, indent=2)
     with open(PERSISTED_JSON_FILE, "w") as jf:
         jf.write(json_str)
 
 
 def db_add_webhook_to_event(
-    event_type, name, webhook_url, adding_user_id, filter_reaction=None
+    team_id: str,
+    event_type: str,
+    name: str,
+    webhook_url: str,
+    adding_user_id: str,
+    filter_reaction=None,
 ) -> None:
-    new_webhook = {"name": name, "webhook_url": webhook_url, "added_by": adding_user_id}
+    new_webhook_item = {
+        "name": name,
+        "webhook_url": webhook_url,
+        "added_by": adding_user_id,
+    }
+    team_item = get_team_item(team_id)
     if filter_reaction:
-        new_webhook["filter_reaction"] = filter_reaction
+        new_webhook_item["filter_reaction"] = filter_reaction
     try:
-        IN_MEMORY_WRITE_THROUGH_CACHE[event_type].append(new_webhook)
+        team_item[event_type].append(new_webhook_item)
     except KeyError:
-        IN_MEMORY_WRITE_THROUGH_CACHE[event_type] = [new_webhook]
+        team_item[event_type] = [new_webhook_item]
     sync_cache_to_disk()
 
 
-def db_remove_event(event_type) -> None:
+def db_remove_event(team_id: str, event_type) -> None:
+    team_item = get_team_item(team_id)
     try:
-        del IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
+        del team_item[event_type]
         sync_cache_to_disk()
     except KeyError:
         logging.info("Key doesnt exist to delete")
 
 
-def db_import(new_data) -> None:
+def db_import(team_id: str, new_data: dict) -> None:
     count = len(new_data.keys())
     for k, v in new_data.items():
-        IN_MEMORY_WRITE_THROUGH_CACHE[k] = v
+        team_item = get_team_item(team_id)
+        team_item[k] = v
     sync_cache_to_disk()
     return count
 
 
-def db_export() -> dict:
-    return IN_MEMORY_WRITE_THROUGH_CACHE
+def db_export(team_id: str) -> dict:
+    return IN_MEMORY_WRITE_THROUGH_CACHE.get(team_id, {})
 
 
-def update_app_home(client, user_id, view=None) -> None:
+def update_app_home(client, user_id, team_id: str, view=None) -> None:
     app_home_view = view
     if not view:
-        app_home_view = build_app_home_view()
+        app_home_view = build_app_home_view(team_id)
     client.views_publish(user_id=user_id, view=app_home_view)
 
 
-def build_app_home_view() -> dict:
-    data = db_export()
+def build_app_home_view(team_id: str) -> dict:
+    data = db_export(team_id)
     curr_events = list(data.keys())
     with contextlib.suppress(ValueError):
         curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
-    unhandled_events = db_get_unhandled_events()
+    unhandled_events = db_get_unhandled_events(team_id)
     if len(unhandled_events) > 0:
         blocks.extend(
             [

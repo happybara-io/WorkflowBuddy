@@ -16,6 +16,22 @@ URLS = {
     },
 }
 
+# THIS HAS TO MATCH WHAT'S IN THE SLACK APP DEFINITION
+SCOPES = [
+    "app_mentions:read",
+    "channels:manage",
+    "channels:read",
+    "channels:history",
+    "chat:write",
+    "groups:write",
+    "users:read",
+    "users:read.email",
+    "usergroups:read",
+    "workflow.steps:execute",
+    "reactions:read",
+]
+
+
 EVENT_APP_HOME_OPENED = "app_home_opened"
 EVENT_APP_MENTION = "app_mention"
 EVENT_CHANNEL_ARCHIVE = "channel_archive"

@@ -1,4 +1,5 @@
 .env
+.env.demo
 **pycache**
 ngrok*
 .vscode/
@@ -12,4 +13,5 @@ slack_app_bara_manifest.yml
 workflow-buddy-data/
 .coverage
 misc/
+workflow-buddy-dev/
 

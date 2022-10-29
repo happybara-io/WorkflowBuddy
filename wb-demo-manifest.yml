@@ -1,0 +1,52 @@
+display_information:
+  name: WorkflowBuddyDemo
+  description: Automating the Slack workspace.
+  background_color: "#ad650c"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: false
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: WorkflowBuddyDemo
+    always_online: true
+  workflow_steps:
+    - name: Utilities
+      callback_id: utilities
+    - name: Outgoing Webhook
+      callback_id: outgoing_webhook
+oauth_config:
+  redirect_urls:
+    - https://workflow-buddy-demo.fly.dev/slack/oauth_redirect
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:manage
+      - channels:read
+      - channels:history
+      - chat:write
+      - groups:write
+      - users:read
+      - users:read.email
+      - usergroups:read
+      - workflow.steps:execute
+      - reactions:read
+settings:
+  event_subscriptions:
+    request_url: https://workflow-buddy-demo.fly.dev/slack/events
+    bot_events:
+      - app_home_opened
+      - app_mention
+      - channel_created
+      - reaction_added
+      - workflow_deleted
+      - workflow_published
+      - workflow_step_deleted
+      - workflow_step_execute
+      - workflow_unpublished
+  interactivity:
+    is_enabled: true
+    request_url: https://workflow-buddy-demo.fly.dev/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
