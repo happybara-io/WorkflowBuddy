@@ -29,12 +29,12 @@ _You can get creative and do a lot with these building blocks, but what if you w
 >
 
 - **About**
-  - [Demos](#demos)
+  - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
   - [Available Steps](#-available-steps) - `+7`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
-  - [Installing your own Buddy](#running-workflow-buddy) - (~30 mins)
+  - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
   - [(Beginner) Simple Workflow](#beginner-quickstart-create-a-simple-workflow) - (~10 mins)
   - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
   - [(Advanced) Try New Steps](#advanced-quickstart-run-all-new-steps) - (~25 mins)
@@ -335,7 +335,7 @@ Maybe, but until then, you have an option rather than waiting impatiently. Plus,
 
 ---
 
-### Hosted
+## Hosted
 
 Don't want to host servers yourself, but still want to use Buddy? Happybara plans to release a hosted version in the near future.
 
@@ -343,7 +343,7 @@ Don't want to host servers yourself, but still want to use Buddy? Happybara plan
 
 ## Running Workflow Buddy
 
-> 🧪 _Just want to experiment? Install the [demo app](#demo-app) to your Slack workspace and skip setting up servers until you're ready._
+> 🧪 _Just want to experiment? Install the [demo app](#demo-app) to your Slack workspace and skip setting up servers until you're ready. You can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts**._
 
 You have several options to run a Buddy server: locally on your computer, self-hosted on a cloud service, or [hosted by Happybara](#hosted) _(coming soon)_.
 
@@ -357,6 +357,8 @@ To run a Buddy server yourself, you will:
 ### Demo App
 
 There is a demo version of Workflow Buddy that can be [installed to your workspace](https://workflow-buddy-demo.fly.dev/slack/install) rather than setting up Slack apps & servers just to sample it.
+
+Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts** to learn what is possible with Workflow Buddy.
 
 > ⚠️
 > This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below.
