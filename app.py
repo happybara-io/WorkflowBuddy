@@ -625,32 +625,50 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
             flag_name = box_item["value"]
             bool_flags[flag_name] = True
     except json.JSONDecodeError as e:
-        full_err_msg = f"Unable to parse JSON Flags when preparing to send webhook to {url}. Error: {str(e)}. Input was: {bool_flags_input}."
+        full_err_msg = utils.pretty_json_error_msg(
+            f"err111: Unable to parse JSON Flags when preparing to send webhook to {url}.",
+            bool_flags_input,
+            e,
+        )
         logging.error(full_err_msg)
         fail(error={"message": full_err_msg})
         return
 
     try:
-        body = utils.load_json_body_from_input_str(request_json_str)
+        body = utils.load_json_body_from_untrusted_input_str(request_json_str)
     except json.JSONDecodeError as e:
         # e.g. Expecting ':' delimiter: line 1 column 22 (char 21)
-        full_err_msg = f"Unable to parse JSON when preparing to send webhook to {url}.  Error: {str(e)}. Input was: {request_json_str}."
+        full_err_msg = utils.pretty_json_error_msg(
+            "err112: Unable to parse JSON when preparing to send webhook to {url}.",
+            bool_flags_input,
+            e,
+        )
         logging.error(full_err_msg)
         fail(error={"message": full_err_msg})
         return
 
     try:
-        new_headers = utils.load_json_body_from_input_str(headers_json_str)
+        new_headers = utils.load_json_body_from_untrusted_input_str(headers_json_str)
     except json.JSONDecodeError as e:
-        full_err_msg = f"Unable to parse JSON Headers when preparing to send webhook to {url}. Error: {str(e)}. Input was: {request_json_str}."
+        full_err_msg = utils.pretty_json_error_msg(
+            f"err113: Unable to parse JSON Headers when preparing to send webhook to {url}.",
+            bool_flags_input,
+            e,
+        )
         logging.error(full_err_msg)
         fail(error={"message": full_err_msg})
         return
 
     try:
-        query_params = utils.load_json_body_from_input_str(query_params_json_str)
+        query_params = utils.load_json_body_from_untrusted_input_str(
+            query_params_json_str
+        )
     except json.JSONDecodeError as e:
-        full_err_msg = f"Unable to parse JSON Query Params when preparing to send webhook to {url}. Error: {str(e)}. Input was: {request_json_str}."
+        full_err_msg = utils.pretty_json_error_msg(
+            f"err114: Unable to parse JSON Query Params when preparing to send webhook to {url}.",
+            bool_flags_input,
+            e,
+        )
         logging.error(full_err_msg)
         fail(error={"message": full_err_msg})
         return
@@ -874,7 +892,6 @@ def parse_values_from_input_config(
             try:
                 timestamp_int = int(value)
                 curr = datetime.now().timestamp()
-                print("DIFF:", timestamp_int - curr)
                 if (timestamp_int - curr) < c.TIME_5_MINS:
                     readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
                     errors[

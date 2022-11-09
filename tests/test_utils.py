@@ -79,7 +79,7 @@ def test_load_json_body_from_input_with_nested_json():
 "webhook_resp": ""{  \\"statusCode\\" : 200}""
 }
 """
-    body = sut.load_json_body_from_input_str(input_str)
+    body = sut.load_json_body_from_untrusted_input_str(input_str)
     assert type(body) is dict
 
 
@@ -90,7 +90,17 @@ def test_load_json_body_with_control_characters():
 new_lined_value"
 }
 """
-    body = sut.load_json_body_from_input_str(input_str)
+    body = sut.load_json_body_from_untrusted_input_str(input_str)
+    assert type(body) is dict
+
+
+def test_load_json_body_with_valid_double_quotes():
+    input_str = """
+{
+    "key": "I am a text value that includes a "quoted" piece of text"
+}
+"""
+    body = sut.load_json_body_from_untrusted_input_str(input_str)
     assert type(body) is dict
 
 
@@ -110,7 +120,7 @@ value_3",
 "__regular_data": 5
 }
 """
-    body = sut.load_json_body_from_input_str(input_str)
+    body = sut.load_json_body_from_untrusted_input_str(input_str)
     print(body)
     assert type(body) is dict
     new_list = body[converting_key]
@@ -174,3 +184,57 @@ def test_weird_quotes_cleaned_up_for_json(input_json_str, expected_result):
     output = sut.clean_json_quotes(input_json_str)
     assert output == expected_result
     json.loads(output)
+
+
+def test_pretty_json_error_msg():
+    prefix = "err1111: prefix message"
+    orig_input = '{"key": "value}'
+    try:
+        json.loads(orig_input)
+        pytest.fail(msg="JSON input didn't cause an error as expected.")
+    except json.JSONDecodeError as e:
+        msg = sut.pretty_json_error_msg(prefix, orig_input, e)
+        assert type(msg) is str
+
+
+@pytest.mark.parametrize(
+    "notes, test_str, expected_error",
+    [
+        (
+            "invalid json",
+            "abcdefeggdg",
+            True,
+        ),
+        ("empty", "{}", False),
+        ("single extra quote", '{"key": "value with "quote inside"}', False),
+        ("even number of quotes", '{"key": "value with "two quotes" inside"}', False),
+        (
+            "Many quotes",
+            '{"key": "naughty value in "quotes" yes it is; but "why"? would I "do" that?"}',
+            False,
+        ),
+        (
+            "Many quotes",
+            '{"key": "naughty value in "quotes"""""" yes it is; but "why"? would I "do" ""\n"\n that?"}',
+            False,
+        ),
+        (
+            "actual broken json missing a quote",
+            '{"key": "different json error that quote wont fix;}',
+            True,
+        ),
+        (
+            "valid unescaped JSON nested inside string - won't error, but won't come out as expected either.",
+            '{"key": "trying to add special chars if they wrote example json like {"a": "b","c": "d"} "}',
+            False,
+        ),
+    ],
+)
+def test_sanitizing_unescaped_quotes(notes: str, test_str: str, expected_error: bool):
+    try:
+        sut.sanitize_unescaped_quotes_and_load_json_str(test_str)
+        if expected_error:
+            raise ValueError("Shouldn't have passed successfully with that input!")
+    except json.JSONDecodeError as err:
+        if not expected_error:
+            raise err
