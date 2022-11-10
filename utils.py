@@ -90,8 +90,7 @@ def send_webhook(
     params=None,
     headers={"Content-Type": "application/json"},
 ) -> requests.Response:
-    logging.debug(f"body to send:{body}")
-    print("METHOD:", method)
+    logging.debug(f"Method:{method}. body to send:{body}")
     resp = requests.request(
         method=method, url=url, json=body, params=params, headers=headers
     )
@@ -274,13 +273,13 @@ def test_if_bot_is_member(conversation_id: str, client: slack_sdk.WebClient) -> 
         resp = client.conversations_info(
             channel=conversation_id,
         )
-        print(resp)
+        logging.debug(resp)
         if resp["channel"]["is_member"]:
             return "is_member"
         else:
             return "not_in_channel"
     except slack_sdk.errors.SlackApiError as e:
-        print(type(e).__name__, e)
+        logging.error(type(e).__name__, e)
         return "unable_to_test"
 
 
@@ -486,13 +485,45 @@ def sanitize_webhook_response(resp_text: str) -> str:
     return sanitized
 
 
-def load_json_body_from_input_str(input_str: str) -> dict:
+def clean_json_quotes(s: str) -> str:
+    # slack adding weird smart quotes on Mac, try to handle any smart quotes.
+    # Need to use this utility likely wherever we allow JSON input from users.
+    s = s.replace("“", '"')
+    s = s.replace("”", '"')
+    return s
+
+
+def sanitize_unescaped_quotes_and_load_json_str(s: str, strict=False) -> dict:
+    # TODO: one thing this doesn't handle, is if the unescaped text includes valid JSON - then you're just out of luck
+    js_str = s
+    prev_pos = -1
+    curr_pos = 0
+    while curr_pos > prev_pos:
+        # after while check, move marker before we overwrite it
+        prev_pos = curr_pos
+        try:
+            return json.loads(js_str, strict=strict)
+        except json.JSONDecodeError as err:
+            curr_pos = err.pos
+            if curr_pos <= prev_pos:
+                # previous change didn't make progress, so error
+                raise err
+
+            # find the previous " before e.pos
+            prev_quote_index = js_str.rfind('"', 0, curr_pos)
+            # escape it to \"
+            js_str = js_str[:prev_quote_index] + "\\" + js_str[prev_quote_index:]
+
+
+def load_json_body_from_untrusted_input_str(input_str: str) -> dict:
     # TODO: probably need a better handle on this, or make it very obvious to users that we will do it
     input_str = input_str.replace(
         '""', '"'
     )  # ran into JSON parsing issues when JSON string inside body string and Slack
     deny_control_characters = False
-    data = json.loads(input_str, strict=deny_control_characters)
+    data = sanitize_unescaped_quotes_and_load_json_str(
+        input_str, strict=deny_control_characters
+    )
 
     for k, v in data.items():
         convert_newline_to_list = k.startswith("__")
@@ -573,9 +604,8 @@ def includes_slack_workflow_variable(value: Union[str, None]) -> bool:
     return re.search(pattern, value) is not None
 
 
-def clean_json_quotes(s: str) -> str:
-    # slack adding weird smart quotes on Mac, try to handle any smart quotes.
-    # Need to use this utility likely wherever we allow JSON input from users.
-    s = s.replace("“", '"')
-    s = s.replace("”", '"')
-    return s
+def pretty_json_error_msg(prefix: str, orig_input: str, e: json.JSONDecodeError) -> str:
+    start_index = e.pos-3
+    end_index = e.pos+4 # 1 extra cuz range is non-inclusive
+    problem_area = f"{e.doc[start_index:end_index]}"
+    return f"{prefix} Error: {str(e)}.\n|Problem Area(chars{start_index}-{end_index}):-->{problem_area}<--|\nInput was: {repr(orig_input)}."
