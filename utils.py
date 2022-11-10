@@ -605,5 +605,7 @@ def includes_slack_workflow_variable(value: Union[str, None]) -> bool:
 
 
 def pretty_json_error_msg(prefix: str, orig_input: str, e: json.JSONDecodeError) -> str:
-    problem_area = f"{e.doc[e.pos-3:e.pos+4]}"
-    return f"{prefix} Error: {str(e)}\nProblem Area: ...{problem_area}...\nInput was: {orig_input}."
+    start_index = e.pos-3
+    end_index = e.pos+4 # 1 extra cuz range is non-inclusive
+    problem_area = f"{e.doc[start_index:end_index]}"
+    return f"{prefix} Error: {str(e)}.\n|Problem Area(chars{start_index}-{end_index}):-->{problem_area}<--|\nInput was: {repr(orig_input)}."

@@ -639,8 +639,8 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
     except json.JSONDecodeError as e:
         # e.g. Expecting ':' delimiter: line 1 column 22 (char 21)
         full_err_msg = utils.pretty_json_error_msg(
-            "err112: Unable to parse JSON when preparing to send webhook to {url}.",
-            bool_flags_input,
+            f"err112: Unable to parse JSON when preparing to send webhook to {url}.",
+            request_json_str,
             e,
         )
         logging.error(full_err_msg)
@@ -652,7 +652,7 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
     except json.JSONDecodeError as e:
         full_err_msg = utils.pretty_json_error_msg(
             f"err113: Unable to parse JSON Headers when preparing to send webhook to {url}.",
-            bool_flags_input,
+            headers_json_str,
             e,
         )
         logging.error(full_err_msg)
@@ -666,7 +666,7 @@ def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
     except json.JSONDecodeError as e:
         full_err_msg = utils.pretty_json_error_msg(
             f"err114: Unable to parse JSON Query Params when preparing to send webhook to {url}.",
-            bool_flags_input,
+            query_params_json_str,
             e,
         )
         logging.error(full_err_msg)
