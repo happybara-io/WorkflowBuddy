@@ -310,8 +310,8 @@ def test_if_bot_able_to_post_to_conversation_deprecated(
         print(resp)
         status = "can_post"
     except slack_sdk.errors.SlackApiError as e:
-        print("---------failure-----", e.get("error"), "-------")
-        if e.get("error") == "not_in_channel":
+        print("---------failure-----", e.response["error"], "-------")
+        if e.response["error"] == "not_in_channel":
             status = "not_in_channel"
         print(type(e).__name__, e)
 

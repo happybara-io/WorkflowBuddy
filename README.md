@@ -31,7 +31,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 - **About**
   - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
-  - [Available Steps](#-available-steps) - `+10`
+  - [Available Steps](#-available-steps) - `+12`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
   - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
@@ -229,6 +229,12 @@ This action will create a new channel with your specified name, then return the 
 
 Get a user based on their Slack email. Returns the user as both a text `user_id` and a `user` type so it can be used in Slack's built-in functions.
 
+### (Slack) Get Email From User ID
+
+Get email based on a Slack user ID. Useful when you have plain text user IDs in your Workflow.
+
+> _⚠ If your variable is a 'user' type, you already have access to the email and don't need to use this utility! To access, insert the variable into your input, then click on it - from there you can choose from mention `<@U1234>`, name `First Last`, or email `you@example.com`._
+
 ### (Slack) Schedule a message
 
 - [Core API Method](https://api.slack.com/methods/chat.scheduleMessage)
@@ -240,6 +246,12 @@ Schedule bot messages to public channels up to 120 days in the future.
 - [Core API Method](https://api.slack.com/methods/conversations.setTopic)
 
 Set the topic for any conversation that Workflow Buddy has been invited to.
+
+### (Slack) Add Reaction
+
+- [Core API Method](https://api.slack.com/methods/reactions.add)
+
+Adds a reaction to a message, given the permalink URL. Works with the Slack built-in `Reaction Added` Workflow Trigger.
 
 ### More to come
 

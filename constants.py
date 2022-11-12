@@ -199,10 +199,15 @@ APP_HOME_MIDDLE_BLOCKS = [
             },
             {
                 "type": "plain_text",
+                "text": "• Slack: Get Email From User",
+                "emoji": True,
+            },
+            {
+                "type": "plain_text",
                 "text": "• Utils: Send Outbound Webhook",
                 "emoji": True,
             },
-             {
+            {
                 "type": "plain_text",
                 "text": "• Utils: Extract Values from JSON",
                 "emoji": True,
@@ -232,8 +237,10 @@ UTILS_ACTION_LABELS = {
     "json_extractor": "Extract Values from JSON",
     "conversations_create": "Slack: Channels Create",
     "find_user_by_email": "Slack: Find User by Email",
+    "get_email_from_slack_user": "Slack: Get Email From User",
     "schedule_message": "Slack: Schedule a Message",
     "set_channel_topic": "Slack: Set Conversation Topic",
+    "add_reaction": "Slack: Add Reaction",
 }
 
 WEBHOOK_STEP_MODAL_COMMON_BLOCKS = [
@@ -346,6 +353,14 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                     {
                         "text": {
                             "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["get_email_from_slack_user"],
+                            "emoji": True,
+                        },
+                        "value": "get_email_from_slack_user",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
                             "text": UTILS_ACTION_LABELS["schedule_message"],
                             "emoji": True,
                         },
@@ -358,6 +373,14 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                             "emoji": True,
                         },
                         "value": "set_channel_topic",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["add_reaction"],
+                            "emoji": True,
+                        },
+                        "value": "add_reaction",
                     },
                 ],
                 "action_id": "utilities_action_select_value",
@@ -372,7 +395,7 @@ UTILS_CONFIG = {
         "step_name": "Send a webhook",
         "step_image_url": URLS["images"]["bara_webhook_logo"],
         "draft": False,
-        "isSlack": False,
+        "is_slack": False,
         "description": "Send a webhook to the defined URL.",
         "modal_input_blocks": [
             {
@@ -607,7 +630,7 @@ UTILS_CONFIG = {
         "step_name": "Random Integer",
         "step_image_url": URLS["images"]["bara_main_logo"],
         "draft": False,
-        "isSlack": False,
+        "is_slack": False,
         "description": "Get a random integer from the range [lower bound - upper bound] (inclusive).",
         "modal_input_blocks": [
             {
@@ -691,6 +714,10 @@ UTILS_CONFIG = {
                         "text": "Select conversation",
                         "emoji": True,
                     },
+                    "filter": {
+                        "include": ["public", "private", "mpim"],
+                        "exclude_bot_users": True,
+                    },
                     "action_id": "conversation_id_value",
                 },
                 "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
@@ -717,7 +744,7 @@ UTILS_CONFIG = {
         "draft": False,
         "step_name": "Wait for Human",
         "step_image_url": URLS["images"]["bara_main_logo"],
-        "isSlack": False,
+        "is_slack": False,
         "description": "Hold in progress until an execution ID is submitted to complete/fail the execution.",
         "modal_input_blocks": [
             {
@@ -729,6 +756,10 @@ UTILS_CONFIG = {
                         "type": "plain_text",
                         "text": "Select conversation",
                         "emoji": True,
+                    },
+                    "filter": {
+                        "include": ["public", "private", "mpim" "im"],
+                        "exclude_bot_users": True,
                     },
                     "action_id": "conversation_id_value",
                 },
@@ -748,7 +779,7 @@ UTILS_CONFIG = {
     },
     "conversations_create": {
         "draft": False,
-        "isSlack": True,
+        "is_slack": True,
         "step_name": "Create a channel",
         "step_image_url": URLS["images"]["bara_slack_logo"],
         "description": "Create a new channel with your specified channel name.\n⚠️_Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars._",
@@ -784,7 +815,7 @@ UTILS_CONFIG = {
     },
     "find_user_by_email": {
         "draft": False,
-        "isSlack": True,
+        "is_slack": True,
         "step_name": "Find user by email",
         "step_image_url": URLS["images"]["bara_slack_logo"],
         "description": "Find a Slack user based on their account email.",
@@ -818,7 +849,7 @@ UTILS_CONFIG = {
     },
     "schedule_message": {
         "draft": False,
-        "isSlack": True,
+        "is_slack": True,
         "step_name": "Schedule a message",
         "step_image_url": URLS["images"]["bara_slack_logo"],
         "description": "Schedule a message up to 120 days in the future.",
@@ -894,7 +925,7 @@ UTILS_CONFIG = {
     },
     "set_channel_topic": {
         "draft": False,
-        "step_name": "Set Channel Topic", 
+        "step_name": "Set Channel Topic",
         "step_image_url": URLS["images"]["bara_slack_logo"],
         "description": f"<https://api.slack.com/methods/conversations.setTopic|Slack API docs> - does not support formatting or linkification.",
         "modal_input_blocks": [
@@ -907,6 +938,10 @@ UTILS_CONFIG = {
                         "type": "plain_text",
                         "text": "Select conversation",
                         "emoji": True,
+                    },
+                    "filter": {
+                        "include": ["public", "private", "mpim"],
+                        "exclude_bot_users": True,
                     },
                     "action_id": "conversation_id_value",
                 },
@@ -955,21 +990,24 @@ UTILS_CONFIG = {
         "step_image_url": URLS["images"]["bara_main_logo"],
         "description": "Use JSONPATH to extract specific data from JSON (such as an HTTP response body) _(<https://github.com/h2non/jsonpath-ng|Parsing docs>)_.",
         "modal_input_blocks": [
-             {
+            {
                 "type": "input",
                 "block_id": "json_string_input",
                 "element": {
                     "type": "plain_text_input",
                     "action_id": "json_string_value",
-                    "placeholder": {"type": "plain_text", "text": '{"key": "valid json"}'},
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": '{"key": "valid json"}',
+                    },
                 },
                 "label": {
                     "type": "plain_text",
                     "text": "JSON String",
                     "emoji": True,
-                }
+                },
             },
-             {
+            {
                 "type": "input",
                 "block_id": "jsonpath_expr_input",
                 "element": {
@@ -981,20 +1019,20 @@ UTILS_CONFIG = {
                     "type": "plain_text",
                     "text": "JSONPATH Expression",
                     "emoji": True,
-                }
+                },
             },
         ],
         "inputs": {
             "json_string": {
                 "name": "json_string",
                 "block_id": "json_string_input",
-                "action_id": "json_string_value"
+                "action_id": "json_string_value",
             },
             "jsonpath_expr": {
                 "name": "jsonpath_expr",
                 "block_id": "jsonpath_expr_input",
-                "action_id": "jsonpath_expr_value"
-            }
+                "action_id": "jsonpath_expr_value",
+            },
         },
         "outputs": [
             {
@@ -1002,6 +1040,145 @@ UTILS_CONFIG = {
                 "name": "extracted_matches",
                 "type": "text",
             }
-        ]
-    }
+        ],
+    },
+    "get_email_from_slack_user": {
+        "draft": False,
+        "is_slack": True,
+        "step_name": "Get Email from User",
+        "step_image_url": URLS["images"]["bara_slack_logo"],
+        "description": "Get a Slack user's email as a variable from a text user id.\n> _⚠ If your variable is a 'user' type, you already have access to the email and don't need to use this utility! To access, insert the variable into your input, then click on it - from there you can choose from mention `<@U1234>`, name `First Last`, or email `you@example.com`._",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "user_id_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "user_id_value",
+                    "placeholder": {"type": "plain_text", "text": "U123456"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "User/User ID",
+                    "emoji": True,
+                },
+            }
+        ],
+        "inputs": {
+            "user_id": {"block_id": "user_id_input", "action_id": "user_id_value"},
+        },
+        "outputs": [
+            {
+                "label": "User Email",
+                "name": "user_email",
+                "type": "text",
+            }
+        ],
+    },
+    "add_reaction": {
+        "draft": True,
+        "is_slack": True,
+        "step_name": "Add Reaction",
+        "step_image_url": URLS["images"]["bara_slack_logo"],
+        "description": "Add a reaction to a message.",
+        "modal_input_blocks": [
+            # {
+            #     "type": "input",
+            #     "block_id": "conversation_id_input",
+            #     "element": {
+            #         "type": "conversations_select",
+            #         "placeholder": {
+            #             "type": "plain_text",
+            #             "text": "Select conversation",
+            #             "emoji": True,
+            #         },
+            #         "filter": {
+            #             "include": [
+            #             "public",
+            #             "private",
+            #             "mpim"
+            #             ],
+            #             "exclude_bot_users" : True
+            #         },
+            #         "action_id": "conversation_id_value",
+            #     },
+            #     "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
+            # },
+            # {
+            #     "type": "input",
+            #     "block_id": "message_ts_input",
+            #     "element": {
+            #         "type": "plain_text_input",
+            #         "action_id": "message_ts_value",
+            #         "placeholder": {"type": "plain_text", "text": "1111111111.2222"},
+            #     },
+            #     "label": {
+            #         "type": "plain_text",
+            #         "text": "Message TS",
+            #         "emoji": True,
+            #     },
+            # },
+            {
+                "type": "input",
+                "block_id": "permalink_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "permalink_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "https://workspace.slack.com/archives/CP3S47DAB/p1669229063902429",
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Permalink to Message",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "input",
+                "block_id": "reaction_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "reaction_value",
+                    "placeholder": {"type": "plain_text", "text": ":boom:"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Reaction",
+                    "emoji": True,
+                },
+                "hint": {
+                    "type": "plain_text",
+                    "text": "Can provide either the name: `boom` or the reaction 💥 in the text box.",
+                    "emoji": True,
+                },
+            },
+        ],
+        "inputs": {
+            # "conversation_id": {
+            #     "name": "conversation_id",
+            #     "validation_type": "membership_check",
+            #     "type": "conversations_select",
+            #     "block_id": "conversation_id_input",
+            #     "action_id": "conversation_id_value",
+            # },
+            # "message_ts": {
+            #     "name": "message_ts",
+            #     "block_id": "message_ts_input",
+            #     "action_id": "message_ts_value",
+            # },
+            "permalink": {
+                "name": "permalink",
+                "block_id": "permalink_input",
+                "action_id": "permalink_value",
+            },
+            "reaction": {
+                "name": "reaction",
+                "block_id": "reaction_input",
+                "action_id": "reaction_value",
+            },
+        },
+        "outputs": [],
+    },
 }
