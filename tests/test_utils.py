@@ -238,3 +238,45 @@ def test_sanitizing_unescaped_quotes(notes: str, test_str: str, expected_error: 
     except json.JSONDecodeError as err:
         if not expected_error:
             raise err
+
+
+def test_dynamic_outputs_random_member():
+    action_name = "random_member_picker"
+    inputs = {"number_of_users": {"value": "3"}}
+    outputs = sut.dynamic_outputs(action_name, inputs)
+    assert len(outputs) == 6
+
+
+@pytest.mark.parametrize(
+    "member_list, num_users, error_expected, side_effects",
+    [
+        ([], 1, True, []),
+        (
+            ["bot_user1", "user2", "user3", "user4"],
+            2,
+            False,
+            [
+                {"ok": True, "user": {"is_bot": True}},
+                {"ok": True, "user": {"is_bot": False}},
+                {"ok": True, "user": {"is_bot": False}},
+                {"ok": True, "user": {"is_bot": False}},
+            ],
+        ),
+    ],
+)
+def test_sample_list_until_no_bots_are_found(
+    member_list, num_users, error_expected, side_effects
+):
+    mock_client = mock.MagicMock()
+    mock_client.users_info.side_effect = side_effects
+
+    try:
+        users = sut.sample_list_until_no_bots_are_found(
+            mock_client, member_list, num_users
+        )
+        if error_expected:
+            pytest.fail("Yikes! expected an error to occur but none did.")
+        assert len(set(users)) == num_users
+    except IndexError as e:
+        if not error_expected:
+            raise e

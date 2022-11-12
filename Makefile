@@ -2,7 +2,7 @@
 
 prep: fmt test
 
-fmt:
+format:
 	poetry run black .
 
 ngrok:

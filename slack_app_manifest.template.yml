@@ -10,8 +10,13 @@ features:
   bot_user:
     display_name: WorkflowBuddy
     always_online: true
+  shortcuts:
+    - name: Inspect Message
+      type: message
+      callback_id: message_details
+      description: Pulls up Slack metadata on message, including ts.
   workflow_steps:
-    - name: Utilities
+    - name: Workflow Buddy Utilities
       callback_id: utilities
     - name: Outgoing Webhook
       callback_id: outgoing_webhook
