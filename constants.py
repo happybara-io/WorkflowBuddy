@@ -1,4 +1,20 @@
-GITHUB_REPO_URL = "https://github.com/happybara-io/WorkflowBuddy"
+URLS = {
+    "images": {
+        "bara_main_logo": "https://s3.happybara.io/happybara/main_logo.png",
+        "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
+        "bara_slack_logo": "https://s3.happybara.io/happybara/main_logo_slack_badge.png",
+        "bara_webhook_logo": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png",
+        "footer": {
+            "dark": "https://s3.happybara.io/common/bara-footer-dark.jpg",
+            "light": "https://s3.happybara.io/common/bara-footer-light.png",
+            "oceanic": "https://s3.happybara.io/common/bara-footer-oceanic.jpg",
+        },
+    },
+    "github-repo": {
+        "home": "https://github.com/happybara-io/WorkflowBuddy",
+        "new-issue": "https://github.com/happybara-io/WorkflowBuddy/issues/new/choose",
+    },
+}
 
 EVENT_APP_HOME_OPENED = "app_home_opened"
 EVENT_APP_MENTION = "app_mention"
@@ -37,8 +53,8 @@ APP_HOME_HEADER_BLOCKS = [
             {
                 "type": "button",
                 "text": {"type": "plain_text", "text": "🔗GitHub Docs", "emoji": True},
-                "value": GITHUB_REPO_URL,
-                "url": GITHUB_REPO_URL,
+                "value": URLS["github-repo"]["home"],
+                "url": URLS["github-repo"]["home"],
                 "action_id": "action_github_repo",
             },
         ],
@@ -115,20 +131,6 @@ APP_HOME_HEADER_BLOCKS = [
     # {"type": "divider"},
 ]
 
-URLS = {
-    "images": {
-        "bara_main_logo": "https://s3.happybara.io/happybara/main_logo.png",
-        "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
-        "bara_slack_logo": "https://s3.happybara.io/happybara/main_logo_slack_badge.png",
-        "bara_webhook_logo": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png",
-        "footer": {
-            "dark": "https://s3.happybara.io/common/bara-footer-dark.jpg",
-            "light": "https://s3.happybara.io/common/bara-footer-light.png",
-            "oceanic": "https://s3.happybara.io/common/bara-footer-oceanic.jpg",
-        },
-    }
-}
-
 APP_HOME_MIDDLE_BLOCKS = [
     {"type": "section", "text": {"type": "mrkdwn", "text": "  "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
@@ -187,7 +189,22 @@ APP_HOME_MIDDLE_BLOCKS = [
             },
             {
                 "type": "plain_text",
+                "text": "• Slack: Set Channel Topic",
+                "emoji": True,
+            },
+            {
+                "type": "plain_text",
+                "text": "• Slack: Random Members Picker",
+                "emoji": True,
+            },
+            {
+                "type": "plain_text",
                 "text": "• Utils: Send Outbound Webhook",
+                "emoji": True,
+            },
+             {
+                "type": "plain_text",
+                "text": "• Utils: Extract Values from JSON",
                 "emoji": True,
             },
             {
@@ -210,10 +227,13 @@ UTILS_ACTION_LABELS = {
     "webhook": "Send a Webhook",
     "random_int": "Random Integer",
     "random_uuid": "Random UUID",
+    "random_member_picker": "Random Member Picker",
     "manual_complete": "Wait for Manual Complete",
+    "json_extractor": "Extract Values from JSON",
     "conversations_create": "Slack: Channels Create",
     "find_user_by_email": "Slack: Find User by Email",
     "schedule_message": "Slack: Schedule a Message",
+    "set_channel_topic": "Slack: Set Conversation Topic",
 }
 
 WEBHOOK_STEP_MODAL_COMMON_BLOCKS = [
@@ -286,6 +306,22 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                     {
                         "text": {
                             "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["random_member_picker"],
+                            "emoji": True,
+                        },
+                        "value": "random_member_picker",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["json_extractor"],
+                            "emoji": True,
+                        },
+                        "value": "json_extractor",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
                             "text": UTILS_ACTION_LABELS["manual_complete"],
                             "emoji": True,
                         },
@@ -314,6 +350,14 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                             "emoji": True,
                         },
                         "value": "schedule_message",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["set_channel_topic"],
+                            "emoji": True,
+                        },
+                        "value": "set_channel_topic",
                     },
                 ],
                 "action_id": "utilities_action_select_value",
@@ -616,6 +660,59 @@ UTILS_CONFIG = {
         "inputs": {},
         "outputs": [{"name": "random_uuid", "label": "Random UUID", "type": "text"}],
     },
+    "random_member_picker": {
+        "draft": False,
+        "step_name": "Random Member Picker",
+        "step_image_url": URLS["images"]["bara_slack_logo"],
+        "description": f"Choose random members from a channel/conversation. Picks from the first 200 names it finds.\n_⚠ Slack makes it hard to filter bots & workflows from members, so please <{URLS['github-repo']['home']}|open an issue on the repo>_",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "number_of_users_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "number_of_users_value",
+                    "initial_value": "1",
+                    "placeholder": {"type": "plain_text", "text": "1"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Number of Users to Select",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "input",
+                "block_id": "conversation_id_input",
+                "element": {
+                    "type": "conversations_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "Select conversation",
+                        "emoji": True,
+                    },
+                    "action_id": "conversation_id_value",
+                },
+                "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
+            },
+        ],
+        "inputs": {
+            "conversation_id": {
+                "name": "conversation_id",
+                "validation_type": "membership_check",
+                "type": "conversations_select",
+                "block_id": "conversation_id_input",
+                "action_id": "conversation_id_value",
+            },
+            "number_of_users": {
+                "name": "number_of_users",
+                "validation_type": "integer",
+                "block_id": "number_of_users_input",
+                "action_id": "number_of_users_value",
+            },
+        },
+        "has_dynamic_outputs": True,
+    },
     "manual_complete": {
         "draft": False,
         "step_name": "Wait for Human",
@@ -641,7 +738,7 @@ UTILS_CONFIG = {
         "inputs": {
             "conversation_id": {
                 "name": "conversation_id",
-                "validation_type": "able_to_post",
+                "validation_type": "membership_check",
                 "type": "conversations_select",
                 "block_id": "conversation_id_input",
                 "action_id": "conversation_id_value",
@@ -776,7 +873,7 @@ UTILS_CONFIG = {
         "inputs": {
             "channel": {
                 "type": "channels_select",
-                "validation_type": "able_to_post",
+                "validation_type": "membership_check",
                 "block_id": "channel_input",
                 "action_id": "channel_value",
             },
@@ -796,22 +893,115 @@ UTILS_CONFIG = {
         ],
     },
     "set_channel_topic": {
-        "draft": True,
-        "isSlack": True,
-        "step_name": "Create a channel",
+        "draft": False,
+        "step_name": "Set Channel Topic", 
         "step_image_url": URLS["images"]["bara_slack_logo"],
-        "blocks": {"TODO": True},  # TODO
+        "description": f"<https://api.slack.com/methods/conversations.setTopic|Slack API docs> - does not support formatting or linkification.",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "conversation_id_input",
+                "element": {
+                    "type": "conversations_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "Select conversation",
+                        "emoji": True,
+                    },
+                    "action_id": "conversation_id_value",
+                },
+                "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
+            },
+            {
+                "type": "input",
+                "block_id": "topic_string_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "topic_string_value",
+                    "placeholder": {"type": "plain_text", "text": "A fantastic topic!"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Topic String",
+                    "emoji": True,
+                },
+                "hint": {
+                    "type": "plain_text",
+                    "text": "⚠ Text must be <250 characters, and does not support formatting or linkification.",
+                    "emoji": True,
+                },
+            },
+        ],
         "inputs": {
             "conversation_id": {
                 "name": "conversation_id",
-                "block_id": "conversation_id",
-                "action_id": "conversation_id_input",
+                "validation_type": "membership_check",
+                "type": "conversations_select",
+                "block_id": "conversation_id_input",
+                "action_id": "conversation_id_value",
             },
-            "topic": {
-                "name": "topic",
-                "notes": "Does not support formatting or linkification",
+            "topic_string": {
+                "name": "topic_string",
+                "block_id": "topic_string_input",
+                "validation_type": "str_length-250",
+                "action_id": "topic_string_value",
             },
         },
         "outputs": [],
     },
+    "json_extractor": {
+        "draft": False,
+        "step_name": "Extract Value from JSON",
+        "step_image_url": URLS["images"]["bara_main_logo"],
+        "description": "Use JSONPATH to extract specific data from JSON (such as an HTTP response body) _(<https://github.com/h2non/jsonpath-ng|Parsing docs>)_.",
+        "modal_input_blocks": [
+             {
+                "type": "input",
+                "block_id": "json_string_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "json_string_value",
+                    "placeholder": {"type": "plain_text", "text": '{"key": "valid json"}'},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "JSON String",
+                    "emoji": True,
+                }
+            },
+             {
+                "type": "input",
+                "block_id": "jsonpath_expr_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "jsonpath_expr_value",
+                    "placeholder": {"type": "plain_text", "text": "$"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "JSONPATH Expression",
+                    "emoji": True,
+                }
+            },
+        ],
+        "inputs": {
+            "json_string": {
+                "name": "json_string",
+                "block_id": "json_string_input",
+                "action_id": "json_string_value"
+            },
+            "jsonpath_expr": {
+                "name": "jsonpath_expr",
+                "block_id": "jsonpath_expr_input",
+                "action_id": "jsonpath_expr_value"
+            }
+        },
+        "outputs": [
+            {
+                "label": "Extracted Data Matches",
+                "name": "extracted_matches",
+                "type": "text",
+            }
+        ]
+    }
 }

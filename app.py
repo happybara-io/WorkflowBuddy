@@ -11,6 +11,8 @@ import copy
 from typing import Tuple
 import re
 from datetime import datetime, timedelta
+from jsonpath_ng import jsonpath
+from jsonpath_ng.ext import parse
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -234,6 +236,31 @@ def finish_an_execution(
         # outputs = {}
         resp = client.workflows_stepCompleted(workflow_step_execute_id=execution_id)
     return resp
+
+
+@slack_app.shortcut("message_details")
+def shortcut_message_details(ack: Ack, shortcut: dict, client: slack_sdk.WebClient):
+    ack()
+
+    blocks = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": "Message details:"}},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"```{json.dumps(shortcut, indent=2)}```",
+            },
+        },
+    ]
+    client.views_open(
+        trigger_id=shortcut["trigger_id"],
+        view={
+            "type": "modal",
+            "title": {"type": "plain_text", "text": "Inspect Message"},
+            "close": {"type": "plain_text", "text": "Close"},
+            "blocks": blocks,
+        },
+    )
 
 
 @slack_app.action("scheduled_message_delete_clicked")
@@ -595,7 +622,10 @@ def save_utils(
         ack(response_action="errors", errors=errors)
     else:
         ack()
-        outputs = curr_action_config["outputs"]
+        if curr_action_config.get("has_dynamic_outputs"):
+            outputs = utils.dynamic_outputs(selected_utility_callback_id, inputs)
+        else:
+            outputs = curr_action_config["outputs"]
         kwargs = {"inputs": inputs, "outputs": outputs}
         if curr_action_config.get("step_image_url"):
             kwargs["step_image_url"] = curr_action_config["step_image_url"]
@@ -710,6 +740,71 @@ def run_random_uuid(step: dict, complete: Complete, fail: Fail) -> None:
     outputs = {"random_uuid": str(uuid.uuid4())}
     complete(outputs=outputs)
 
+def run_json_extractor(step: dict, complete: Complete, fail: Fail) -> None:
+    inputs = step["inputs"]
+    json_string = inputs["json_string"]["value"]
+    jsonpath_expr_str = inputs["jsonpath_expr"]["value"]
+
+    try:
+        # TODO: do I need to do a safe load here for double quotes/etc? Hopefully it should be well-formed if it's coming here and not built by hand
+        json_data = json.loads(json_string, strict=False)
+    except json.JSONDecodeError as e:
+        errmsg = utils.pretty_json_error_msg("err2111: invalid JSON provided for JSONPATH parsing.", json_string, e)
+        fail(error={"message": errmsg})
+        return
+
+    jsonpath_expr = parse(jsonpath_expr_str)
+    results = jsonpath_expr.find(json_data)
+    logging.debug(f"JSONPATH {jsonpath_expr_str}| RESULTS: {results}")
+    matches = [match.value for match in results]
+    if len(matches) == 1:
+        matches = matches[0]
+    outputs = {
+        "extracted_matches": str(matches)
+    }
+    complete(outputs=outputs)
+
+
+def run_random_member_picker(
+    step: dict,
+    complete: Complete,
+    fail: Fail,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
+):
+    inputs = step["inputs"]
+    conversation_id = inputs["conversation_id"]["value"]
+    number_of_users = int(inputs["number_of_users"]["value"])
+    num_per_request = 200
+    resp = client.conversations_members(channel=conversation_id, limit=num_per_request)
+
+    if not resp["ok"]:
+        logger.error(resp)
+        errmsg = f"Slack Error: unable to get conversation members from Slack. {resp['error']}"
+        fail(error={"message": errmsg})
+    else:
+        # When will Slack just natively filter from their side?
+        # Save time by checking for bots after random selection, rather than cleaning whole list of people.
+        members = resp["members"]
+
+        try:
+            sample_of_users = utils.sample_list_until_no_bots_are_found(
+                client, members, number_of_users
+            )
+            outputs = {}
+            for i, user_id in enumerate(sample_of_users):
+                user_num = i + 1
+                outputs.update(
+                    {
+                        f"selected_user_{user_num}": user_id,
+                        f"selected_user_id_{user_num}": user_id,
+                    }
+                )
+            complete(outputs=outputs)
+        except ValueError:
+            errmsg = f"Error: requested number of users {number_of_users} larger than members size {len(members)}."
+            fail(error={"message": errmsg})
+
 
 def run_manual_complete(
     step: dict, event: dict, client: slack_sdk.WebClient, logger: logging.Logger
@@ -717,8 +812,6 @@ def run_manual_complete(
     # https://api.slack.com/methods/chat.postMessage
     # https://api.slack.com/events/workflow_step_execute
     inputs = step["inputs"]
-    # TODO: by providing a conversation ID, rather than restricting to something else, it brings up possibility Bot isn't in the channel.
-    # Need to rectify during configuration step for good UX.
     conversation_id = inputs["conversation_id"]["value"]
     execution_id = event["workflow_step"]["workflow_step_execute_id"]
 
@@ -732,6 +825,27 @@ def run_manual_complete(
     logger.info(resp)
     # Don't even think about calling fail/complete!
     pass
+
+
+def run_set_channel_topic(
+    step: dict,
+    complete: Complete,
+    fail: Fail,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
+):
+    inputs = step["inputs"]
+    conversation_id = inputs["conversation_id"]["value"]
+    topic_string = inputs["topic_string"]["value"]
+    resp = client.conversations_setTopic(channel=conversation_id, topic=topic_string)
+
+    if not resp["ok"]:
+        logger.error(resp)
+        errmsg = f"Slack Error: unable to get conversation members from Slack. {resp['error']}"
+        fail(error={"message": errmsg})
+    else:
+        outputs = {}
+        complete(outputs=outputs)
 
 
 def execute_utils(
@@ -752,8 +866,14 @@ def execute_utils(
             run_random_int(step, complete, fail)
         elif chosen_action == "random_uuid":
             run_random_uuid(step, complete, fail)
+        elif chosen_action == "random_member_picker":
+            run_random_member_picker(step, complete, fail, client, logger)
+        elif chosen_action == "set_channel_topic":
+            run_set_channel_topic(step, complete, fail, client, logger)
         elif chosen_action == "manual_complete":
             run_manual_complete(step, event, client, logger)
+        elif chosen_action == "json_extractor":
+            run_json_extractor(step, complete, fail)
         elif chosen_action == "conversations_create":
             channel_name = inputs["channel_name"]["value"]
             resp = client.conversations_create(name=channel_name)
@@ -881,14 +1001,13 @@ def parse_values_from_input_config(
                 errors[
                     block_id
                 ] = "Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars."
-        elif validation_type == "able_to_post" and not value_has_workflow_variable:
+        elif validation_type == "membership_check" and not value_has_workflow_variable:
             status = utils.test_if_bot_is_member(value, client)
             if status == "not_in_channel":
                 errors[
                     block_id
-                ] = f"Bot needs to be invited to the conversation before it can post."
+                ] = "Bot needs to be invited to the conversation before it can interact or read information about it."
         elif validation_type == "future_timestamp" and not value_has_workflow_variable:
-            # TODO: must be a valid integer
             try:
                 timestamp_int = int(value)
                 curr = datetime.now().timestamp()
@@ -899,6 +1018,16 @@ def parse_values_from_input_config(
                     ] = f"Need a timestamp from > 5 mins in future, but got {readable_bad_dt}."
             except ValueError:
                 errors[block_id] = f"Must be valid timestamp integer."
+        elif (
+            validation_type is not None and validation_type.startswith("str_length") and not value_has_workflow_variable
+        ):
+            v_type, str_len = validation_type.split("-")
+            allowed_len = int(str_len)
+            user_input_len = len(value)
+            if user_input_len > allowed_len:
+                errors[
+                    block_id
+                ] = f"Input must be shorter than {allowed_len}, but was {user_input_len}."
 
         inputs[name] = {"value": value}
 

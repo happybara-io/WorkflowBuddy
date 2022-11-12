@@ -23,15 +23,15 @@ _You can get creative and do a lot with these building blocks, but what if you w
 
 ⚡ The most important **Step** this app adds is the `Outgoing Webhook`, which enables users to integrate their Slack Workflow Steps with almost any other application.
 
-> **[ℹ️]** Alpha Disclaimer:
+> **[ℹ️]** Beta Disclaimer:
 >
-> This code is in alpha stage on it's way to a stable v1. It's fully functional, but still needs resiliency features like retrying failed webhooks, retrying Slack API calls when rate-limited, etc.
+> This code is in beta stage on it's way to a stable v1. It's fully functional, but would benefit from resiliency features like improved handling for upstream API errors, etc.
 >
 
 - **About**
   - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
-  - [Available Steps](#-available-steps) - `+7`
+  - [Available Steps](#-available-steps) - `+10`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
   - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
@@ -185,9 +185,15 @@ The utilities currently available within WorkflowBuddy for use as Workflow Steps
 
 ![User choosing which action they want in workflow](/assets/workflow-buddy-choose-step-action-modal.png)
 
-### Send a Webhook
+### Send an Outgoing Webhook/ HTTP Request
 
 Send data from your Slack Workflows to almost any service. You can trigger GitHub repos, Jenkins Builds, Salesforce actions, you name it.
+
+### Extract Values from JSON
+
+Use [`JSONPATH` expressions](https://github.com/h2non/jsonpath-ng) to extract data from JSON strings in your Workflows to use as variable in other **Steps**. Common use case is to parse a value out of an HTTP response body.
+
+_Need multiple values? For now, you can just use this Step multiple times in a Workflow for each value you need. In the future, we plan to support multiple in one Step._
 
 ### Wait for human | approval | manual completion
 
@@ -204,6 +210,12 @@ Generate a random integer in the range [`lower_bound`-`upper_bound`], inclusive.
 Generate a random UUID with [Python's standard library](https://docs.python.org/3/library/uuid.html).
 
 **Example**: `a3b45ac2-d1ba-4c54-9e1c-0d51983ec952`.
+
+### (Slack) Random Member Picker
+
+- [Core API Method](https://api.slack.com/methods/conversations.members)
+
+Choose a random sample of 1+ non-bot users from a conversation. Each user is available as an individual variable in future Workflow Steps.
 
 ### (Slack) Create a channel
 
@@ -223,9 +235,23 @@ Get a user based on their Slack email. Returns the user as both a text `user_id`
 - [Advanced formatting in Slack messages](https://api.slack.com/reference/surfaces/formatting)
 Schedule bot messages to public channels up to 120 days in the future.
 
+### (Slack) Set Channel Topic
+
+- [Core API Method](https://api.slack.com/methods/conversations.setTopic)
+
+Set the topic for any conversation that Workflow Buddy has been invited to.
+
 ### More to come
 
 See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for discussion on potential Step actions to add.
+
+## Bonus Utilities
+
+Occasionally I run into handy utilities that make life easier when building automations for Slack workspaces, and what better place than a toolkit like Workflow Buddy!
+
+### Shortcut: Inspect Message
+
+A message shortcut that pulls up the associated metadata Slack has for it, including useful attributes like `team_id`, `user_id`, message `ts`, etc. Handy when being a Builder of Workflows or developing steps.
 
 ---
 

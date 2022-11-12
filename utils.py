@@ -1,5 +1,5 @@
 import contextlib
-from typing import Union
+from typing import Union, List
 import os
 import random
 import re
@@ -279,7 +279,10 @@ def test_if_bot_is_member(conversation_id: str, client: slack_sdk.WebClient) -> 
         else:
             return "not_in_channel"
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(type(e).__name__, e)
+        logging.error(e)
+        if e.response["error"] == "channel_not_found":
+            # happens for private channels that bot can't "see"
+            return "not_in_channel"
         return "unable_to_test"
 
 
@@ -605,7 +608,74 @@ def includes_slack_workflow_variable(value: Union[str, None]) -> bool:
 
 
 def pretty_json_error_msg(prefix: str, orig_input: str, e: json.JSONDecodeError) -> str:
-    start_index = e.pos-3
-    end_index = e.pos+4 # 1 extra cuz range is non-inclusive
+    start_index = e.pos - 3
+    end_index = e.pos + 4  # 1 extra cuz range is non-inclusive
     problem_area = f"{e.doc[start_index:end_index]}"
     return f"{prefix} Error: {str(e)}.\n|Problem Area(chars{start_index}-{end_index}):-->{problem_area}<--|\nInput was: {repr(orig_input)}."
+
+
+def dynamic_outputs(action_name: str, inputs: dict) -> List:
+    outputs = []
+    if action_name == "random_member_picker":
+        number_of_users = int(inputs["number_of_users"]["value"])
+        outputs = []
+        for i in range(1, number_of_users + 1):
+            outputs.extend(
+                [
+                    {
+                        "name": f"selected_user_{i}",
+                        "label": f"Selected User {i}",
+                        "type": "user",
+                    },
+                    {
+                        "name": f"selected_user_id_{i}",
+                        "label": f"Selected User ID {i}",
+                        "type": "text",
+                    },
+                ]
+            )
+    elif action_name == "future":
+        outputs = []
+    else:
+        raise ValueError(f"No dynamic outputs specified for {action_name}")
+    return outputs
+
+
+def filter_bots(client: slack_sdk.WebClient, user_list: List) -> List:
+    # SLACKBOT might show up as a problem in the future;
+    # not sure if it can be a channel member - depends on API you're working with
+    filtered = []
+    for user_id in user_list:
+        resp = client.users_info(user=user_id)
+        if not resp["ok"]:
+            logging.error(resp)
+            # TODO: handle common errors better
+            continue
+
+        user = resp.get("user", {})
+        if user.get("is_bot") or user.get("is_workflow_bot"):
+            continue
+
+        filtered.append(user_id)
+
+    return filtered
+
+
+def sample_list_until_no_bots_are_found(
+    client: slack_sdk.WebClient, members: List, number_of_users: int
+) -> List:
+    # TODO: if bots were prefiltered, could just use sample() and avoid this whole mess.
+    # TODO: surface to users the fact that we are limiting iterations
+    # if we give back less people than they expected - use case: a channel that has more bots than people
+    max_num_allowed_iterations = 15
+    no_bot_users_sample = []
+    runs = 0
+    while (
+        len(no_bot_users_sample) < number_of_users and runs < max_num_allowed_iterations
+    ):
+        rand_user = random.choice(members)
+        if rand_user in no_bot_users_sample:
+            continue
+        filtered = filter_bots(client, [rand_user])
+        no_bot_users_sample.extend(filtered)
+    return no_bot_users_sample
