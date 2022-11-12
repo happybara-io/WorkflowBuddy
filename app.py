@@ -847,6 +847,29 @@ def run_set_channel_topic(
         outputs = {}
         complete(outputs=outputs)
 
+def run_get_email_from_slack_user(
+    step: dict,
+    complete: Complete,
+    fail: Fail,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
+):
+    inputs = step["inputs"]
+    print("INPUTS", inputs)
+    # TODO: gotta be able to get this from text variable passed to me, or from Slack "user" type variable
+    user_id = inputs["user_id"]["value"]
+
+    resp = client.users_info(user=user_id)
+    if not resp["ok"]:
+        logger.error(resp)
+        errmsg = f"Slack Error: unable to get conversation members from Slack. {resp['error']}"
+        fail(error={"message": errmsg})
+    else:
+        email = resp["user"]["profile"]["email"]
+        outputs = {
+            "email": email
+        }
+        complete(outputs=outputs)
 
 def execute_utils(
     step: dict,
@@ -874,6 +897,8 @@ def execute_utils(
             run_manual_complete(step, event, client, logger)
         elif chosen_action == "json_extractor":
             run_json_extractor(step, complete, fail)
+        elif chosen_action == "get_email_from_slack_user":
+            run_get_email_from_slack_user(step, complete, fail, client, logger)
         elif chosen_action == "conversations_create":
             channel_name = inputs["channel_name"]["value"]
             resp = client.conversations_create(name=channel_name)

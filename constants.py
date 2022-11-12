@@ -199,6 +199,12 @@ APP_HOME_MIDDLE_BLOCKS = [
             },
             {
                 "type": "plain_text",
+                "text": "• Slack: Get Email From User",
+                "emoji": True,
+            },
+            
+            {
+                "type": "plain_text",
                 "text": "• Utils: Send Outbound Webhook",
                 "emoji": True,
             },
@@ -232,6 +238,7 @@ UTILS_ACTION_LABELS = {
     "json_extractor": "Extract Values from JSON",
     "conversations_create": "Slack: Channels Create",
     "find_user_by_email": "Slack: Find User by Email",
+    "get_email_from_slack_user": "Slack: Get Email From User",
     "schedule_message": "Slack: Schedule a Message",
     "set_channel_topic": "Slack: Set Conversation Topic",
 }
@@ -342,6 +349,14 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                             "emoji": True,
                         },
                         "value": "find_user_by_email",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["get_email_from_slack_user"],
+                            "emoji": True,
+                        },
+                        "value": "get_email_from_slack_user",
                     },
                     {
                         "text": {
@@ -691,6 +706,14 @@ UTILS_CONFIG = {
                         "text": "Select conversation",
                         "emoji": True,
                     },
+                    "filter": {
+                        "include": [
+                        "public",
+                        "private",
+                        "mpim"
+                        ],
+                        "exclude_bot_users" : True
+                    },
                     "action_id": "conversation_id_value",
                 },
                 "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
@@ -729,6 +752,15 @@ UTILS_CONFIG = {
                         "type": "plain_text",
                         "text": "Select conversation",
                         "emoji": True,
+                    },
+                    "filter": {
+                        "include": [
+                        "public",
+                        "private",
+                        "mpim"
+                        "im"
+                        ],
+                        "exclude_bot_users" : True
                     },
                     "action_id": "conversation_id_value",
                 },
@@ -908,6 +940,14 @@ UTILS_CONFIG = {
                         "text": "Select conversation",
                         "emoji": True,
                     },
+                    "filter": {
+                        "include": [
+                        "public",
+                        "private",
+                        "mpim"
+                        ],
+                        "exclude_bot_users" : True
+                    },
                     "action_id": "conversation_id_value",
                 },
                 "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
@@ -1003,5 +1043,38 @@ UTILS_CONFIG = {
                 "type": "text",
             }
         ]
-    }
+    },
+    "get_email_from_slack_user": {
+        "draft": False,
+        "isSlack": True,
+        "step_name": "Get Email from User",
+        "step_image_url": URLS["images"]["bara_slack_logo"],
+        "description": "Get a Slack user's email as a variable from a text user id.\n> _⚠ If your variable is a 'user' type, you already have access to the email and don't need to use this utility! To access, insert the variable into your input, then click on it - from there you can choose from mention `<@U1234>`, name `First Last`, or email `you@example.com`._",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "user_id_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "user_id_value",
+                    "placeholder": {"type": "plain_text", "text": "U123456"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "User/User ID",
+                    "emoji": True,
+                }
+            }
+        ],
+        "inputs": {
+            "user_id": {"block_id": "user_id_input", "action_id": "user_id_value"},
+        },
+        "outputs": [
+            {
+                "label": "User Email",
+                "name": "user_email",
+                "type": "text",
+            }
+        ],
+    },
 }
