@@ -1,6 +1,6 @@
-.PHONY: fmt test
+.PHONY: format test
 
-prep: fmt test
+prep: format test
 
 format:
 	poetry run black .
@@ -23,3 +23,5 @@ up:
 up-build:
 	docker compose up --build
 
+setup-precommit-hooks:
+	poetry run pre-commit install

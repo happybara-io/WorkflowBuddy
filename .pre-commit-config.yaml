@@ -1,0 +1,46 @@
+repos:
+  - repo: local
+    hooks:
+      - id: format-black
+        name: Run Black Formatter
+        entry: poetry run black tests/ app.py utils.py
+        always_run: true
+        language: system
+        verbose: true
+        pass_filenames: false
+      - id: pytest
+        name: Unit Tests
+        entry: poetry run python -m pytest tests/
+        always_run: true
+        language: system
+        verbose: true
+        pass_filenames: false
+      - id: poetry-lock
+        name: Lock Poetry File
+        entry: poetry lock
+        language: system
+        verbose: true
+        pass_filenames: false
+      - id: poetry-export
+        name: Export Requirements.txt
+        entry: poetry export -o requirements.txt --without-hashes
+        language: system
+        verbose: true
+        pass_filenames: false
+  - repo: 'https://github.com/pre-commit/pre-commit-hooks'
+    rev: v3.2.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  # - repo: 'https://github.com/python-poetry/poetry'
+  #   rev: 1.1.14
+  #   hooks:
+  #     - id: poetry-check
+  #     - id: poetry-lock
+  #     - id: poetry-export
+  #       args:
+  #         - '-o'
+  #         - requirements.txt
+  #         - '--without-hashes'
