@@ -740,6 +740,7 @@ def run_random_uuid(step: dict, complete: Complete, fail: Fail) -> None:
     outputs = {"random_uuid": str(uuid.uuid4())}
     complete(outputs=outputs)
 
+
 def run_json_extractor(step: dict, complete: Complete, fail: Fail) -> None:
     inputs = step["inputs"]
     json_string = inputs["json_string"]["value"]
@@ -749,7 +750,9 @@ def run_json_extractor(step: dict, complete: Complete, fail: Fail) -> None:
         # TODO: do I need to do a safe load here for double quotes/etc? Hopefully it should be well-formed if it's coming here and not built by hand
         json_data = json.loads(json_string, strict=False)
     except json.JSONDecodeError as e:
-        errmsg = utils.pretty_json_error_msg("err2111: invalid JSON provided for JSONPATH parsing.", json_string, e)
+        errmsg = utils.pretty_json_error_msg(
+            "err2111: invalid JSON provided for JSONPATH parsing.", json_string, e
+        )
         fail(error={"message": errmsg})
         return
 
@@ -759,9 +762,7 @@ def run_json_extractor(step: dict, complete: Complete, fail: Fail) -> None:
     matches = [match.value for match in results]
     if len(matches) == 1:
         matches = matches[0]
-    outputs = {
-        "extracted_matches": str(matches)
-    }
+    outputs = {"extracted_matches": str(matches)}
     complete(outputs=outputs)
 
 
@@ -837,15 +838,17 @@ def run_set_channel_topic(
     inputs = step["inputs"]
     conversation_id = inputs["conversation_id"]["value"]
     topic_string = inputs["topic_string"]["value"]
-    resp = client.conversations_setTopic(channel=conversation_id, topic=topic_string)
 
-    if not resp["ok"]:
-        logger.error(resp)
-        errmsg = f"Slack Error: unable to get conversation members from Slack. {resp['error']}"
+    try:
+        resp = client.conversations_setTopic(
+            channel=conversation_id, topic=topic_string
+        )
+        complete(outputs={})
+    except slack_sdk.errors.SlackApiError as e:
+        logger.error(e.response)
+        errmsg = f"Slack Error: unable to get conversation members from Slack. {e.response['error']}"
         fail(error={"message": errmsg})
-    else:
-        outputs = {}
-        complete(outputs=outputs)
+
 
 def run_get_email_from_slack_user(
     step: dict,
@@ -855,21 +858,52 @@ def run_get_email_from_slack_user(
     logger: logging.Logger,
 ):
     inputs = step["inputs"]
-    print("INPUTS", inputs)
     # TODO: gotta be able to get this from text variable passed to me, or from Slack "user" type variable
     user_id = inputs["user_id"]["value"]
+    # just in case they pass in user mention anyway
+    user_id = user_id.replace("<@", "").replace(">", "")
 
-    resp = client.users_info(user=user_id)
-    if not resp["ok"]:
-        logger.error(resp)
-        errmsg = f"Slack Error: unable to get conversation members from Slack. {resp['error']}"
-        fail(error={"message": errmsg})
-    else:
+    try:
+        resp = client.users_info(user=user_id)
         email = resp["user"]["profile"]["email"]
-        outputs = {
-            "email": email
-        }
+        outputs = {"email": email}
         complete(outputs=outputs)
+    except slack_sdk.errors.SlackApiError as e:
+        logger.error(e.response)
+        errmsg = f"Slack Error: unable to get email from user. {e.response['error']}"
+        fail(error={"message": errmsg})
+
+
+def run_add_reaction(
+    step: dict,
+    complete: Complete,
+    fail: Fail,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
+):
+    # From Slack's emoji reaction trigger we get a link to message which has channel id & ts
+    # if they get TS from somewhere else - then what?
+    inputs = step["inputs"]
+    # TODO: permalink is useful for Slack triggered reaction events, but what about broader use cases?
+    # channel_id = inputs["conversation_id"]["value"]
+    # ts = inputs["message_ts"]["value"]
+    permalink = inputs["permalink"][
+        "value"
+    ]  # "https://workspace.slack.com/archives/CP3S47DAB/p1669229063902429
+    _, _, _, _, channel_id, p_ts = permalink.split("/")
+    ts = f"{p_ts.replace('p', '')[:10]}.{p_ts[11:]}"
+    reaction = inputs["reaction"]["value"].replace(":", "")  # :boom:
+    try:
+        resp = client.reactions_add(channel=channel_id, timestamp=ts, name=reaction)
+        complete(outputs={})
+    except slack_sdk.errors.SlackApiError as e:
+        if e.response["error"] == "already_reacted":
+            complete(outputs={})
+        else:
+            logger.error(e.response)
+            errmsg = f"Slack Error: unable to add reaction. {e.response['error']}"
+            fail(error={"message": errmsg})
+
 
 def execute_utils(
     step: dict,
@@ -899,6 +933,8 @@ def execute_utils(
             run_json_extractor(step, complete, fail)
         elif chosen_action == "get_email_from_slack_user":
             run_get_email_from_slack_user(step, complete, fail, client, logger)
+        elif chosen_action == "add_reaction":
+            run_add_reaction(step, complete, fail, client, logger)
         elif chosen_action == "conversations_create":
             channel_name = inputs["channel_name"]["value"]
             resp = client.conversations_create(name=channel_name)
@@ -1044,7 +1080,9 @@ def parse_values_from_input_config(
             except ValueError:
                 errors[block_id] = f"Must be valid timestamp integer."
         elif (
-            validation_type is not None and validation_type.startswith("str_length") and not value_has_workflow_variable
+            validation_type is not None
+            and validation_type.startswith("str_length")
+            and not value_has_workflow_variable
         ):
             v_type, str_len = validation_type.split("-")
             allowed_len = int(str_len)

@@ -31,7 +31,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 - **About**
   - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
-  - [Available Steps](#-available-steps) - `+11`
+  - [Available Steps](#-available-steps) - `+12`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
   - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
@@ -246,6 +246,12 @@ Schedule bot messages to public channels up to 120 days in the future.
 - [Core API Method](https://api.slack.com/methods/conversations.setTopic)
 
 Set the topic for any conversation that Workflow Buddy has been invited to.
+
+### (Slack) Add Reaction
+
+- [Core API Method](https://api.slack.com/methods/reactions.add)
+
+Adds a reaction to a message, given the permalink URL. Works with the Slack built-in `Reaction Added` Workflow Trigger.
 
 ### More to come
 
