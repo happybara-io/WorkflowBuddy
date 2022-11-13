@@ -67,7 +67,10 @@ def update_blocks_with_previous_input_based_on_config(
                             block["element"]["initial_option"] = {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": prev_input_value.upper(),
+                                    "text": curr_input_config.get("label", {}).get(
+                                        prev_input_value
+                                    )
+                                    or prev_input_value.upper(),
                                     "emoji": True,
                                 },
                                 "value": prev_input_value,
@@ -524,7 +527,13 @@ def update_app_home(event: dict, logger: logging.Logger, client: slack_sdk.WebCl
     client.views_publish(user_id=event["user"], view=app_home_view)
 
 
-def edit_utils(ack: Ack, step: dict, configure: Configure, logger: logging.Logger):
+def edit_utils(
+    ack: Ack,
+    step: dict,
+    configure: Configure,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
+):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
     existing_inputs = copy.deepcopy(
@@ -546,6 +555,7 @@ def edit_utils(ack: Ack, step: dict, configure: Configure, logger: logging.Logge
             },
         }
     )
+    blocks.extend(utils.dynamic_modal_top_blocks(chosen_action))
     # have to make sure we aren't accidentally editing config blocks in memory
     blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
     update_blocks_with_previous_input_based_on_config(
@@ -573,6 +583,7 @@ def utils_update_step_modal(
             },
         }
     )
+    updated_blocks.extend(utils.dynamic_modal_top_blocks(selected_action))
     updated_blocks.extend(c.UTILS_CONFIG[selected_action]["modal_input_blocks"])
     updated_view = {
         "type": "workflow_step",
@@ -594,18 +605,38 @@ def save_utils(
 ):
     logger.debug("view", view)
     values = view["state"]["values"]
-    selected_option_object = values["utilities_action_select"][
+    action_select_block_id = "utilities_action_select"
+    selected_option_object = values[action_select_block_id][
         "utilities_action_select_value"
     ]
     selected_utility_callback_id = selected_option_object["selected_option"]["value"]
     curr_action_config = c.UTILS_CONFIG[selected_utility_callback_id]
 
+    errors = {}
+    if curr_action_config.get("needs_user_token"):
+        # warning is shown to user on load; this prevents them from saving a bad config
+        try:
+            user_token = os.environ["SLACK_USER_TOKEN"]
+            client = slack_sdk.WebClient(token=user_token)
+            kwargs = {"query": "a", "count": 1}
+            resp = client.search_messages(**kwargs)
+        except KeyError:
+            errors[
+                "search_query_input"
+            ] = f"Need a valid SLACK_USER_TOKEN secret for {c.UTILS_ACTION_LABELS[selected_utility_callback_id]}."
+        except slack_sdk.errors.SlackAPIError as e:
+            logger.error(e.response)
+            errmsg = f"Slack Error: Need a valid user token. {e.response['error']}"
+            errors[action_select_block_id] = errmsg
+
     inputs = {
         "selected_utility": {"value": selected_utility_callback_id},
     }
-    inputs, errors = parse_values_from_input_config(
+    inputs, input_errors = parse_values_from_input_config(
         client, values, inputs, curr_action_config
     )
+    errors.update(input_errors)
+
     if errors:
         ack(response_action="errors", errors=errors)
     else:
@@ -916,6 +947,50 @@ def run_add_reaction(
             fail(error={"message": errmsg})
 
 
+def run_find_message(
+    step: dict,
+    complete: Complete,
+    fail: Fail,
+    logger: logging.Logger,
+):
+    # https://api.slack.com/methods/search.messages
+    inputs = step["inputs"]
+    search_query = inputs["search_query"]["value"]
+    sort = inputs["sort"]["value"]
+    sort_dir = inputs["sort_dir"]["value"]
+
+    # TODO: team_id is required attribute if using an org-token
+    try:
+        user_token = os.environ["SLACK_USER_TOKEN"]
+        client = slack_sdk.WebClient(token=user_token)
+    except KeyError:
+        errmsg = "No SLACK_USER_TOKEN provided to Workflow Buddy - required for searching Slack messages."
+        fail(error={"message": errmsg})
+        return
+
+    kwargs = {"query": search_query, "count": 1, "sort": sort, "sort_dir": sort_dir}
+    try:
+        resp = client.search_messages(**kwargs)
+        message = resp["messages"]["matches"][0]
+        channel_id = message["channel"]["id"]
+        outputs = {
+            "channel": channel_id,
+            "channel_id": channel_id,
+            "message_ts": message["ts"],
+            "permalink": message["permalink"],
+            "message_text": message["text"],
+            "user": message["user"],
+            "user_id": message["user"],
+        }
+        complete(outputs=outputs)
+    except IndexError:
+        complete(outputs={})
+    except slack_sdk.errors.SlackApiError as e:
+        logger.error(e.response)
+        errmsg = f"Slack Error: failed to search messages. {e.response['error']}"
+        fail(error={"message": errmsg})
+
+
 def execute_utils(
     step: dict,
     event: dict,
@@ -948,6 +1023,8 @@ def execute_utils(
             run_get_email_from_slack_user(step, complete, fail, client, logger)
         elif chosen_action == "add_reaction":
             run_add_reaction(step, complete, fail, client, logger)
+        elif chosen_action == "find_message":
+            run_find_message(step, complete, fail, logger)
         elif chosen_action == "conversations_create":
             channel_name = inputs["channel_name"]["value"]
             resp = client.conversations_create(name=channel_name)
@@ -1061,13 +1138,13 @@ def parse_values_from_input_config(
             try:
                 int(value)
             except ValueError:
-                errors[block_id] = f"Must be a valid integer."
+                errors[block_id] = "Must be a valid integer."
         elif validation_type == "email" and not value_has_workflow_variable:
             if "@" not in value:
-                errors[block_id] = f"Must be a valid email."
+                errors[block_id] = "Must be a valid email."
         elif validation_type == "url" and not value_has_workflow_variable:
             if not utils.is_valid_url(value):
-                errors[block_id] = f"Must be a valid URL with `http(s)://.`"
+                errors[block_id] = "Must be a valid URL with `http(s)://.`"
         elif (
             validation_type == "slack_channel_name" and not value_has_workflow_variable
         ):
@@ -1075,12 +1152,17 @@ def parse_values_from_input_config(
                 errors[
                     block_id
                 ] = "Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars."
-        elif validation_type == "membership_check" and not value_has_workflow_variable:
+        elif (
+            validation_type in ["membership_check", "msg_check"]
+            and not value_has_workflow_variable
+        ):
             status = utils.test_if_bot_is_member(value, client)
-            if status == "not_in_channel":
+            if status == "not_in_convo" or (
+                status == "not_member_but_public" and validation_type != "msg_check"
+            ):
                 errors[
                     block_id
-                ] = "Bot needs to be invited to the conversation before it can interact or read information about it."
+                ] = "Bot needs to be invited to the conversation before it can interact or read information about it, except for public channels."
         elif validation_type == "future_timestamp" and not value_has_workflow_variable:
             try:
                 timestamp_int = int(value)

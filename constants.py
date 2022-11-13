@@ -244,6 +244,7 @@ UTILS_ACTION_LABELS = {
     "schedule_message": "Slack: Schedule a Message",
     "set_channel_topic": "Slack: Set Conversation Topic",
     "add_reaction": "Slack: Add Reaction",
+    "find_message": "Slack: Find Message",
 }
 
 WEBHOOK_STEP_MODAL_COMMON_BLOCKS = [
@@ -392,6 +393,14 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                             "emoji": True,
                         },
                         "value": "add_reaction",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["find_message"],
+                            "emoji": True,
+                        },
+                        "value": "find_message",
                     },
                 ],
                 "action_id": "utilities_action_select_value",
@@ -1234,5 +1243,178 @@ UTILS_CONFIG = {
             },
         },
         "outputs": [],
+    },
+    "find_message": {
+        "draft": False,
+        "needs_user_token": True,
+        "step_name": "Find a Message",
+        "step_image_url": URLS["images"]["bara_main_logo"],
+        "description": "Search in Slack for a message, return the top result.",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "search_query_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "search_query_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": 'in:#general "thanks for all the fish"',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Slack Search Query",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "_This query uses the same formatting and options as the search bar in the Slack app._",
+                    }
+                ],
+            },
+            {
+                "type": "input",
+                "block_id": "sort_select",
+                "label": {"type": "plain_text", "text": "Results Sort", "emoji": True},
+                "element": {
+                    "type": "static_select",
+                    "initial_option": {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Timestamp",
+                                "emoji": True,
+                            },
+                            "value": "timestamp",
+                        },
+                    "options": [
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Timestamp",
+                                "emoji": True,
+                            },
+                            "value": "timestamp",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Match Score",
+                                "emoji": True,
+                            },
+                            "value": "score",
+                        },
+                    ],
+                    "action_id": "sort_select_value",
+                },
+            },
+            {
+                "type": "input",
+                "block_id": "sort_dir_select",
+                "label": {
+                    "type": "plain_text",
+                    "text": "Results Sort Direction",
+                    "emoji": True,
+                },
+                "element": {
+                    "type": "static_select",
+                    "initial_option": {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Descending (newest or best first)",
+                                "emoji": True,
+                            },
+                            "value": "desc",
+                        },
+                    "options": [
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Ascending (oldest or worst first)",
+                                "emoji": True,
+                            },
+                            "value": "asc",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Descending (newest or best first)",
+                                "emoji": True,
+                            },
+                            "value": "desc",
+                        },
+                    ],
+                    "action_id": "sort_dir_select_value",
+                },
+            },
+        ],
+        "inputs": {
+            "search_query": {
+                "name": "search_query",
+                "block_id": "search_query_input",
+                "action_id": "search_query_value",
+            },
+            "sort": {
+                "name": "sort",
+                "type": "static_select",
+                "label": {
+                    "timestamp": "Timestamp",
+                    "score": "Match Score"
+                },
+                "block_id": "sort_select",
+                "action_id": "sort_select_value",
+            },
+            "sort_dir": {
+                "name": "sort_dir",
+                "type": "static_select",
+                "label": {
+                    "desc": "Descending (newest or best first)",
+                    "asc": "Ascending (oldest or worst first)"
+                },
+                "block_id": "sort_dir_select",
+                "action_id": "sort_dir_select_value",
+            },
+        },
+        "outputs": [
+            {
+                "label": "Channel",
+                "name": "channel",
+                "type": "channel",
+            },
+            {
+                "label": "Channel ID",
+                "name": "channel_id",
+                "type": "text",
+            },
+            {
+                "label": "Message TS",
+                "name": "message_ts",
+                "type": "text",
+            },
+            {
+                "label": "Permalink",
+                "name": "permalink",
+                "type": "text",
+            },
+            {
+                "label": "Message Text",
+                "name": "message_text",
+                "type": "text",
+            },
+            {
+                "label": "User",
+                "name": "user",
+                "type": "user",
+            },
+            {
+                "label": "User ID",
+                "name": "user_id",
+                "type": "text",
+            },
+        ],
     },
 }

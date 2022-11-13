@@ -22,6 +22,8 @@ features:
       callback_id: outgoing_webhook
 oauth_config:
   scopes:
+    user:
+      - search:read
     bot:
       - app_mentions:read
       - channels:manage
@@ -29,11 +31,12 @@ oauth_config:
       - chat:write
       - commands
       - groups:write
+      - reactions:read
+      - reactions:write
       - users:read
       - users:read.email
       - workflow.steps:execute
-      - reactions:read
-      - reactions:write
+      - chat:write.public
 settings:
   event_subscriptions:
     request_url: https://example.com/slack/events
