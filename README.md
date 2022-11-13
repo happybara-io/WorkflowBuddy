@@ -31,7 +31,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 - **About**
   - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
-  - [Available Steps](#-available-steps) - `+13`
+  - [Available Steps](#-available-steps) - `+14`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
   - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
@@ -270,6 +270,14 @@ Set the topic for any conversation that Workflow Buddy has been invited to.
 
 Adds a reaction to a message, given the permalink URL. Works with the Slack built-in `Reaction Added` Workflow Trigger.
 
+### (Slack) Find a Message
+
+- [Core API Method](https://api.slack.com/methods/search.messages)
+
+Query the Slack search and return the top result as Workflow variables.
+
+> ⚠ The Slack search endpoint requires a User token, which will be based on whoever installed the Workflow Buddy app. Results will be constrained to what that user is able to search. If you are running into issues with the user token, please [Open an Issue 🐛](https://github.com/happybara-io/WorkflowBuddy/issues/new/choose).
+
 ### More to come
 
 See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for discussion on potential Step actions to add.
@@ -429,12 +437,14 @@ Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **gu
   - After a couple simple confirmation modals to go through.
   - Go to the `OAuth & Permissions` section and click `Install App` to grant permissions for your new app on the workspace. This will generate the access tokens you will need for the next step.
 - **Now create a `.env` file in your repo. We will be populating it with values from the Slack App you created.**
-  - Get the `SLACK_BOT_TOKEN` from the `OAuth & Permissions` tab of your Slack app.
+  - Get the `SLACK_BOT_TOKEN` & `SLACK_USER_TOKEN` from the `OAuth & Permissions` tab of your Slack app.
   - Get the `SLACK_SIGNING_SECRET` from the `Basic Information` tab of your Slack app.
   - The final result should look like:
 
     ```
     SLACK_BOT_TOKEN=xoxb-********
+    # should only be needed if you want to use the 'Find a Message' action
+    SLACK_USER_TOKEN=xoxp-********
     SLACK_SIGNING_SECRET=********
     # only oauth demo app should need
     SLACK_CLIENT_ID=********
@@ -536,6 +546,7 @@ Currently the recommended best practice for updating Workflow Buddy:
 - _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
 - `cd` to your cloned WB repo. Run `git pull` for the latest updates.
   - If there were changes to `slack_app_manifest.template.yml`, you'll need to update [your Slack app](https://api.slack.com/apps/) with the latest and greatest.
+  - If there were changes to the [secrets in Setup](#slack-app-setup), you will need to add those like was done above in [Cloud: Fly.io](#cloud-flyio).
 - Run `fly deploy` to put your changes in to the wild!
 
 #### Cloud: Other hosting providers

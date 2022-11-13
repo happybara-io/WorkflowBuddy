@@ -270,6 +270,7 @@ def build_app_home_view() -> dict:
 
 
 def test_if_bot_is_member(conversation_id: str, client: slack_sdk.WebClient) -> str:
+    # now that we have chat:write.public, membership only matters for other types
     try:
         resp = client.conversations_info(
             channel=conversation_id,
@@ -277,13 +278,15 @@ def test_if_bot_is_member(conversation_id: str, client: slack_sdk.WebClient) -> 
         logging.debug(resp)
         if resp["channel"]["is_member"]:
             return "is_member"
+        elif resp["channel"]["is_channel"] and not resp["channel"]["is_private"]:
+            return "not_member_but_public"
         else:
-            return "not_in_channel"
+            return "not_in_convo"
     except slack_sdk.errors.SlackApiError as e:
         logging.error(e)
         if e.response["error"] == "channel_not_found":
             # happens for private channels that bot can't "see"
-            return "not_in_channel"
+            return "not_in_convo"
         return "unable_to_test"
 
 
@@ -613,6 +616,37 @@ def pretty_json_error_msg(prefix: str, orig_input: str, e: json.JSONDecodeError)
     end_index = e.pos + 4  # 1 extra cuz range is non-inclusive
     problem_area = f"{e.doc[start_index:end_index]}"
     return f"{prefix} Error: {str(e)}.\n|Problem Area(chars{start_index}-{end_index}):-->{problem_area}<--|\nInput was: {repr(orig_input)}."
+
+
+def dynamic_modal_top_blocks(action_name: str):
+    if action_name == "find_message":
+        context_text = ""
+        try:
+            user_token = os.environ["SLACK_USER_TOKEN"]
+            client = slack_sdk.WebClient(token=user_token)
+            kwargs = {"query": "a", "count": 1}
+            resp = client.auth_test(**kwargs)
+            context_text = f"> Current authed user for search is: <@{resp.get('user_id')}>. Results will match what is visible to them. Questions? Check the <{c.URLS['github-repo']['home']}|repo for info.>"
+        except KeyError:
+            context_text = f"> ❌💥 *Need a valid SLACK_USER_TOKEN secret for {c.UTILS_ACTION_LABELS[action_name]}.* ❌"
+        except slack_sdk.errors.SlackAPIError as e:
+            logging.error(e.response)
+            context_text = (
+                f"> ❌💥 *Slack Error: Need a valid user token. {e.response['error']}.* ❌"
+            )
+        return [
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": context_text,
+                    }
+                ],
+            },
+            {"type": "divider"},
+        ]
+    return []
 
 
 def dynamic_outputs(action_name: str, inputs: dict) -> List:
