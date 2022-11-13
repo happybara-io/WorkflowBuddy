@@ -518,6 +518,7 @@ Currently the recommended best practice for updating Workflow Buddy:
   - In Slack, go to `@Workflow Buddy` _App Home_ and `Export` any existing configurations, save them to a local file as a backup.
 - _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
 - `cd` to your cloned WB repo. Run `git pull` for the latest updates.
+  - If there were changes to `slack_app_manifest.template.yml`, you'll need to update [your Slack app](https://api.slack.com/apps/) with the latest and greatest.
 - Run `fly deploy` to put your changes in to the wild!
 
 #### Cloud: Other hosting providers

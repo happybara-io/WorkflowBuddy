@@ -15,12 +15,12 @@ repos:
         language: system
         verbose: true
         pass_filenames: false
-      - id: poetry-lock
-        name: Lock Poetry File
-        entry: poetry lock
-        language: system
-        verbose: true
-        pass_filenames: false
+      # - id: poetry-lock
+      #   name: Lock Poetry File
+      #   entry: poetry lock
+      #   language: system
+      #   verbose: true
+      #   pass_filenames: false
       - id: poetry-export
         name: Export Requirements.txt
         entry: poetry export -o requirements.txt --without-hashes
