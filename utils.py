@@ -1,11 +1,12 @@
 import contextlib
-from typing import Union, List
+from typing import Union, List, Tuple
 import os
 import random
 import re
 import logging
 import requests
 import shelve
+import http
 import json
 import copy
 import constants as c
@@ -679,3 +680,52 @@ def sample_list_until_no_bots_are_found(
         filtered = filter_bots(client, [rand_user])
         no_bot_users_sample.extend(filtered)
     return no_bot_users_sample
+
+
+def finish_an_execution(
+    client: slack_sdk.WebClient, execution_id: str, failed=False, err_msg=""
+) -> dict:
+    return (
+        client.workflows_stepFailed(
+            workflow_step_execute_id=execution_id, error={"message": err_msg}
+        )
+        if failed
+        else client.workflows_stepCompleted(workflow_step_execute_id=execution_id)
+    )
+
+
+def finish_step_execution_from_webhook(body: dict) -> Tuple[int, dict]:
+    status_code = 201
+    resp_body = {"ok": True}
+    err_msg = ""
+
+    # TODO: this WILL NOT WORK for multi-tenant app until we figure out mapping from request info to team bot tokens
+    bot_token = os.getenv("SLACK_BOT_TOKEN")
+    client = slack_sdk.WebClient(token=bot_token)
+    execution_id = body.get("execution_id")
+    if not execution_id:
+        return http.HTTPStatus.BAD_REQUEST, {
+            "ok": False,
+            "error": "Need a valid execution ID.",
+        }
+    mark_as_failed = body.get("mark_as_failed", False)
+    if mark_as_failed:
+        err_msg = body.get("err_msg", "Marked as failed from webhook completion event.")
+
+    sk = body.get("sk")
+    if not sk or len(sk) != c.WEBHOOK_SK_LENGTH:
+        # TODO: put actual validation here in the future
+        return http.HTTPStatus.FORBIDDEN, {
+            "ok": False,
+            "error": "Need a valid sk pair for the execution ID.",
+        }
+
+    try:
+        finish_an_execution(
+            client, execution_id, failed=mark_as_failed, err_msg=err_msg
+        )
+    except slack_sdk.errors.SlackApiError as e:
+        status_code = 518
+        resp_body = {"ok": False, "error": e.response["error"]}
+
+    return status_code, resp_body

@@ -34,6 +34,8 @@ DB_UNHANDLED_EVENTS_KEY = "unhandled_events"
 TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
 
+WEBHOOK_SK_LENGTH = 20
+
 APP_HOME_HEADER_BLOCKS = [
     {
         "type": "header",
@@ -234,6 +236,7 @@ UTILS_ACTION_LABELS = {
     "random_uuid": "Random UUID",
     "random_member_picker": "Random Member Picker",
     "manual_complete": "Wait for Manual Complete",
+    "wait_for_webhook": "Wait for Webhook",
     "json_extractor": "Extract Values from JSON",
     "conversations_create": "Slack: Channels Create",
     "find_user_by_email": "Slack: Find User by Email",
@@ -333,6 +336,14 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                             "emoji": True,
                         },
                         "value": "manual_complete",
+                    },
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["wait_for_webhook"],
+                            "emoji": True,
+                        },
+                        "value": "wait_for_webhook",
                     },
                     {
                         "text": {
@@ -1177,6 +1188,49 @@ UTILS_CONFIG = {
                 "name": "reaction",
                 "block_id": "reaction_input",
                 "action_id": "reaction_value",
+            },
+        },
+        "outputs": [],
+    },
+    "wait_for_webhook": {
+        "draft": False,
+        "step_name": "Wait for Webhook",
+        "step_image_url": URLS["images"]["bara_main_logo"],
+        "description": "Waits to receive a webhook from an external service before continuing.",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "destination_url_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "destination_url_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "https://webhook.site/abcdefghijk",
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Destination URL",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "_Open <https://webhook.site|Webhook.site> to get a URL for debugging._",
+                    }
+                ],
+            },
+        ],
+        "inputs": {
+            "destination_url": {
+                "name": "destination_url",
+                "validation_type": "url",
+                "block_id": "destination_url_input",
+                "action_id": "destination_url_value",
             },
         },
         "outputs": [],
