@@ -31,7 +31,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 - **About**
   - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
-  - [Available Steps](#-available-steps) - `+12`
+  - [Available Steps](#-available-steps) - `+13`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
   - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
@@ -198,6 +198,23 @@ _Need multiple values? For now, you can just use this Step multiple times in a W
 ### Wait for human | approval | manual completion
 
 Many names to describe it. In short, have your workflow wait in an `In progress` state until a human has taken action to either `Complete`➡ and let the Workflow continue, or `Fail`❌ it and stop the flow.
+
+### Wait for Webhook/ HTTP Request
+
+Have your workflow wait in an `In progress` state until it receives a webhook from an external service. You can choose to either `Complete`➡ and let the Workflow continue, or `Fail`❌ it and stop the flow.
+
+Example body Workflow Buddy expects:
+
+```
+{
+  "execution_id": "4364223353762.667214953526.b8f41739087702effd5ac3b0b514006f",
+  "sk": "RTPLSJVIBcmCAUcnUtbI",
+  "mark_as_failed": true,
+  "err_msg": "My sevice blew up!"
+}
+```
+
+_How do you get the execution ID?_ When saving the step, you will define a URL for Workflow Buddy to send the required data to. You could also get it from the `Manual Complete` step if it better fits your use case.
 
 ### Random Integer
 

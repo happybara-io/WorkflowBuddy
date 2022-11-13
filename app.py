@@ -6,6 +6,7 @@ import uuid
 import os
 import constants as c
 import utils
+import string
 import json
 import copy
 from typing import Tuple
@@ -225,19 +226,6 @@ def build_manual_complete_modal(client: slack_sdk.WebClient) -> dict:
     return mc_modal
 
 
-def finish_an_execution(
-    client: slack_sdk.WebClient, execution_id: str, failed=False, err_msg=""
-) -> dict:
-    if failed:
-        resp = client.workflows_stepFailed(
-            workflow_step_execute_id=execution_id, error={"message": err_msg}
-        )
-    else:
-        # outputs = {}
-        resp = client.workflows_stepCompleted(workflow_step_execute_id=execution_id)
-    return resp
-
-
 @slack_app.shortcut("message_details")
 def shortcut_message_details(ack: Ack, shortcut: dict, client: slack_sdk.WebClient):
     ack()
@@ -375,7 +363,7 @@ def manual_complete_view_submission(
 
     msg = ""
     try:
-        resp = finish_an_execution(
+        resp = utils.finish_an_execution(
             client,
             execution_id,
             failed=fail_checkbox_is_selected,
@@ -808,7 +796,11 @@ def run_random_member_picker(
 
 
 def run_manual_complete(
-    step: dict, event: dict, client: slack_sdk.WebClient, logger: logging.Logger
+    step: dict,
+    event: dict,
+    fail: Fail,
+    client: slack_sdk.WebClient,
+    logger: logging.Logger,
 ) -> None:
     # https://api.slack.com/methods/chat.postMessage
     # https://api.slack.com/events/workflow_step_execute
@@ -820,12 +812,31 @@ def run_manual_complete(
     # TODO: this could be nice as 2 buttons rather than an ID, one for Complete/one for Fail, pops a modal and asks for failure reason then kills it.
     fallback_text = f"WorkflowBuddy dropping off your execution ID:\n`{execution_id}`.\nUse this to manually complete the workflow once tasks have been completed to your satisfaction."
     blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}}]
-    resp = client.chat_postMessage(
-        channel=conversation_id, text=fallback_text, blocks=blocks
-    )
-    logger.info(resp)
+    try:
+        resp = client.chat_postMessage(
+            channel=conversation_id, text=fallback_text, blocks=blocks
+        )
+        logger.info(resp)
+    except slack_sdk.errors.SlackApiError as e:
+        logger.error(e.response)
+        errmsg = f"Slack Error: unable to send message with execution_id to conversation. {e.response['error']}."
+        fail(error={"message": errmsg})
     # Don't even think about calling fail/complete!
     pass
+
+
+def run_wait_for_webhook(
+    step: dict, event: dict, fail: Fail, logger: logging.Logger
+) -> None:
+    inputs = step["inputs"]
+    external_service_url = inputs["destination_url"]["value"]
+    execution_id = event["workflow_step"]["workflow_step_execute_id"]
+
+    simple_secret_key = "".join(
+        random.choice(string.ascii_letters) for _ in range(c.WEBHOOK_SK_LENGTH)
+    )
+    body = {"execution_id": execution_id, "sk": simple_secret_key}
+    utils.send_webhook(external_service_url, body)
 
 
 def run_set_channel_topic(
@@ -928,7 +939,9 @@ def execute_utils(
         elif chosen_action == "set_channel_topic":
             run_set_channel_topic(step, complete, fail, client, logger)
         elif chosen_action == "manual_complete":
-            run_manual_complete(step, event, client, logger)
+            run_manual_complete(step, event, fail, client, logger)
+        elif chosen_action == "wait_for_webhook":
+            run_wait_for_webhook(step, event, fail, logger)
         elif chosen_action == "json_extractor":
             run_json_extractor(step, complete, fail)
         elif chosen_action == "get_email_from_slack_user":
@@ -1201,3 +1214,10 @@ def inbound_webhook():
     d = request.data
     logging.info(f"#### RECEIVED ###: {d}")
     return jsonify({"ok": True}), 201
+
+
+@flask_app.route("/finish-execution", methods=["POST"])
+def finish_step_execution():
+    json_body = request.json
+    status_code, resp_body = utils.finish_step_execution_from_webhook(json_body)
+    return jsonify(resp_body), status_code

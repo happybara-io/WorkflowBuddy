@@ -4,6 +4,7 @@ import json
 import unittest.mock as mock
 import pytest
 import tests.tc as test_const
+import slack_sdk.errors
 
 test_logger = logging.getLogger("TestLogger")
 
@@ -280,3 +281,35 @@ def test_sample_list_until_no_bots_are_found(
     except IndexError as e:
         if not error_expected:
             raise e
+
+
+def test_finish_step_execution_from_webhook():
+    json_body = {
+        "execution_id": "1132323232322",
+        "sk": "1" * 20,
+        "mark_as_failed": True,
+    }
+    with mock.patch("utils.slack_sdk.WebClient") as mock_class:
+        # https://stackoverflow.com/questions/17731477/python-mock-class-instance-variable#17731909
+        # instance = mock_class.return_value
+        # instance.workflows_stepCompleted.return_value =
+        code, body = sut.finish_step_execution_from_webhook(json_body)
+    assert code == 201
+    assert body["ok"]
+
+
+def test_finish_step_execution_from_webhook_api_error():
+    json_body = {
+        "execution_id": "1132323232322",
+        "sk": "1" * 20,
+        "mark_as_failed": True,
+        "err_msg": "Something blew up in external service.",
+    }
+    with mock.patch("utils.slack_sdk.WebClient") as mock_class:
+        # https://stackoverflow.com/questions/17731477/python-mock-class-instance-variable#17731909
+        instance = mock_class.return_value
+        slack_error = slack_sdk.errors.SlackApiError("slack boom", {"error": "errmsg"})
+        instance.workflows_stepCompleted.side_effect = slack_error
+        instance.workflows_stepFailed.side_effect = slack_error
+        code, body = sut.finish_step_execution_from_webhook(json_body)
+        assert code == 518
