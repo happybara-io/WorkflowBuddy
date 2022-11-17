@@ -116,7 +116,9 @@ def db_remove_unhandled_event(event_type) -> None:
 def db_set_unhandled_event(event_type) -> None:
     logging.info(f"Adding unhandled event: {event_type}")
     try:
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].append(event_type)
+        curr = IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
+        curr.append(event_type)
+        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = list(set(curr))
     except KeyError:
         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
     sync_cache_to_disk()
@@ -524,8 +526,8 @@ def sanitize_unescaped_quotes_and_load_json_str(s: str, strict=False) -> dict:
 
 def load_json_body_from_untrusted_input_str(input_str: str) -> dict:
     # TODO: probably need a better handle on this, or make it very obvious to users that we will do it
-    input_str = input_str.replace(
-        '""', '"'
+    input_str = input_str.replace('""{', '"{').replace(
+        '}""', '}"'
     )  # ran into JSON parsing issues when JSON string inside body string and Slack
     deny_control_characters = False
     data = sanitize_unescaped_quotes_and_load_json_str(
@@ -535,6 +537,7 @@ def load_json_body_from_untrusted_input_str(input_str: str) -> dict:
     for k, v in data.items():
         convert_newline_to_list = k.startswith("__")
         if convert_newline_to_list:
+            print("CONVERTING", k, "|", v, "|")
             # do our best to handle any odd data without causing errors
             data[k] = v.split("\n") if type(v) == str else v
     return data
@@ -763,3 +766,109 @@ def finish_step_execution_from_webhook(body: dict) -> Tuple[int, dict]:
         resp_body = {"ok": False, "error": e.response["error"]}
 
     return status_code, resp_body
+
+
+def parse_values_from_input_config(
+    client, values: dict, inputs: dict, curr_action_config: dict
+) -> Tuple[dict, dict]:
+    inputs = inputs
+    errors = {}
+
+    for name, input_config in curr_action_config["inputs"].items():
+        block_id = input_config["block_id"]
+        action_id = input_config["action_id"]
+        if input_config.get("type") == "channels_select":
+            value = values[block_id][action_id]["selected_channel"]
+        elif input_config.get("type") == "conversations_select":
+            value = values[block_id][action_id]["selected_conversation"]
+        elif input_config.get("type") == "checkboxes":
+            value = json.dumps(values[block_id][action_id]["selected_options"])
+        elif input_config.get("type") == "static_select":
+            value = values[block_id][action_id]["selected_option"]["value"]
+        else:
+            # plain-text input by default
+            value = values[block_id][action_id]["value"]
+
+        validation_type = input_config.get("validation_type")
+        # have to consider that people can pass variables, which would mess with some of validation
+        value_has_workflow_variable = includes_slack_workflow_variable(value)
+        if validation_type == "json" and value:
+            value = clean_json_quotes(value)
+            try:
+                json.loads(value)
+            except json.JSONDecodeError as e:
+                errors[block_id] = f"Invalid JSON. Error: {str(e)}"
+        elif (
+            validation_type is not None
+            and validation_type.startswith("integer")
+            and not value_has_workflow_variable
+        ):
+            try:
+                validation_type, upper_bound = validation_type.split("-")
+            except ValueError:
+                upper_bound = 100000000
+            try:
+                v = int(value)
+                if v > int(upper_bound):
+                    raise ValueError("Input is above our upper bound.")
+            except ValueError:
+                errors[block_id] = f"Must be a valid integer and <= {upper_bound}."
+        elif validation_type == "email" and not value_has_workflow_variable:
+            if "@" not in value:
+                errors[block_id] = "Must be a valid email."
+        elif validation_type == "url" and not value_has_workflow_variable:
+            if not is_valid_url(value):
+                errors[block_id] = "Must be a valid URL with `http(s)://.`"
+        elif (
+            validation_type == "slack_channel_name" and not value_has_workflow_variable
+        ):
+            if not is_valid_slack_channel_name(value):
+                errors[
+                    block_id
+                ] = "Channel names may only contain lowercase letters, numbers, hyphens, underscores and be max 80 chars."
+        elif (
+            validation_type in ["membership_check", "msg_check"]
+            and not value_has_workflow_variable
+        ):
+            status = test_if_bot_is_member(value, client)
+            if status == "not_in_convo" or (
+                status == "not_member_but_public" and validation_type != "msg_check"
+            ):
+                errors[
+                    block_id
+                ] = "Bot needs to be invited to the conversation before it can interact or read information about it, except for public channels."
+        elif validation_type == "future_timestamp" and not value_has_workflow_variable:
+            try:
+                timestamp_int = int(value)
+                curr = datetime.now().timestamp()
+                if (timestamp_int - curr) < c.TIME_5_MINS:
+                    readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
+                    errors[
+                        block_id
+                    ] = f"Need a timestamp from > 5 mins in future, but got {readable_bad_dt}."
+            except ValueError:
+                errors[block_id] = f"Must be valid timestamp integer."
+        elif (
+            validation_type is not None
+            and validation_type.startswith("str_length")
+            and not value_has_workflow_variable
+        ):
+            v_type, str_len = validation_type.split("-")
+            allowed_len = int(str_len)
+            user_input_len = len(value)
+            if user_input_len > allowed_len:
+                errors[
+                    block_id
+                ] = f"Input must be shorter than {allowed_len}, but was {user_input_len}."
+
+        inputs[name] = {"value": value}
+
+    return inputs, errors
+
+
+def sbool(s: str) -> bool:
+    return s == "true"
+
+
+def bool_to_str(b: bool) -> str:
+    return "true" if b else "false"

@@ -35,6 +35,9 @@ TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
 
 WEBHOOK_SK_LENGTH = 20
+SLACK_BUTTON_VALUE_MAX_CHARS = 2000
+
+WAIT_STATE_MAX_SECONDS = 60
 
 APP_HOME_HEADER_BLOCKS = [
     {
@@ -201,11 +204,6 @@ APP_HOME_MIDDLE_BLOCKS = [
             },
             {
                 "type": "plain_text",
-                "text": "• Slack: Get Email From User",
-                "emoji": True,
-            },
-            {
-                "type": "plain_text",
                 "text": "• Utils: Send Outbound Webhook",
                 "emoji": True,
             },
@@ -237,6 +235,7 @@ UTILS_ACTION_LABELS = {
     "random_member_picker": "Random Member Picker",
     "manual_complete": "Wait for Manual Complete",
     "wait_for_webhook": "Wait for Webhook",
+    "wait_state": "Wait/Pause",
     "json_extractor": "Extract Values from JSON",
     "conversations_create": "Slack: Channels Create",
     "find_user_by_email": "Slack: Find User by Email",
@@ -272,7 +271,7 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
     },
     {
         "type": "actions",
-        "block_id": "utilities_action_select",
+        "block_id": "general_options_action_select",
         "elements": [
             {
                 "type": "static_select",
@@ -346,6 +345,15 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                         },
                         "value": "wait_for_webhook",
                     },
+
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": UTILS_ACTION_LABELS["wait_state"],
+                            "emoji": True,
+                        },
+                        "value": "wait_state",
+                    },
                     {
                         "text": {
                             "type": "plain_text",
@@ -404,9 +412,58 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                     },
                 ],
                 "action_id": "utilities_action_select_value",
-            }
+            },
+            {
+                "type": "checkboxes",
+                "options": [
+                    {
+                        "text": {"type": "mrkdwn", "text": "🐛 *Debug Mode*"},
+                        "description": {
+                            "type": "mrkdwn",
+                            "text": "_When enabled, Buddy will pause before each step starts, send a message, and wait for you to click `Continue`._",
+                        },
+                        "value": "debug_mode",
+                    }
+                ],
+                "action_id": "debug_mode",
+            },
         ],
     },
+]
+
+DEBUG_MODE_BLOCKS = [
+    {
+        "type": "input",
+        "block_id": "debug_conversation_id_input",
+        "element": {
+            "type": "conversations_select",
+            "placeholder": {
+                "type": "plain_text",
+                "text": "Select debug conversation",
+                "emoji": True,
+            },
+            "filter": {
+                "include": ["public", "private", "mpim", "im"],
+                "exclude_bot_users": True,
+            },
+            "action_id": "debug_conversation_id_value",
+        },
+        "label": {
+            "type": "plain_text",
+            "text": "🐛 Debug: Message Destination",
+            "emoji": True,
+        },
+    },
+    # {
+    #     "type": "context",
+    #     "elements": [
+    #         {
+    #             "type": "mrkdwn",
+    #             "text": "By selecting a conversation above, you enable *Debug Mode* 🐛. Before each step executes, it will send you a message with the inputs and wait for you to press 'Continue'.",
+    #         }
+    #     ],
+    # },
+    {"type": "divider"},
 ]
 
 # # TODO: handle optional API arguments
@@ -662,7 +719,7 @@ UTILS_CONFIG = {
                     "placeholder": {"type": "plain_text", "text": "5"},
                 },
                 "label": {"type": "plain_text", "text": "Lower Bound", "emoji": True},
-                "optional": True,
+                "optional": False,
             },
             {
                 "type": "input",
@@ -673,7 +730,7 @@ UTILS_CONFIG = {
                     "placeholder": {"type": "plain_text", "text": "100"},
                 },
                 "label": {"type": "plain_text", "text": "Upper Bound", "emoji": True},
-                "optional": True,
+                "optional": False,
             },
         ],
         "inputs": {
@@ -685,7 +742,7 @@ UTILS_CONFIG = {
             },
             "upper_bound": {
                 "name": "upper_bound",
-                "validation_type": "integer",
+                "validation_type": f"integer",
                 "block_id": "upper_bound_input",
                 "action_id": "upper_bound_value",
             },
@@ -753,7 +810,7 @@ UTILS_CONFIG = {
             },
             "number_of_users": {
                 "name": "number_of_users",
-                "validation_type": "integer",
+                "validation_type": "integer-200",
                 "block_id": "number_of_users_input",
                 "action_id": "number_of_users_value",
             },
@@ -778,7 +835,7 @@ UTILS_CONFIG = {
                         "emoji": True,
                     },
                     "filter": {
-                        "include": ["public", "private", "mpim" "im"],
+                        "include": ["public", "private", "mpim", "im"],
                         "exclude_bot_users": True,
                     },
                     "action_id": "conversation_id_value",
@@ -1244,6 +1301,50 @@ UTILS_CONFIG = {
         },
         "outputs": [],
     },
+    "wait_state": {
+        "draft": False,
+        "step_name": "Wait/Pause",
+        "description": "Wait for up to 60 seconds before continuing workflow.",
+        "modal_input_blocks": [
+            {
+                "type": "input",
+                "block_id": "seconds_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "seconds_value",
+                    "placeholder": {"type": "plain_text", "text": "15"},
+                },
+                "label": {"type": "plain_text", "text": "Seconds", "emoji": True},
+                "optional": False,
+            },
+        ],
+        "inputs": {
+            "seconds": {
+                "name": "seconds",
+                "type": "plain_text",
+                "validation_type": f"integer-{WAIT_STATE_MAX_SECONDS}",
+                "block_id": "seconds_input",
+                "action_id": "seconds_value"
+            }
+        },
+        "outputs": [
+            {
+                "label": "Wait Start TS",
+                "name": "wait_start_ts",
+                "type": "text",
+            },
+            {
+                "label": "Wait End TS",
+                "name": "wait_end_ts",
+                "type": "text",
+            },
+            {
+                "label": "Waited For",
+                "name": "waited_for",
+                "type": "text",
+            },
+        ]
+    },
     "find_message": {
         "draft": False,
         "needs_user_token": True,
@@ -1273,7 +1374,7 @@ UTILS_CONFIG = {
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "_This query uses the same formatting and options as the search bar in the Slack app._",
+                        "text": "_This query uses the same formatting and options as the search bar in the Slack app - ❔<https://slack.com/help/articles/202528808-Search-in-Slack|Slack How-to Doc>._",
                     }
                 ],
             },
@@ -1284,13 +1385,13 @@ UTILS_CONFIG = {
                 "element": {
                     "type": "static_select",
                     "initial_option": {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Timestamp",
-                                "emoji": True,
-                            },
-                            "value": "timestamp",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Timestamp",
+                            "emoji": True,
                         },
+                        "value": "timestamp",
+                    },
                     "options": [
                         {
                             "text": {
@@ -1323,13 +1424,13 @@ UTILS_CONFIG = {
                 "element": {
                     "type": "static_select",
                     "initial_option": {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Descending (newest or best first)",
-                                "emoji": True,
-                            },
-                            "value": "desc",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Descending (newest or best first)",
+                            "emoji": True,
                         },
+                        "value": "desc",
+                    },
                     "options": [
                         {
                             "text": {
@@ -1351,6 +1452,66 @@ UTILS_CONFIG = {
                     "action_id": "sort_dir_select_value",
                 },
             },
+            {
+                "type": "input",
+                "block_id": "delay_seconds_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "delay_seconds_value",
+                    "placeholder": {"type": "plain_text", "text": "30"},
+                    "initial_value": "30"
+                },
+                "label": {"type": "plain_text", "text": "Delay Seconds", "emoji": True},
+                "optional": False,
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "ℹ _If searching for a message posted by the same Workflow (or simultaneously), there can be a delay before it's available to Slack search to find._\n_This is a configurable delay so that we aren't searching before it's available. In unofficial testing, we've found anywhere from 10-30 seconds is needed._",
+                    }
+                ],
+            },
+            {
+                "type": "input",
+                "block_id": "fail_if_empty_results_select",
+                "label": {
+                    "type": "plain_text",
+                    "text": "Fail if Search Results are Empty",
+                    "emoji": True,
+                },
+                "element": {
+                    "type": "static_select",
+                    "initial_option": {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "True",
+                                "emoji": True,
+                            },
+                            "value": "true",
+                        },
+                    "options": [
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "True",
+                                "emoji": True,
+                            },
+                            "value": "true",
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "False",
+                                "emoji": True,
+                            },
+                            "value": "false",
+                        },
+                    ],
+                    "action_id": "fail_if_empty_results_select_value",
+                },
+            },
         ],
         "inputs": {
             "search_query": {
@@ -1361,10 +1522,7 @@ UTILS_CONFIG = {
             "sort": {
                 "name": "sort",
                 "type": "static_select",
-                "label": {
-                    "timestamp": "Timestamp",
-                    "score": "Match Score"
-                },
+                "label": {"timestamp": "Timestamp", "score": "Match Score"},
                 "block_id": "sort_select",
                 "action_id": "sort_select_value",
             },
@@ -1373,10 +1531,27 @@ UTILS_CONFIG = {
                 "type": "static_select",
                 "label": {
                     "desc": "Descending (newest or best first)",
-                    "asc": "Ascending (oldest or worst first)"
+                    "asc": "Ascending (oldest or worst first)",
                 },
                 "block_id": "sort_dir_select",
                 "action_id": "sort_dir_select_value",
+            },
+            "delay_seconds": {
+                "name": "delay_seconds",
+                "type": "plain_text",
+                "validation_type": f"integer-{WAIT_STATE_MAX_SECONDS}",
+                "block_id": "delay_seconds_input",
+                "action_id": "delay_seconds_value"
+            },
+            "fail_if_empty_results": {
+                "name": "fail_if_empty_results",
+                "type": "static_select",
+                "label": {
+                    "true": "True",
+                    "false": "False",
+                },
+                "block_id": "fail_if_empty_results_select",
+                "action_id": "fail_if_empty_results_select_value",
             },
         },
         "outputs": [

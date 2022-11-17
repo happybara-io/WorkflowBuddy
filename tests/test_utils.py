@@ -5,6 +5,7 @@ import unittest.mock as mock
 import pytest
 import tests.tc as test_const
 import slack_sdk.errors
+from typing import List
 
 test_logger = logging.getLogger("TestLogger")
 
@@ -110,7 +111,7 @@ def test_load_json_body_newlines_converted_to_list():
     nonconvert_key = "nonconvert_key"
     input_str = """
 {
-    "__key": "value_1
+"__key": "value_1
 value_2
 value_3",
 "nonconvert_key": "value_1
@@ -118,7 +119,9 @@ value_2
 value_3",
 "__convert_to_single_list": "abc",
 "regular_data": 5,
-"__regular_data": 5
+"__regular_data": 5,
+"__empty_input": "",
+"__item_should_not_be_absorbed_by_previous": "abcd"
 }
 """
     body = sut.load_json_body_from_untrusted_input_str(input_str)
@@ -134,6 +137,8 @@ value_3",
         and len(test_if_no_characters_is_still_string) == 1
     )
     assert type(body["__regular_data"]) is int
+    assert type(body["__empty_input"]) is list
+    assert type(body["__item_should_not_be_absorbed_by_previous"]) is list
 
 
 @pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
@@ -199,43 +204,58 @@ def test_pretty_json_error_msg():
 
 
 @pytest.mark.parametrize(
-    "notes, test_str, expected_error",
+    "notes, test_str, expected_error, expected_keys",
     [
+        ("invalid json", "abcdefeggdg", True, None),
+        ("empty", "{}", False, []),
+        ("single extra quote", '{"key": "value with "quote inside"}', False, ["key"]),
         (
-            "invalid json",
-            "abcdefeggdg",
-            True,
+            "even number of quotes",
+            '{"key": "value with "two quotes" inside"}',
+            False,
+            ["key"],
         ),
-        ("empty", "{}", False),
-        ("single extra quote", '{"key": "value with "quote inside"}', False),
-        ("even number of quotes", '{"key": "value with "two quotes" inside"}', False),
         (
             "Many quotes",
             '{"key": "naughty value in "quotes" yes it is; but "why"? would I "do" that?"}',
             False,
+            ["key"],
         ),
         (
             "Many quotes",
             '{"key": "naughty value in "quotes"""""" yes it is; but "why"? would I "do" ""\n"\n that?"}',
             False,
+            ["key"],
         ),
         (
             "actual broken json missing a quote",
             '{"key": "different json error that quote wont fix;}',
             True,
+            None,
         ),
         (
             "valid unescaped JSON nested inside string - won't error, but won't come out as expected either.",
             '{"key": "trying to add special chars if they wrote example json like {"a": "b","c": "d"} "}',
             False,
+            ["key", "c"],
+        ),
+        (
+            "testing if empty is absorbing next item",
+            '{"__empty_input": "","__item_should_not_be_absorbed_by_previous": "abcd"}',
+            False,
+            ["__empty_input", "__item_should_not_be_absorbed_by_previous"],
         ),
     ],
 )
-def test_sanitizing_unescaped_quotes(notes: str, test_str: str, expected_error: bool):
+def test_sanitizing_unescaped_quotes(
+    notes: str, test_str: str, expected_error: bool, expected_keys: List[str]
+):
     try:
-        sut.sanitize_unescaped_quotes_and_load_json_str(test_str)
+        out = sut.sanitize_unescaped_quotes_and_load_json_str(test_str)
         if expected_error:
             raise ValueError("Shouldn't have passed successfully with that input!")
+        assert set(expected_keys) == set(out.keys())
+        print("OUT", out)
     except json.JSONDecodeError as err:
         if not expected_error:
             raise err
@@ -313,3 +333,17 @@ def test_finish_step_execution_from_webhook_api_error():
         instance.workflows_stepFailed.side_effect = slack_error
         code, body = sut.finish_step_execution_from_webhook(json_body)
         assert code == 518
+
+
+@pytest.mark.parametrize(
+    "bool_str, expected", [("true", True), ("false", False), ("random", False)]
+)
+def test_sbool(bool_str, expected):
+    out = sut.sbool(bool_str)
+    assert out == expected
+
+
+@pytest.mark.skip()
+def test_parse_values_from_input_config():
+    # TODO: can create more confidence in this now that it's moved here for unit tests than in app
+    pass
