@@ -297,6 +297,38 @@ def shortcut_message_details(ack: Ack, shortcut: dict, client: slack_sdk.WebClie
     )
 
 
+@slack_app.action(re.compile("(manual_complete-continue|manual_complete-stop)"))
+def manual_complete_button_clicked(
+    ack: Ack,
+    body: dict,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+    respond: Respond,
+):
+    ack()
+    actions_payload = body["actions"][0]
+    action_id = actions_payload["action_id"]
+    workflow_step_execute_id = actions_payload["value"]
+    execution_body = {
+        "event": {
+            "workflow_step": {"workflow_step_execute_id": workflow_step_execute_id}
+        }
+    }
+
+    fail = Fail(client=client, body=execution_body)
+    if "stop" in action_id:
+        # TODO: add more context: by who? why?
+        errmsg = "Workflow stopped manually."
+        fail(error={"message": errmsg})
+        replacement_text = "🛑 Halted Workflow."
+        respond(replace_original=False, text=replacement_text)
+    else:
+        # yay the Workflow continues!
+        complete = Complete(client=client, body=execution_body)
+        outputs = {}
+        complete(outputs=outputs)
+
+
 @slack_app.action(re.compile("(debug-continue|debug-stop)"))
 def debug_button_clicked(
     ack: Ack,
@@ -1005,11 +1037,53 @@ def run_manual_complete(
     inputs = step["inputs"]
     conversation_id = inputs["conversation_id"]["value"]
     execution_id = event["workflow_step"]["workflow_step_execute_id"]
-
+    # TODO: make this another input for manual complete
+    workflow_context_msg = (
+        "user context so that the person receiving knows what the heck it's for."
+    )
     # TODO: this message needs to provide context on the workflow it's connected to, otherwise it's just a random ID
     # TODO: this could be nice as 2 buttons rather than an ID, one for Complete/one for Fail, pops a modal and asks for failure reason then kills it.
-    fallback_text = f"WorkflowBuddy dropping off your execution ID:\n`{execution_id}`.\nUse this to manually complete the workflow once tasks have been completed to your satisfaction."
-    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}}]
+    fallback_text = f"👋 WorkflowBuddy here! You've been asked to `Continue/Stop` a Workflow.\nUse these buttons once tasks have been completed to your satisfaction.\n```{workflow_context_msg}```"
+    blocks = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "👉 Continue",
+                        "emoji": True,
+                    },
+                    "value": f"{execution_id}",
+                    "style": "primary",
+                    "action_id": "manual_complete-continue",
+                },
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "🛑 Stop",
+                        "emoji": True,
+                    },
+                    "value": f"{execution_id}",
+                    "action_id": "manual_complete-stop",
+                    "style": "danger",
+                },
+            ],
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"_execution_id: {execution_id}. This execution can be manually completed from the App Home, if needed._",
+                }
+            ],
+        },
+    ]
     try:
         resp = client.chat_postMessage(
             channel=conversation_id, text=fallback_text, blocks=blocks

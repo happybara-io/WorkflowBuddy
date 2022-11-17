@@ -345,7 +345,6 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
                         },
                         "value": "wait_for_webhook",
                     },
-
                     {
                         "text": {
                             "type": "plain_text",
@@ -1324,7 +1323,7 @@ UTILS_CONFIG = {
                 "type": "plain_text",
                 "validation_type": f"integer-{WAIT_STATE_MAX_SECONDS}",
                 "block_id": "seconds_input",
-                "action_id": "seconds_value"
+                "action_id": "seconds_value",
             }
         },
         "outputs": [
@@ -1343,7 +1342,7 @@ UTILS_CONFIG = {
                 "name": "waited_for",
                 "type": "text",
             },
-        ]
+        ],
     },
     "find_message": {
         "draft": False,
@@ -1459,7 +1458,7 @@ UTILS_CONFIG = {
                     "type": "plain_text_input",
                     "action_id": "delay_seconds_value",
                     "placeholder": {"type": "plain_text", "text": "30"},
-                    "initial_value": "30"
+                    "initial_value": "30",
                 },
                 "label": {"type": "plain_text", "text": "Delay Seconds", "emoji": True},
                 "optional": False,
@@ -1484,13 +1483,13 @@ UTILS_CONFIG = {
                 "element": {
                     "type": "static_select",
                     "initial_option": {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "True",
-                                "emoji": True,
-                            },
-                            "value": "true",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "True",
+                            "emoji": True,
                         },
+                        "value": "true",
+                    },
                     "options": [
                         {
                             "text": {
@@ -1541,7 +1540,7 @@ UTILS_CONFIG = {
                 "type": "plain_text",
                 "validation_type": f"integer-{WAIT_STATE_MAX_SECONDS}",
                 "block_id": "delay_seconds_input",
-                "action_id": "delay_seconds_value"
+                "action_id": "delay_seconds_value",
             },
             "fail_if_empty_results": {
                 "name": "fail_if_empty_results",
