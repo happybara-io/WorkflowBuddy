@@ -10,3 +10,4 @@ workflow-buddy-db.json
 .pytest_cache/
 slack_app_bara_manifest.yml
 workflow-buddy-data/
+.coverage

@@ -14,6 +14,9 @@ run-dev:
 test:
 	poetry run python -m pytest -sv tests/
 
+cov:
+	poetry run python -m pytest --cov=. -sv tests/
+
 generate-requirements:
 	poetry export -o requirements.txt --without-hashes
 

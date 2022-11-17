@@ -31,7 +31,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 - **About**
   - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
-  - [Available Steps](#-available-steps) - `+14`
+  - [Available Steps](#-available-steps) - `+15`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
   - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
@@ -216,6 +216,10 @@ Example body Workflow Buddy expects:
 
 _How do you get the execution ID?_ When saving the step, you will define a URL for Workflow Buddy to send the required data to. You could also get it from the `Manual Complete` step if it better fits your use case.
 
+### Wait/ Pause
+
+Have your workflow wait for
+
 ### Random Integer
 
 Generate a random integer in the range [`lower_bound`-`upper_bound`], inclusive.
@@ -285,6 +289,12 @@ See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for dis
 ## Bonus Utilities
 
 Occasionally I run into handy utilities that make life easier when building automations for Slack workspaces, and what better place than a toolkit like Workflow Buddy!
+
+### Debug Mode
+
+For any Workflow Buddy Step, you can enable `Debug Mode`, which will pause and send you a message with information about the `inputs` and metadata, then wait for you to click `Continue`.
+
+![Workflow Buddy Debug step](/assets/workflow-buddy-debug-step.png)
 
 ### Shortcut: Inspect Message
 
