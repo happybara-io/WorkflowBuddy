@@ -11,3 +11,5 @@ workflow-buddy-db.json
 slack_app_bara_manifest.yml
 workflow-buddy-data/
 .coverage
+misc/
+

@@ -347,3 +347,10 @@ def test_sbool(bool_str, expected):
 def test_parse_values_from_input_config():
     # TODO: can create more confidence in this now that it's moved here for unit tests than in app
     pass
+
+
+def test_slack_deeplink():
+    team_id = "T0123456"
+    app_id = "A123445"
+    app_home_deeplink = sut.slack_deeplink("app_home", team_id, app_id=app_id)
+    assert team_id in app_home_deeplink and app_id in app_home_deeplink

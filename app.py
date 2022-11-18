@@ -297,6 +297,74 @@ def shortcut_message_details(ack: Ack, shortcut: dict, client: slack_sdk.WebClie
     )
 
 
+@slack_app.action(re.compile("(manual_complete-continue|manual_complete-stop)"))
+def manual_complete_button_clicked(
+    ack: Ack,
+    body: dict,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+    respond: Respond,
+):
+    ack()
+    actions_payload = body["actions"][0]
+    action_id = actions_payload["action_id"]
+    action_user_id = body["user"]["id"]
+    action_user_name = body["user"].get("name")
+    try:
+        workflow_step_execute_id, workflow_name = actions_payload["value"].split(
+            c.BUDDY_VALUE_DELIMITER
+        )
+    except ValueError:
+        workflow_step_execute_id = actions_payload["value"]
+        workflow_name = "the Workflow"
+
+    execution_body = {
+        "event": {
+            "workflow_step": {"workflow_step_execute_id": workflow_step_execute_id}
+        }
+    }
+    prev_msg_blocks = body["message"]["blocks"]
+    # Keep just the first info block, then swap out rest with updated block.
+    updated_blocks = prev_msg_blocks[:1]
+
+    fail = Fail(client=client, body=execution_body)
+    if "stop" in action_id:
+        # TODO: add more context: by who? why? what workflow was this?
+        errmsg = f"Workflow stopped manually by {action_user_name}:{action_user_id}."
+        fail(error={"message": errmsg})
+        replacement_text = f"🛑 <@{action_user_id}> halted {workflow_name}."
+        updated_blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": replacement_text,
+                    }
+                ],
+            }
+        )
+        respond(replace_original=True, text=replacement_text, blocks=updated_blocks)
+    else:
+        # yay the Workflow continues!
+        complete = Complete(client=client, body=execution_body)
+        outputs = {"user_id": action_user_id, "user": action_user_id}
+        complete(outputs=outputs)
+        replacement_text = f"👉 <@{action_user_id}> continued {workflow_name}."
+        updated_blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": replacement_text,
+                    }
+                ],
+            }
+        )
+        respond(replace_original=True, text=replacement_text, blocks=updated_blocks)
+
+
 @slack_app.action(re.compile("(debug-continue|debug-stop)"))
 def debug_button_clicked(
     ack: Ack,
@@ -995,6 +1063,7 @@ def run_random_member_picker(
 
 def run_manual_complete(
     step: dict,
+    body: dict,
     event: dict,
     fail: Fail,
     client: slack_sdk.WebClient,
@@ -1004,12 +1073,53 @@ def run_manual_complete(
     # https://api.slack.com/events/workflow_step_execute
     inputs = step["inputs"]
     conversation_id = inputs["conversation_id"]["value"]
+    workflow_context_msg = inputs["context_msg"]["value"]
+    workflow_name = utils.iget(inputs, "workflow_name", "the Workflow")
     execution_id = event["workflow_step"]["workflow_step_execute_id"]
-
-    # TODO: this message needs to provide context on the workflow it's connected to, otherwise it's just a random ID
-    # TODO: this could be nice as 2 buttons rather than an ID, one for Complete/one for Fail, pops a modal and asks for failure reason then kills it.
-    fallback_text = f"WorkflowBuddy dropping off your execution ID:\n`{execution_id}`.\nUse this to manually complete the workflow once tasks have been completed to your satisfaction."
-    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}}]
+    team_id = body["team_id"]
+    app_id = body["api_app_id"]
+    app_home_deeplink = utils.slack_deeplink("app_home", team_id, app_id=app_id)
+    fallback_text = f"👋 Workflow Buddy here! You've been asked to `Continue/Stop` a Workflow.\nUse these buttons once tasks have been completed to your satisfaction.\n*Name:* `{workflow_name}`\n```{workflow_context_msg}```"
+    blocks = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "👉 Continue",
+                        "emoji": True,
+                    },
+                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
+                    "style": "primary",
+                    "action_id": "manual_complete-continue",
+                },
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "🛑 Stop",
+                        "emoji": True,
+                    },
+                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
+                    "action_id": "manual_complete-stop",
+                    "style": "danger",
+                },
+            ],
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"_execution_id: {execution_id}. This execution can be manually completed from the <{app_home_deeplink}|🏡App Home>, if needed._",
+                }
+            ],
+        },
+    ]
     try:
         resp = client.chat_postMessage(
             channel=conversation_id, text=fallback_text, blocks=blocks
@@ -1186,6 +1296,7 @@ def run_find_message(
 
 def execute_utils(
     step: dict,
+    body: dict,
     event: dict,
     complete: Complete,
     fail: Fail,
@@ -1201,7 +1312,7 @@ def execute_utils(
     debug_mode = inputs.get("debug_mode_enabled", {"value": "false"})["value"] == "true"
     debug_conversation_id = inputs["debug_conversation_id"]["value"]
 
-    if debug_mode and not already_sent_debug_message:
+    if debug_mode and debug_conversation_id and not already_sent_debug_message:
         try:
             execution_id = step["workflow_step_execute_id"]
             fallback_text = f"Debug Step: {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
@@ -1269,7 +1380,7 @@ def execute_utils(
         elif chosen_action == "set_channel_topic":
             run_set_channel_topic(step, complete, fail, client, logger)
         elif chosen_action == "manual_complete":
-            run_manual_complete(step, event, fail, client, logger)
+            run_manual_complete(step, body, event, fail, client, logger)
         elif chosen_action == "wait_for_webhook":
             run_wait_for_webhook(step, event, fail, logger)
         elif chosen_action == "json_extractor":
