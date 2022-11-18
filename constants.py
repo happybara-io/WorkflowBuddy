@@ -31,6 +31,9 @@ SCOPES = [
     "reactions:read",
 ]
 
+USER_SCOPES = [
+    "search:read"
+]
 
 EVENT_APP_HOME_OPENED = "app_home_opened"
 EVENT_APP_MENTION = "app_mention"

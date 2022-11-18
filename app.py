@@ -34,6 +34,7 @@ oauth_settings = OAuthSettings(
     client_id=os.environ["SLACK_CLIENT_ID"],
     client_secret=os.environ["SLACK_CLIENT_SECRET"],
     scopes=c.SCOPES,
+    user_scopes=c.USER_SCOPES,
     installation_store=FileInstallationStore(
         base_dir=f"{utils.WB_DATA_DIR}/slack_data/installations"
     ),
@@ -748,9 +749,12 @@ def edit_utils(
     configure: Configure,
     client: slack_sdk.WebClient,
     logger: logging.Logger,
+    context: BoltContext
 ):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
+
+    logger.warning(f'LOGSYEE:{dir(context)}|{context.user_id}|{context.bot_id}|{context.authorize_result}|')
     existing_inputs = copy.deepcopy(
         step["inputs"]
     )  # avoid potential issue when we delete from input dict
@@ -778,7 +782,7 @@ def edit_utils(
             },
         }
     )
-    blocks.extend(utils.dynamic_modal_top_blocks(chosen_action))
+    blocks.extend(utils.dynamic_modal_top_blocks(chosen_action, user_token=context.user_token))
     # have to make sure we aren't accidentally editing config blocks in memory
     blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
     update_blocks_with_previous_input_based_on_config(
@@ -791,7 +795,7 @@ def edit_utils(
 # Lots of people want to update their Step view.
 @slack_app.action(re.compile("(utilities_action_select_value|debug_mode)"))
 def utils_update_step_modal(
-    ack: Ack, body: dict, logger: logging.Logger, client: slack_sdk.WebClient
+    ack: Ack, body: dict, logger: logging.Logger, client: slack_sdk.WebClient, context: BoltContext
 ):
     ack()
     logger.info(f"ACTION_CHANGE: {body}")
@@ -827,8 +831,7 @@ def utils_update_step_modal(
             },
         }
     )
-
-    updated_blocks.extend(utils.dynamic_modal_top_blocks(selected_buddy_action))
+    updated_blocks.extend(utils.dynamic_modal_top_blocks(selected_buddy_action, user_token=context.user_token))
     updated_blocks.extend(c.UTILS_CONFIG[selected_buddy_action]["modal_input_blocks"])
     updated_view = {
         "type": "workflow_step",
@@ -1289,6 +1292,7 @@ def run_find_message(
     complete: Complete,
     fail: Fail,
     logger: logging.Logger,
+    context: BoltContext
 ):
     # https://api.slack.com/methods/search.messages
     inputs = step["inputs"]
@@ -1310,7 +1314,7 @@ def run_find_message(
 
     # TODO: team_id is required attribute if using an org-token
     try:
-        user_token = os.environ["SLACK_USER_TOKEN"]
+        user_token = context.user_token
         client = slack_sdk.WebClient(token=user_token)
     except KeyError:
         errmsg = "No SLACK_USER_TOKEN provided to Workflow Buddy - required for searching Slack messages."
@@ -1355,6 +1359,7 @@ def execute_utils(
     complete: Complete,
     fail: Fail,
     client: slack_sdk.WebClient,
+    context: BoltContext,
     logger: logging.Logger,
 ):
     global DEBUG_STEP_DATA_CACHE
@@ -1444,7 +1449,7 @@ def execute_utils(
         elif chosen_action == "add_reaction":
             run_add_reaction(step, complete, fail, client, logger)
         elif chosen_action == "find_message":
-            run_find_message(step, complete, fail, logger)
+            run_find_message(step, complete, fail, logger, context)
         elif chosen_action == "wait_state":
             run_wait_state(step, complete, fail)
         elif chosen_action == "conversations_create":

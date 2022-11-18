@@ -20,6 +20,7 @@ features:
       callback_id: utilities
     - name: Outgoing Webhook
       callback_id: outgoing_webhook
+# TODO: whenever this changes, have to update the scopes in our constants file as well or installation will fail.
 oauth_config:
   scopes:
     user:
