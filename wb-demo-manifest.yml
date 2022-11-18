@@ -8,10 +8,15 @@ features:
     messages_tab_enabled: false
     messages_tab_read_only_enabled: false
   bot_user:
-    display_name: WorkflowBuddyDemo
+    display_name: WorkflowBuddy
     always_online: true
+  shortcuts:
+    - name: Inspect Message
+      type: message
+      callback_id: message_details
+      description: Pulls up Slack metadata on message, including ts.
   workflow_steps:
-    - name: Utilities
+    - name: Workflow Buddy Utilities
       callback_id: utilities
     - name: Outgoing Webhook
       callback_id: outgoing_webhook
@@ -19,18 +24,21 @@ oauth_config:
   redirect_urls:
     - https://workflow-buddy-demo.fly.dev/slack/oauth_redirect
   scopes:
+    user:
+      - search:read
     bot:
       - app_mentions:read
       - channels:manage
       - channels:read
-      - channels:history
       - chat:write
+      - commands
       - groups:write
+      - reactions:read
+      - reactions:write
       - users:read
       - users:read.email
-      - usergroups:read
       - workflow.steps:execute
-      - reactions:read
+      - chat:write.public
 settings:
   event_subscriptions:
     request_url: https://workflow-buddy-demo.fly.dev/slack/events
