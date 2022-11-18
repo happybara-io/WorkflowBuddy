@@ -872,3 +872,33 @@ def sbool(s: str) -> bool:
 
 def bool_to_str(b: bool) -> str:
     return "true" if b else "false"
+
+
+def slack_deeplink(link_type: str, team_id: str, **kwargs) -> str:
+    # https://api.slack.com/reference/deep-linking
+    if link_type == "app_home":
+        app_id = kwargs["app_id"]
+        return f"slack://app?team={team_id}&id={app_id}&tab=home"
+    elif link_type == "app_home_messages":
+        app_id = kwargs["app_id"]
+        return f"slack://app?team={team_id}&id={app_id}&tab=messages"
+    elif link_type == "workspace":
+        return f"slack://open?team={team_id}"
+    elif link_type == "channel":
+        channel_id = kwargs["channel_id"]
+        return f"slack://channel?team={team_id}&id={channel_id}"
+    elif link_type == "dm":
+        user_id = kwargs["user_id"]
+        return f"slack://user?team={team_id}&id={user_id}"
+    elif link_type == "file":
+        file_id = kwargs["file_id"]
+        return f"slack://file?team={team_id}&id={file_id}"
+    elif link_type == "share-file":
+        file_id = kwargs["file_id"]
+        return f"slack://share-file?team={team_id}&id={file_id}"
+    else:
+        raise ValueError("Unknown Deeplink type!")
+
+
+def iget(inputs: dict, key: str, default: str) -> str:
+    return inputs.get(key, {"value": default})["value"]

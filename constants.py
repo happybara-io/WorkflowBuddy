@@ -39,6 +39,8 @@ SLACK_BUTTON_VALUE_MAX_CHARS = 2000
 
 WAIT_STATE_MAX_SECONDS = 60
 
+BUDDY_VALUE_DELIMITER = "|+|"
+
 APP_HOME_HEADER_BLOCKS = [
     {
         "type": "header",
@@ -821,7 +823,7 @@ UTILS_CONFIG = {
         "step_name": "Wait for Human",
         "step_image_url": URLS["images"]["bara_main_logo"],
         "is_slack": False,
-        "description": "Hold in progress until an execution ID is submitted to complete/fail the execution.",
+        "description": "Hold in progress until someone from the chosen conversation (DM/channel) chooses to `Continue/Stop` the Workflow.",
         "modal_input_blocks": [
             {
                 "type": "input",
@@ -839,8 +841,63 @@ UTILS_CONFIG = {
                     },
                     "action_id": "conversation_id_value",
                 },
-                "label": {"type": "plain_text", "text": "Conversation", "emoji": True},
-            }
+                "label": {"type": "plain_text", "text": "Where to Send Approval", "emoji": True},
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": '_Provide the context your teammates will need on what this Workflow is trying to accomplish, what they should wait to be completed, and why they should choose `Continue` or `Stop`. Imagine you are in their shoes: a message appears asking for approval while they are busy thinking about other things - give them all the information they need to make an informed decision._',
+                    }
+                ],
+            },
+            {
+                "type": "input",
+                "block_id": "workflow_name_input",
+                "optional": True,
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "workflow_name_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": 'New Member Onboarding',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Workflow Name",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": '_Why do you need to provide the Workflow name? `Steps from Apps` do not receive info about the rest of the Workflow they are in for user privacy, so cannot automatically fill that out for you._',
+                    }
+                ],
+            },
+            {
+                "type": "input",
+                "block_id": "context_msg_input",
+                "optional": True,
+                "element": {
+                    "type": "plain_text_input",
+                    "multiline": True,
+                    "action_id": "context_msg_value",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": 'This Workflow is for...\nIt should be completed after X happens...',
+                    },
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Workflow Context Info",
+                    "emoji": True,
+                },
+            },
         ],
         "inputs": {
             "conversation_id": {
@@ -849,9 +906,22 @@ UTILS_CONFIG = {
                 "type": "conversations_select",
                 "block_id": "conversation_id_input",
                 "action_id": "conversation_id_value",
+            },
+            "workflow_name": {
+                "name": "workflow_name",
+                "block_id": "workflow_name_input",
+                "action_id": "workflow_name_value"
+            },
+            "context_msg": {
+                "name": "context_msg",
+                "block_id": "context_msg_input",
+                "action_id": "context_msg_value"
             }
         },
-        "outputs": [],
+        "outputs": [
+            {"label": "Actioning User ID", "name": "user_id", "type": "text"},
+            {"label": "Actioning User", "name": "user", "type": "user"},    
+        ],
     },
     "conversations_create": {
         "draft": False,
