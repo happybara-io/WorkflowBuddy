@@ -1,5 +1,5 @@
 display_information:
-  name: WorkflowBuddy
+  name: WorkflowBuddyDemo
   description: Automating the Slack workspace.
   background_color: "#ad650c"
 features:
@@ -20,8 +20,9 @@ features:
       callback_id: utilities
     - name: Outgoing Webhook
       callback_id: outgoing_webhook
-# TODO: whenever this changes, have to update the scopes in our constants file as well or installation will fail.
 oauth_config:
+  redirect_urls:
+    - https://workflow-buddy-demo.fly.dev/slack/oauth_redirect
   scopes:
     user:
       - search:read
@@ -40,7 +41,7 @@ oauth_config:
       - chat:write.public
 settings:
   event_subscriptions:
-    request_url: https://example.com/slack/events
+    request_url: https://workflow-buddy-demo.fly.dev/slack/events
     bot_events:
       - app_home_opened
       - app_mention
@@ -53,7 +54,7 @@ settings:
       - workflow_unpublished
   interactivity:
     is_enabled: true
-    request_url: https://example.com/slack/events
+    request_url: https://workflow-buddy-demo.fly.dev/slack/events
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false

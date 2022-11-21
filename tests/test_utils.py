@@ -9,6 +9,9 @@ from typing import List
 
 test_logger = logging.getLogger("TestLogger")
 
+# Start from a fresh DB unless we explicitly do something different
+sut.sync_cache_to_disk(override_data={})
+
 
 class FakeResponse:
     def __init__(self, status_code, body) -> None:
@@ -174,7 +177,8 @@ def test_includes_slack_workflow_variable(value, expected_result):
 def test_generic_event_proxy(patched_send, name, event):
     # TODO: Gotta mock out DB for each run to actually test something useful, otherwise it's unkown what you're hitting
     patched_send.return_value = FakeResponse(201, {"body": True})
-    sut.generic_event_proxy(test_logger, event, {})
+    fake_team_id = "T014334"
+    sut.generic_event_proxy(test_logger, event, {}, fake_team_id)
 
 
 @pytest.mark.parametrize(
@@ -354,3 +358,56 @@ def test_slack_deeplink():
     app_id = "A123445"
     app_home_deeplink = sut.slack_deeplink("app_home", team_id, app_id=app_id)
     assert team_id in app_home_deeplink and app_id in app_home_deeplink
+def test_db_integration_unhandled_event():
+    sut.sync_cache_to_disk(override_data={})
+
+    team_id = "T12345"
+    new_event = "event_thing"
+
+    unhandled = sut.db_get_unhandled_events(team_id)
+    assert len(unhandled) == 0
+
+    sut.db_remove_unhandled_event(team_id, new_event)
+
+    sut.db_set_unhandled_event(team_id, new_event)
+
+    unhandled = sut.db_get_unhandled_events(team_id)
+    assert len(unhandled) == 1
+
+    sut.db_remove_unhandled_event(team_id, new_event)
+
+    unhandled = sut.db_get_unhandled_events(team_id)
+    assert len(unhandled) == 0
+
+
+def test_db_integration_event_config():
+    sut.sync_cache_to_disk(override_data={})
+
+    team_id = "T12345"
+    test_event_type = "test_event"
+
+    try:
+        config = sut.db_get_event_config(team_id, test_event_type)
+        assert False
+    except KeyError:
+        logging.debug("successfully failed.")
+
+    import_data = {}
+    import_data[test_event_type] = {"abc": "123"}
+    sut.db_import(team_id, import_data)
+
+    config = sut.db_get_event_config(team_id, test_event_type)
+    assert type(config) is dict
+
+    sut.db_remove_event(team_id, test_event_type)
+
+    try:
+        config = sut.db_get_event_config(team_id, test_event_type)
+        assert False
+    except KeyError:
+        logging.debug("successfully failed.")
+    sut.db_add_webhook_to_event(
+        team_id, test_event_type, "namestr", "https://url", "U12234"
+    )
+    config = sut.db_get_event_config(team_id, test_event_type)
+    assert type(config) is list
