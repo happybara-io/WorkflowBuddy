@@ -1,5 +1,5 @@
 import contextlib
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict, Any, Optional
 import os
 import random
 import re
@@ -9,7 +9,7 @@ import shelve
 import http
 import json
 import copy
-import constants as c
+import buddy.constants as c
 from urllib import parse, response
 import slack_sdk
 import slack_sdk.errors
@@ -31,7 +31,7 @@ Path(PERSISTED_JSON_FILE).touch()
 logging.info(f"Using DB file path: {PERSISTED_JSON_FILE}...")
 
 # !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
-IN_MEMORY_WRITE_THROUGH_CACHE = {}
+IN_MEMORY_WRITE_THROUGH_CACHE: Dict[str, List] = {}
 # on startup, load current contents into cache
 with open(PERSISTED_JSON_FILE, "r") as jf:
     try:
@@ -99,7 +99,7 @@ def send_webhook(
     return resp
 
 
-def db_get_unhandled_events() -> dict:
+def db_get_unhandled_events() -> List[str]:
     try:
         return IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
     except KeyError:
@@ -124,7 +124,7 @@ def db_set_unhandled_event(event_type) -> None:
     sync_cache_to_disk()
 
 
-def db_get_event_config(event_type) -> dict:
+def db_get_event_config(event_type) -> List[Dict[str, Any]]:
     return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
 
 
@@ -156,7 +156,7 @@ def db_remove_event(event_type) -> None:
         logging.info("Key doesnt exist to delete")
 
 
-def db_import(new_data) -> None:
+def db_import(new_data) -> int:
     count = len(new_data.keys())
     for k, v in new_data.items():
         IN_MEMORY_WRITE_THROUGH_CACHE[k] = v
@@ -215,7 +215,7 @@ def build_app_home_view() -> dict:
     for event_type, webhook_list in data.items():
         if event_type == c.DB_UNHANDLED_EVENTS_KEY:
             continue
-        single_event_row = [
+        single_event_row: List[Dict[str, Any]] = [
             {
                 "type": "section",
                 "text": {
@@ -245,7 +245,7 @@ def build_app_home_view() -> dict:
 
     blocks.extend(c.APP_HOME_MIDDLE_BLOCKS)
 
-    footer_blocks = [
+    footer_blocks: List[Dict[str, Any]] = [
         {"type": "divider"},
         {
             "type": "context",
@@ -502,7 +502,7 @@ def clean_json_quotes(s: str) -> str:
     return s
 
 
-def sanitize_unescaped_quotes_and_load_json_str(s: str, strict=False) -> dict:
+def sanitize_unescaped_quotes_and_load_json_str(s: str, strict=False) -> dict:  # type: ignore
     # TODO: one thing this doesn't handle, is if the unescaped text includes valid JSON - then you're just out of luck
     js_str = s
     prev_pos = -1
@@ -543,7 +543,7 @@ def load_json_body_from_untrusted_input_str(input_str: str) -> dict:
     return data
 
 
-def should_filter_event(webhook_config: dict, event: dict) -> bool:
+def should_filter_event(webhook_config: dict, event: dict) -> Optional[str]:
     # from past experience, make sure to explicitly log if you drop in case logic is messed up
     event_type = event.get("type")
     should_filter_reason = None
@@ -632,7 +632,7 @@ def dynamic_modal_top_blocks(action_name: str):
             context_text = f"> Current authed user for search is: <@{resp.get('user_id')}>. Results will match what is visible to them. Questions? Check the <{c.URLS['github-repo']['home']}|repo for info.>"
         except KeyError:
             context_text = f"> ❌💥 *Need a valid SLACK_USER_TOKEN secret for {c.UTILS_ACTION_LABELS[action_name]}.* ❌"
-        except slack_sdk.errors.SlackAPIError as e:
+        except slack_sdk.errors.SlackApiError as e:
             logging.error(e.response)
             context_text = (
                 f"> ❌💥 *Slack Error: Need a valid user token. {e.response['error']}.* ❌"
@@ -653,7 +653,7 @@ def dynamic_modal_top_blocks(action_name: str):
 
 
 def dynamic_outputs(action_name: str, inputs: dict) -> List:
-    outputs = []
+    outputs: List[Dict[str, str]] = []
     if action_name == "random_member_picker":
         number_of_users = int(inputs["number_of_users"]["value"])
         outputs = []
@@ -690,7 +690,7 @@ def filter_bots(client: slack_sdk.WebClient, user_list: List) -> List:
             # TODO: handle common errors better
             continue
 
-        user = resp.get("user", {})
+        user: Dict[str, Any] = resp.get("user", {})
         if user.get("is_bot") or user.get("is_workflow_bot"):
             continue
 
@@ -706,7 +706,7 @@ def sample_list_until_no_bots_are_found(
     # TODO: surface to users the fact that we are limiting iterations
     # if we give back less people than they expected - use case: a channel that has more bots than people
     max_num_allowed_iterations = 15
-    no_bot_users_sample = []
+    no_bot_users_sample: List[str] = []
     runs = 0
     while (
         len(no_bot_users_sample) < number_of_users and runs < max_num_allowed_iterations
@@ -721,7 +721,7 @@ def sample_list_until_no_bots_are_found(
 
 def finish_an_execution(
     client: slack_sdk.WebClient, execution_id: str, failed=False, err_msg=""
-) -> dict:
+) -> slack_sdk.web.SlackResponse:
     return (
         client.workflows_stepFailed(
             workflow_step_execute_id=execution_id, error={"message": err_msg}
@@ -902,3 +902,101 @@ def slack_deeplink(link_type: str, team_id: str, **kwargs) -> str:
 
 def iget(inputs: dict, key: str, default: str) -> str:
     return inputs.get(key, {"value": default})["value"]
+
+
+def update_blocks_with_previous_input_based_on_config(
+    blocks: list, chosen_action, existing_inputs: dict, action_config_item: dict
+) -> None:
+    # TODO: workflow builder keeps pulling old input on the step even when you are creating it totally new 🤔
+    # kinda a crappy way to fill out existing inputs into initial values, but fast enough
+    if existing_inputs:
+        for input_name, value_obj in existing_inputs.items():
+            prev_input_value = value_obj["value"]
+            curr_input_config = action_config_item["inputs"].get(input_name)
+            # loop through blocks to find it's home
+            for block in blocks:
+                block_id = block.get("block_id")
+                if block_id == "general_options_action_select":
+                    block["elements"][0]["initial_option"] = {
+                        "text": {
+                            "type": "plain_text",
+                            "text": c.UTILS_ACTION_LABELS[chosen_action],
+                            "emoji": True,
+                        },
+                        "value": chosen_action,
+                    }
+
+                    # checkboxes, just debug on it's own for now
+                    if not sbool(
+                        existing_inputs.get("debug_mode_enabled", {}).get("value")
+                    ):
+                        print("BYE BYE")
+                        try:
+                            del block["elements"][1]["initial_options"]
+                        except KeyError:
+                            pass
+                    else:
+                        print("SETTING IT")
+                        # TODO: this breaks as soon as we change anything in the constants for it
+                        block["elements"][1]["initial_options"] = [
+                            {
+                                "text": {
+                                    "type": "mrkdwn",
+                                    "text": "🐛 *Debug Mode*",
+                                    "verbatim": False,
+                                },
+                                "value": "debug_mode",
+                                "description": {
+                                    "type": "mrkdwn",
+                                    "text": "_When enabled, Buddy will pause before each step starts, send a message, and wait for you to click `Continue`._",
+                                    "verbatim": False,
+                                },
+                            }
+                        ]
+                elif block_id == "debug_conversation_id_input":
+                    debug_conversation_id = existing_inputs.get(
+                        "debug_conversation_id", {}
+                    ).get("value")
+                    block["element"]["initial_conversation"] = debug_conversation_id
+                else:
+                    element_key = "element"
+                    if curr_input_config and (
+                        block_id == curr_input_config.get("block_id")
+                    ):
+                        # add initial placeholder info
+                        if curr_input_config.get("type") == "conversations_select":
+                            block[element_key][
+                                "initial_conversation"
+                            ] = prev_input_value
+                        elif curr_input_config.get("type") == "channels_select":
+                            block[element_key]["initial_channel"] = prev_input_value
+                        elif curr_input_config.get("type") == "static_select":
+                            block[element_key]["initial_option"] = {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": curr_input_config.get("label", {}).get(
+                                        prev_input_value
+                                    )
+                                    or prev_input_value.upper(),
+                                    "emoji": True,
+                                },
+                                "value": prev_input_value,
+                            }
+                        elif curr_input_config.get("type") == "users_select":
+                            block[element_key]["initial_user"] = prev_input_value
+                        elif curr_input_config.get("type") == "checkboxes":
+                            initial_options = json.loads(prev_input_value)
+                            if len(initial_options) < 1:
+                                try:
+                                    del block[element_key]["initial_options"]
+                                except KeyError:
+                                    pass
+                            else:
+                                block["element"]["initial_options"] = initial_options
+                        else:
+                            # assume plain_text_input cuz it's common
+                            block["element"]["initial_value"] = prev_input_value or ""
+    else:
+        logging.debug(
+            "No previous inputs to reload, anything you see is happening because of bad coding."
+        )

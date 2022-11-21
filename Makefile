@@ -17,6 +17,9 @@ test:
 cov:
 	poetry run python -m pytest --cov=. -sv tests/
 
+type-check:
+	poetry run python -m mypy buddy/ # app.py
+
 generate-requirements:
 	poetry export -o requirements.txt --without-hashes
 

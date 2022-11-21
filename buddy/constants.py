@@ -1,4 +1,6 @@
-URLS = {
+from typing import Dict, Any, List
+
+URLS: Dict[str, Any] = {
     "images": {
         "bara_main_logo": "https://s3.happybara.io/happybara/main_logo.png",
         "slack_logo": "https://s3.happybara.io/common/slack-logo.png",
@@ -41,7 +43,7 @@ WAIT_STATE_MAX_SECONDS = 60
 
 BUDDY_VALUE_DELIMITER = "|+|"
 
-APP_HOME_HEADER_BLOCKS = [
+APP_HOME_HEADER_BLOCKS: List[Dict[str, Any]] = [
     {
         "type": "header",
         "text": {"type": "plain_text", "text": "Workflow Buddy", "emoji": True},
@@ -138,7 +140,7 @@ APP_HOME_HEADER_BLOCKS = [
     # {"type": "divider"},
 ]
 
-APP_HOME_MIDDLE_BLOCKS = [
+APP_HOME_MIDDLE_BLOCKS: List[Dict[str, Any]] = [
     {"type": "section", "text": {"type": "mrkdwn", "text": "  "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
     {"type": "section", "text": {"type": "plain_text", "text": "    "}},
@@ -230,7 +232,7 @@ APP_HOME_MIDDLE_BLOCKS = [
     {"type": "divider"},
 ]
 
-UTILS_ACTION_LABELS = {
+UTILS_ACTION_LABELS: Dict[str, str] = {
     "webhook": "Send a Webhook",
     "random_int": "Random Integer",
     "random_uuid": "Random UUID",
@@ -248,7 +250,7 @@ UTILS_ACTION_LABELS = {
     "find_message": "Slack: Find Message",
 }
 
-WEBHOOK_STEP_MODAL_COMMON_BLOCKS = [
+WEBHOOK_STEP_MODAL_COMMON_BLOCKS: List[Dict[str, Any]] = [
     {
         "type": "header",
         "text": {
@@ -262,7 +264,7 @@ WEBHOOK_STEP_MODAL_COMMON_BLOCKS = [
 
 # Try to avoid needing variables in blocks, break it down if needed - want to be able to
 # easily use this with Block Kit Builder
-UTILS_STEP_MODAL_COMMON_BLOCKS = [
+UTILS_STEP_MODAL_COMMON_BLOCKS: List[Dict[str, Any]] = [
     {
         "type": "header",
         "text": {
@@ -432,7 +434,7 @@ UTILS_STEP_MODAL_COMMON_BLOCKS = [
     },
 ]
 
-DEBUG_MODE_BLOCKS = [
+DEBUG_MODE_BLOCKS: List[Dict[str, Any]] = [
     {
         "type": "input",
         "block_id": "debug_conversation_id_input",
@@ -468,7 +470,7 @@ DEBUG_MODE_BLOCKS = [
 ]
 
 # # TODO: handle optional API arguments
-UTILS_CONFIG = {
+UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
     "webhook": {
         "step_name": "Send a webhook",
         "step_image_url": URLS["images"]["bara_webhook_logo"],
@@ -841,14 +843,18 @@ UTILS_CONFIG = {
                     },
                     "action_id": "conversation_id_value",
                 },
-                "label": {"type": "plain_text", "text": "Where to Send Approval", "emoji": True},
+                "label": {
+                    "type": "plain_text",
+                    "text": "Where to Send Approval",
+                    "emoji": True,
+                },
             },
             {
                 "type": "context",
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": '_Provide the context your teammates will need on what this Workflow is trying to accomplish, what they should wait to be completed, and why they should choose `Continue` or `Stop`. Imagine you are in their shoes: a message appears asking for approval while they are busy thinking about other things - give them all the information they need to make an informed decision._',
+                        "text": "_Provide the context your teammates will need on what this Workflow is trying to accomplish, what they should wait to be completed, and why they should choose `Continue` or `Stop`. Imagine you are in their shoes: a message appears asking for approval while they are busy thinking about other things - give them all the information they need to make an informed decision._",
                     }
                 ],
             },
@@ -861,7 +867,7 @@ UTILS_CONFIG = {
                     "action_id": "workflow_name_value",
                     "placeholder": {
                         "type": "plain_text",
-                        "text": 'New Member Onboarding',
+                        "text": "New Member Onboarding",
                     },
                 },
                 "label": {
@@ -875,7 +881,7 @@ UTILS_CONFIG = {
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": '_Why do you need to provide the Workflow name? `Steps from Apps` do not receive info about the rest of the Workflow they are in for user privacy, so cannot automatically fill that out for you._',
+                        "text": "_Why do you need to provide the Workflow name? `Steps from Apps` do not receive info about the rest of the Workflow they are in for user privacy, so cannot automatically fill that out for you._",
                     }
                 ],
             },
@@ -889,7 +895,7 @@ UTILS_CONFIG = {
                     "action_id": "context_msg_value",
                     "placeholder": {
                         "type": "plain_text",
-                        "text": 'This Workflow is for...\nIt should be completed after X happens...',
+                        "text": "This Workflow is for...\nIt should be completed after X happens...",
                     },
                 },
                 "label": {
@@ -910,17 +916,17 @@ UTILS_CONFIG = {
             "workflow_name": {
                 "name": "workflow_name",
                 "block_id": "workflow_name_input",
-                "action_id": "workflow_name_value"
+                "action_id": "workflow_name_value",
             },
             "context_msg": {
                 "name": "context_msg",
                 "block_id": "context_msg_input",
-                "action_id": "context_msg_value"
-            }
+                "action_id": "context_msg_value",
+            },
         },
         "outputs": [
             {"label": "Actioning User ID", "name": "user_id", "type": "text"},
-            {"label": "Actioning User", "name": "user", "type": "user"},    
+            {"label": "Actioning User", "name": "user", "type": "user"},
         ],
     },
     "conversations_create": {
