@@ -3,6 +3,13 @@
 _| Open-source | [🧪 Installable Demo App](#demo-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) |_
 
 ---
+## Testimonials
+
+>🗣 _"Workflow Buddy is such an enabler for us. It’s exactly what I hoped Workflow Builder originally was." - [iCulture.nl](https://www.iculture.nl/)_
+
+> 🗣 _"It’s like a mini Zapier in Slack… By using Buddy I was able to remove many unnecessary formatting steps from Zapier, effectively saving me money." - Feedback during Alpha_
+
+---
 
 **[Workflow Builder](https://slack.com/features/workflow-automation) is great!**
 
@@ -25,7 +32,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 
 > **[ℹ️]** Beta Disclaimer:
 >
-> This code is in beta stage on it's way to a stable v1. It's fully functional, but would benefit from resiliency features like improved handling for upstream API errors, etc.
+> This code is in beta stage on it's way to a stable v1. It's fully functional, but would benefit from resiliency features like improved handling for upstream API errors, etc. that let it handle higher volume use-cases.
 >
 
 - **About**
