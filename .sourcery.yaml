@@ -21,7 +21,9 @@ ignore: # A list of paths or files which Sourcery will ignore.
 
 refactor:
   include: []
-  skip: []  # A list of rule IDs Sourcery will never suggest.
+  skip: [
+    "raise-from-previous-error"
+  ]  # A list of rule IDs Sourcery will never suggest.
   rule_types:
   - refactoring
   - suggestion
