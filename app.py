@@ -773,7 +773,7 @@ def execute_utils(
     if debug_mode and debug_conversation_id and not already_sent_debug_message:
         try:
             execution_id = step["workflow_step_execute_id"]
-            fallback_text = f"Debug Step: {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
+            fallback_text = f"Debug (Inputs): {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
             blocks = [
                 {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
                 {
@@ -823,10 +823,8 @@ def execute_utils(
                 f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
             )
 
-    # save as JSON in button metadata? then call this execute function with
-    # some sort of marker so we know not to infinitely loop on debug
+    outputs = {}
     try:
-        outputs = {}
         logging.info(f"Chosen action: {chosen_action}")
         if chosen_action == "webhook":
             outputs = buddy.run_webhook(step)
@@ -860,8 +858,6 @@ def execute_utils(
             outputs = buddy.run_schedule_message(inputs, client)
         else:
             fail(error={"message": f"Unknown action chosen - {chosen_action}"})
-
-        complete(outputs=outputs)
     except buddy.errors.WorkflowStepFailError as e:
         fail(error={"message": e.errmsg})
     except Exception as e:
@@ -869,6 +865,31 @@ def execute_utils(
         logger.exception(e)
         exc_message = f"Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
         fail(error={"message": exc_message})
+
+    if debug_mode and debug_conversation_id and not already_sent_debug_message:
+        # finish debug mode by sending `outputs` to the same location
+        try:
+            execution_id = step["workflow_step_execute_id"]
+            fallback_text = f"Debug (Outputs): {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(outputs, indent=2)}```"
+            blocks = [
+                {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
+                {"type": "divider"},
+                {
+                    "type": "context",
+                    "elements": [
+                        {"type": "mrkdwn", "text": f"execution_id: {execution_id}."}
+                    ],
+                },
+            ]
+            resp = client.chat_postMessage(
+                channel=debug_conversation_id, text=fallback_text, blocks=blocks
+            )
+        except slack_sdk.errors.SlackApiError as e:
+            logger.error(
+                f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
+            )
+
+    complete(outputs=outputs)
 
 
 def edit_webhook(ack: Ack, step: dict, configure: Configure):
