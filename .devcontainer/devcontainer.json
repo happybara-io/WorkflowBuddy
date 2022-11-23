@@ -1,0 +1,9 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers-contrib/features/poetry:1": {},
+      "ghcr.io/devcontainers-contrib/features/black:1": {},
+        "ghcr.io/devcontainers-contrib/features/isort:1": {},
+          "ghcr.io/dhoeric/features/flyctl:1": {}
+  }
+}
