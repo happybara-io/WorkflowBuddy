@@ -1,12 +1,14 @@
-import buddy.step_actions as sut
-import buddy.constants as bc
-from buddy.errors import WorkflowStepFailError
-import pytest
-from unittest import mock
-import slack_sdk
-from slack_sdk.errors import SlackApiError
 import logging
 from datetime import datetime as dt
+from unittest import mock
+
+import pytest
+import slack_sdk
+from slack_sdk.errors import SlackApiError
+
+import buddy.constants as bc
+import buddy.step_actions as sut
+from buddy.errors import WorkflowStepFailError
 
 dummy_logger = logging.getLogger(name="testing")
 

@@ -1,11 +1,13 @@
-import buddy.utils as sut
-import logging
 import json
+import logging
 import unittest.mock as mock
-import pytest
-import tests.tc as test_const
-import slack_sdk.errors
 from typing import List
+
+import pytest
+import slack_sdk.errors
+
+import buddy.utils as sut
+import tests.tc as test_const
 
 test_logger = logging.getLogger("TestLogger")
 

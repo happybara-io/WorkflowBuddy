@@ -1,20 +1,22 @@
 import contextlib
-from typing import Union, List, Tuple, Dict, Any, Optional
+import copy
+import http
+import json
+import logging
 import os
 import random
 import re
-import logging
-import requests
 import shelve
-import http
-import json
-import copy
-import buddy.constants as c
-from urllib import parse, response
-import slack_sdk
-import slack_sdk.errors
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+from urllib import parse, response
+
+import requests
+import slack_sdk
+import slack_sdk.errors
+
+import buddy.constants as c
 
 logging.basicConfig(level=logging.DEBUG)
 
