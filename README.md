@@ -490,6 +490,7 @@ To run the Slack app locally you will:
 
 1. ✅ Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
 2. 📌 Run a local server on your laptop either using `Python` or `Docker` with the credentials you got in step `1`.
+    - _If you use GitHub CodeSpaces for development, you can skip running a proxy tool, because they will port-forward for you._
 3. Run a proxy tool that lets Slack talk to your `localhost` (local server).
 4. Update Slack connection info.
 5. Use the bot through your regular Slack desktop! 💃
