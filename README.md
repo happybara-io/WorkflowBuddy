@@ -1,6 +1,6 @@
 # Workflow Buddy - Super powers for Workflow Builder
 
-_| Open-source | [🧪 Installable Demo App](#demo-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) |_
+_| 📂 Open-source | [🧪 Installable Demo App](#demo-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) | [💡 Support](#support) |_
 
 ---
 ## Testimonials
@@ -46,7 +46,19 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
   - [(Advanced) Try New Steps](#advanced-quickstart-run-all-new-steps) - (~25 mins)
 - [FAQ](#faq)
+- [Support](#support)
 - [Development](#development)
+
+---
+
+## Support
+
+Want to get rockin' with Workflow Buddy, but running into trouble? You have a number of resources to help you out:
+
+- 📚 Read the docs - _currently everything is in this README!_
+- 👬 Search through or ask a question in the [Community Discussions](https://github.com/happybara-io/WorkflowBuddy/discussions) - _no question is too small_.
+- 📩 Send an email to [support@happybara.io](mailto:support@happybara.io). 
+- 🙋‍♀️ If you found a bug; open a [new GitHub issue](https://github.com/happybara-io/WorkflowBuddy/issues/new/choose). _⚠ If in doubt, please use the Discussions rather than Issues._
 
 ---
 
@@ -423,7 +435,7 @@ Don't want to host servers yourself, but still want to use Buddy? Happybara plan
 
 ## Running Workflow Buddy
 
-> 🧪 _Just want to experiment? Install the [demo app](#demo-app) to your Slack workspace and skip setting up servers until you're ready. You can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts**._
+> 🧪 _Just want to experiment? Install the [demo app](#demo-app) to your Slack workspace and skip setting up servers until you're ready. You can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts**. If you get stuck, check out your [💡 support resources](#support)._
 
 You have several options to run a Buddy server: locally on your computer, self-hosted on a cloud service, or [hosted by Happybara](#hosted) _(coming soon)_.
 
@@ -441,7 +453,7 @@ There is a demo version of Workflow Buddy that can be [installed to your workspa
 Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts** to learn what is possible with Workflow Buddy.
 
 > ⚠️
-> This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below.
+> This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below since the demo app does not have guarantees around uptime, long-term data storage, etc.
 >
 
 ### Slack App Setup
@@ -527,6 +539,8 @@ To self-host Buddy in the cloud, you will:
 2. 📌 Run a server at a cloud provider.
 3. Update Slack connection info.
 4. Use the bot through your regular Slack desktop! 💃
+
+_If you get stuck, check out your [💡 support resources](#support)._
 
 #### Cloud: Fly.io
 
