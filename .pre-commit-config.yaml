@@ -3,14 +3,14 @@ repos:
     hooks:
       - id: format-black
         name: Run Black Formatter
-        entry: poetry run black tests/ app.py utils.py
+        entry: make format
         always_run: true
         language: system
         verbose: true
         pass_filenames: false
       - id: pytest
         name: Unit Tests
-        entry: poetry run python -m pytest tests/
+        entry: make test
         always_run: true
         language: system
         verbose: true
@@ -23,7 +23,13 @@ repos:
       #   pass_filenames: false
       - id: poetry-export
         name: Export Requirements.txt
-        entry: poetry export -o requirements.txt --without-hashes
+        entry: make generate-requirements
+        language: system
+        verbose: true
+        pass_filenames: false
+      - id: static-type-check
+        name: Type Checking
+        entry: make type-check
         language: system
         verbose: true
         pass_filenames: false

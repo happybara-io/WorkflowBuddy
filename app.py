@@ -1,11 +1,7 @@
+import contextlib
 import logging
-import time
-import random
-import uuid
 import os
-import constants as c
-import utils
-import string
+import buddy.constants as c
 import pprint
 import json
 import copy
@@ -13,8 +9,6 @@ from typing import Tuple
 import re
 from datetime import datetime, timedelta, timezone
 import traceback as tb
-from jsonpath_ng import jsonpath
-from jsonpath_ng.ext import parse
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -24,6 +18,9 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 import slack_sdk
 from slack_sdk.models.views import View
 
+import buddy
+import buddy.utils as utils
+import buddy.errors
 
 from flask import Flask, request, jsonify
 
@@ -38,104 +35,6 @@ DEBUG_STEP_DATA_CACHE = {}
 def log_request(logger: logging.Logger, body: dict, next):
     logger.debug(body)
     return next()
-
-
-def update_blocks_with_previous_input_based_on_config(
-    blocks: list, chosen_action, existing_inputs: dict, action_config_item: dict
-) -> None:
-    # TODO: workflow builder keeps pulling old input on the step even when you are creating it totally new 🤔
-    # kinda a crappy way to fill out existing inputs into initial values, but fast enough
-    if existing_inputs:
-        for input_name, value_obj in existing_inputs.items():
-            prev_input_value = value_obj["value"]
-            curr_input_config = action_config_item["inputs"].get(input_name)
-            # loop through blocks to find it's home
-            for block in blocks:
-                block_id = block.get("block_id")
-                if block_id == "general_options_action_select":
-                    block["elements"][0]["initial_option"] = {
-                        "text": {
-                            "type": "plain_text",
-                            "text": c.UTILS_ACTION_LABELS[chosen_action],
-                            "emoji": True,
-                        },
-                        "value": chosen_action,
-                    }
-
-                    # checkboxes, just debug on it's own for now
-                    if not utils.sbool(
-                        existing_inputs.get("debug_mode_enabled", {}).get("value")
-                    ):
-                        print("BYE BYE")
-                        try:
-                            del block["elements"][1]["initial_options"]
-                        except KeyError:
-                            pass
-                    else:
-                        print("SETTING IT")
-                        # TODO: this breaks as soon as we change anything in the constants for it
-                        block["elements"][1]["initial_options"] = [
-                            {
-                                "text": {
-                                    "type": "mrkdwn",
-                                    "text": "🐛 *Debug Mode*",
-                                    "verbatim": False,
-                                },
-                                "value": "debug_mode",
-                                "description": {
-                                    "type": "mrkdwn",
-                                    "text": "_When enabled, Buddy will pause before each step starts, send a message, and wait for you to click `Continue`._",
-                                    "verbatim": False,
-                                },
-                            }
-                        ]
-                elif block_id == "debug_conversation_id_input":
-                    debug_conversation_id = existing_inputs.get(
-                        "debug_conversation_id", {}
-                    ).get("value")
-                    block["element"]["initial_conversation"] = debug_conversation_id
-                else:
-                    element_key = "element"
-                    if curr_input_config and (
-                        block_id == curr_input_config.get("block_id")
-                    ):
-                        # add initial placeholder info
-                        if curr_input_config.get("type") == "conversations_select":
-                            block[element_key][
-                                "initial_conversation"
-                            ] = prev_input_value
-                        elif curr_input_config.get("type") == "channels_select":
-                            block[element_key]["initial_channel"] = prev_input_value
-                        elif curr_input_config.get("type") == "static_select":
-                            block[element_key]["initial_option"] = {
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": curr_input_config.get("label", {}).get(
-                                        prev_input_value
-                                    )
-                                    or prev_input_value.upper(),
-                                    "emoji": True,
-                                },
-                                "value": prev_input_value,
-                            }
-                        elif curr_input_config.get("type") == "users_select":
-                            block[element_key]["initial_user"] = prev_input_value
-                        elif curr_input_config.get("type") == "checkboxes":
-                            initial_options = json.loads(prev_input_value)
-                            if len(initial_options) < 1:
-                                try:
-                                    del block[element_key]["initial_options"]
-                                except KeyError:
-                                    pass
-                            else:
-                                block["element"]["initial_options"] = initial_options
-                        else:
-                            # assume plain_text_input cuz it's common
-                            block["element"]["initial_value"] = prev_input_value or ""
-    else:
-        logging.debug(
-            "No previous inputs to reload, anything you see is happening because of bad coding."
-        )
 
 
 def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
@@ -327,42 +226,31 @@ def manual_complete_button_clicked(
     # Keep just the first info block, then swap out rest with updated block.
     updated_blocks = prev_msg_blocks[:1]
 
-    fail = Fail(client=client, body=execution_body)
     if "stop" in action_id:
+        fail = Fail(client=client, body=execution_body)
         # TODO: add more context: by who? why? what workflow was this?
         errmsg = f"Workflow stopped manually by {action_user_name}:{action_user_id}."
         fail(error={"message": errmsg})
         replacement_text = f"🛑 <@{action_user_id}> halted {workflow_name}."
-        updated_blocks.append(
-            {
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": replacement_text,
-                    }
-                ],
-            }
-        )
-        respond(replace_original=True, text=replacement_text, blocks=updated_blocks)
     else:
         # yay the Workflow continues!
         complete = Complete(client=client, body=execution_body)
         outputs = {"user_id": action_user_id, "user": action_user_id}
         complete(outputs=outputs)
         replacement_text = f"👉 <@{action_user_id}> continued {workflow_name}."
-        updated_blocks.append(
-            {
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": replacement_text,
-                    }
-                ],
-            }
-        )
-        respond(replace_original=True, text=replacement_text, blocks=updated_blocks)
+
+    updated_blocks.append(
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": replacement_text,
+                }
+            ],
+        }
+    )
+    respond(replace_original=True, text=replacement_text, blocks=updated_blocks)
 
 
 @slack_app.action(re.compile("(debug-continue|debug-stop)"))
@@ -390,10 +278,8 @@ def debug_button_clicked(
 
     if "stop" in action_id:
         errmsg = "Stopped manually for Debug step, not a failure in processing."
-        try:
+        with contextlib.suppress(slack_sdk.errors.SlackApiError):
             fail(error={"message": errmsg})
-        except slack_sdk.errors.SlackApiError:
-            pass
         replacement_text = f"🛑 Halted debug step for `{workflow_step_execute_id}`."
         respond(replace_original=True, text=replacement_text)
     else:
@@ -727,7 +613,7 @@ def edit_utils(
     blocks.extend(utils.dynamic_modal_top_blocks(chosen_action))
     # have to make sure we aren't accidentally editing config blocks in memory
     blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
-    update_blocks_with_previous_input_based_on_config(
+    utils.update_blocks_with_previous_input_based_on_config(
         blocks, chosen_action, existing_inputs, chosen_config_item
     )
     configure(blocks=blocks)
@@ -866,434 +752,6 @@ def save_utils(
         update(**kwargs)
 
 
-def run_webhook(step: dict, complete: Complete, fail: Fail) -> None:
-    # TODO: input validation & error handling
-    inputs = step["inputs"]
-    url = inputs["webhook_url"]["value"]
-    bool_flags = {"fail_on_http_error": False}
-    http_method = inputs["http_method"]["value"]
-    request_json_str = inputs.get("request_json_str", {}).get("value", {}) or "{}"
-    headers_json_str = inputs.get("headers_json_str", {}).get("value", {}) or "{}"
-    query_params_json_str = (
-        inputs.get("query_params_json_str", {}).get("value", {}) or "{}"
-    )
-    logging.info(f"sending to url:{url}")
-    body = {}
-    bool_flags_input = inputs.get("bool_flags", {})
-    try:
-        selected_checkboxes = json.loads(bool_flags_input.get("value", []))
-        for box_item in selected_checkboxes:
-            flag_name = box_item["value"]
-            bool_flags[flag_name] = True
-    except json.JSONDecodeError as e:
-        full_err_msg = utils.pretty_json_error_msg(
-            f"err111: Unable to parse JSON Flags when preparing to send webhook to {url}.",
-            bool_flags_input,
-            e,
-        )
-        logging.error(full_err_msg)
-        fail(error={"message": full_err_msg})
-        return
-
-    try:
-        body = utils.load_json_body_from_untrusted_input_str(request_json_str)
-    except json.JSONDecodeError as e:
-        # e.g. Expecting ':' delimiter: line 1 column 22 (char 21)
-        full_err_msg = utils.pretty_json_error_msg(
-            f"err112: Unable to parse JSON when preparing to send webhook to {url}.",
-            request_json_str,
-            e,
-        )
-        logging.error(full_err_msg)
-        fail(error={"message": full_err_msg})
-        return
-
-    try:
-        new_headers = utils.load_json_body_from_untrusted_input_str(headers_json_str)
-    except json.JSONDecodeError as e:
-        full_err_msg = utils.pretty_json_error_msg(
-            f"err113: Unable to parse JSON Headers when preparing to send webhook to {url}.",
-            headers_json_str,
-            e,
-        )
-        logging.error(full_err_msg)
-        fail(error={"message": full_err_msg})
-        return
-
-    try:
-        query_params = utils.load_json_body_from_untrusted_input_str(
-            query_params_json_str
-        )
-    except json.JSONDecodeError as e:
-        full_err_msg = utils.pretty_json_error_msg(
-            f"err114: Unable to parse JSON Query Params when preparing to send webhook to {url}.",
-            query_params_json_str,
-            e,
-        )
-        logging.error(full_err_msg)
-        fail(error={"message": full_err_msg})
-        return
-
-    logging.debug(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
-    resp = utils.send_webhook(
-        url, body, method=http_method, params=query_params, headers=new_headers
-    )
-
-    if bool_flags["fail_on_http_error"] and resp.status_code > 300:
-        fail(
-            error={
-                "message": f"fail_on_http_error:true|code:{resp.status_code}|{resp.text[:500]}"
-            }
-        )
-    else:
-        # TODO: is there a limit to output variable string size?
-        sanitized_resp = utils.sanitize_webhook_response(resp.text)
-        outputs = {
-            "webhook_status_code": str(resp.status_code),
-            "webhook_response_text": f"{sanitized_resp}",
-        }
-        logging.info(f"OUTPUTS: {outputs}")
-        complete(outputs=outputs)
-
-
-def run_random_int(step: dict, complete: Complete, fail: Fail) -> None:
-    # TODO: input validation & error handling
-    inputs = step["inputs"]
-    lower_bound = int(inputs["lower_bound"]["value"])
-    upper_bound = int(inputs["upper_bound"]["value"])
-
-    rand_value = random.randint(lower_bound, upper_bound)
-    outputs = {"random_int_text": str(rand_value)}
-    complete(outputs=outputs)
-
-
-def run_random_uuid(step: dict, complete: Complete, fail: Fail) -> None:
-    outputs = {"random_uuid": str(uuid.uuid4())}
-    complete(outputs=outputs)
-
-
-def run_wait_state(step: dict, complete: Complete, fail: Fail) -> None:
-    inputs = step["inputs"]
-    lower_bound = 0
-    upper_bound = c.WAIT_STATE_MAX_SECONDS
-    try:
-        wait_duration = int(inputs["seconds"]["value"])
-        if wait_duration <= lower_bound or wait_duration > upper_bound:
-            raise ValueError("Not in valid Workflow Buddy Wait Step range.")
-    except ValueError:
-        errmsg = f"err5467: seconds value is not in our valid range, given: {inputs['seconds']['value']} but must be in {lower_bound} - {upper_bound}."
-        fail(error={"message": errmsg})
-
-    start_ts = int(datetime.now(timezone.utc).timestamp())
-    time.sleep(wait_duration)
-    end_ts = int(datetime.now(timezone.utc).timestamp())
-    outputs = {
-        "wait_start_ts": start_ts,
-        "wait_end_ts": end_ts,
-        "waited_for": wait_duration,
-    }
-    complete(outputs=outputs)
-
-
-def run_json_extractor(step: dict, complete: Complete, fail: Fail) -> None:
-    inputs = step["inputs"]
-    json_string = inputs["json_string"]["value"]
-    jsonpath_expr_str = inputs["jsonpath_expr"]["value"]
-
-    try:
-        # TODO: do I need to do a safe load here for double quotes/etc? Hopefully it should be well-formed if it's coming here and not built by hand
-        json_data = json.loads(json_string, strict=False)
-    except json.JSONDecodeError as e:
-        errmsg = utils.pretty_json_error_msg(
-            "err2111: invalid JSON provided for JSONPATH parsing.", json_string, e
-        )
-        fail(error={"message": errmsg})
-        return
-
-    jsonpath_expr = parse(jsonpath_expr_str)
-    results = jsonpath_expr.find(json_data)
-    logging.debug(f"JSONPATH {jsonpath_expr_str}| RESULTS: {results}")
-    matches = [match.value for match in results]
-    if len(matches) == 1:
-        matches = matches[0]
-    outputs = {"extracted_matches": str(matches)}
-    complete(outputs=outputs)
-
-
-def run_random_member_picker(
-    step: dict,
-    complete: Complete,
-    fail: Fail,
-    client: slack_sdk.WebClient,
-    logger: logging.Logger,
-):
-    inputs = step["inputs"]
-    conversation_id = inputs["conversation_id"]["value"]
-    number_of_users = int(inputs["number_of_users"]["value"])
-    num_per_request = 200
-    resp = client.conversations_members(channel=conversation_id, limit=num_per_request)
-
-    if not resp["ok"]:
-        logger.error(resp)
-        errmsg = f"Slack Error: unable to get conversation members from Slack. {resp['error']}"
-        fail(error={"message": errmsg})
-    else:
-        # When will Slack just natively filter from their side?
-        # Save time by checking for bots after random selection, rather than cleaning whole list of people.
-        members = resp["members"]
-
-        try:
-            sample_of_users = utils.sample_list_until_no_bots_are_found(
-                client, members, number_of_users
-            )
-            outputs = {}
-            for i, user_id in enumerate(sample_of_users):
-                user_num = i + 1
-                outputs.update(
-                    {
-                        f"selected_user_{user_num}": user_id,
-                        f"selected_user_id_{user_num}": user_id,
-                    }
-                )
-            complete(outputs=outputs)
-        except ValueError:
-            errmsg = f"Error: requested number of users {number_of_users} larger than members size {len(members)}."
-            fail(error={"message": errmsg})
-
-
-def run_manual_complete(
-    step: dict,
-    body: dict,
-    event: dict,
-    fail: Fail,
-    client: slack_sdk.WebClient,
-    logger: logging.Logger,
-) -> None:
-    # https://api.slack.com/methods/chat.postMessage
-    # https://api.slack.com/events/workflow_step_execute
-    inputs = step["inputs"]
-    conversation_id = inputs["conversation_id"]["value"]
-    workflow_context_msg = inputs["context_msg"]["value"]
-    workflow_name = utils.iget(inputs, "workflow_name", "the Workflow")
-    execution_id = event["workflow_step"]["workflow_step_execute_id"]
-    team_id = body["team_id"]
-    app_id = body["api_app_id"]
-    app_home_deeplink = utils.slack_deeplink("app_home", team_id, app_id=app_id)
-    fallback_text = f"👋 Workflow Buddy here! You've been asked to `Continue/Stop` a Workflow.\nUse these buttons once tasks have been completed to your satisfaction.\n*Name:* `{workflow_name}`\n```{workflow_context_msg}```"
-    blocks = [
-        {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
-        {
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "👉 Continue",
-                        "emoji": True,
-                    },
-                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
-                    "style": "primary",
-                    "action_id": "manual_complete-continue",
-                },
-                {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "🛑 Stop",
-                        "emoji": True,
-                    },
-                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
-                    "action_id": "manual_complete-stop",
-                    "style": "danger",
-                },
-            ],
-        },
-        {"type": "divider"},
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": f"_execution_id: {execution_id}. This execution can be manually completed from the <{app_home_deeplink}|🏡App Home>, if needed._",
-                }
-            ],
-        },
-    ]
-    try:
-        resp = client.chat_postMessage(
-            channel=conversation_id, text=fallback_text, blocks=blocks
-        )
-        logger.info(resp)
-    except slack_sdk.errors.SlackApiError as e:
-        logger.error(e.response)
-        errmsg = f"Slack Error: unable to send message with execution_id to conversation. {e.response['error']}."
-        fail(error={"message": errmsg})
-    # Don't even think about calling fail/complete!
-    pass
-
-
-def run_wait_for_webhook(
-    step: dict, event: dict, fail: Fail, logger: logging.Logger
-) -> None:
-    inputs = step["inputs"]
-    external_service_url = inputs["destination_url"]["value"]
-    execution_id = event["workflow_step"]["workflow_step_execute_id"]
-
-    simple_secret_key = "".join(
-        random.choice(string.ascii_letters) for _ in range(c.WEBHOOK_SK_LENGTH)
-    )
-    body = {"execution_id": execution_id, "sk": simple_secret_key}
-    utils.send_webhook(external_service_url, body)
-
-
-def run_set_channel_topic(
-    step: dict,
-    complete: Complete,
-    fail: Fail,
-    client: slack_sdk.WebClient,
-    logger: logging.Logger,
-):
-    inputs = step["inputs"]
-    conversation_id = inputs["conversation_id"]["value"]
-    topic_string = inputs["topic_string"]["value"]
-
-    try:
-        resp = client.conversations_setTopic(
-            channel=conversation_id, topic=topic_string
-        )
-        complete(outputs={})
-    except slack_sdk.errors.SlackApiError as e:
-        logger.error(e.response)
-        errmsg = f"Slack Error: unable to get conversation members from Slack. {e.response['error']}"
-        fail(error={"message": errmsg})
-
-
-def run_get_email_from_slack_user(
-    step: dict,
-    complete: Complete,
-    fail: Fail,
-    client: slack_sdk.WebClient,
-    logger: logging.Logger,
-):
-    inputs = step["inputs"]
-    # TODO: gotta be able to get this from text variable passed to me, or from Slack "user" type variable
-    user_id = inputs["user_id"]["value"]
-    # just in case they pass in user mention anyway
-    user_id = user_id.replace("<@", "").replace(">", "")
-
-    try:
-        resp = client.users_info(user=user_id)
-        email = resp["user"]["profile"]["email"]
-        outputs = {"email": email}
-        complete(outputs=outputs)
-    except slack_sdk.errors.SlackApiError as e:
-        logger.error(e.response)
-        errmsg = f"Slack Error: unable to get email from user. {e.response['error']}"
-        fail(error={"message": errmsg})
-
-
-def run_add_reaction(
-    step: dict,
-    complete: Complete,
-    fail: Fail,
-    client: slack_sdk.WebClient,
-    logger: logging.Logger,
-):
-    # From Slack's emoji reaction trigger we get a link to message which has channel id & ts
-    # if they get TS from somewhere else - then what?
-    inputs = step["inputs"]
-    # TODO: permalink is useful for Slack triggered reaction events, but what about broader use cases?
-    # channel_id = inputs["conversation_id"]["value"]
-    # ts = inputs["message_ts"]["value"]
-    permalink = inputs["permalink"][
-        "value"
-    ]  # "https://workspace.slack.com/archives/CP3S47DAB/p1669229063902429
-    try:
-        _, _, _, _, channel_id, p_ts = permalink.split("/")
-    except ValueError:
-        errmsg = f"Unable to parse permalink formatting. Permalink provided was: '{permalink}', but expected format is `https://workspace.slack.com/archives/CP3S47DAB/p1669229063902429`."
-        fail(error={"message": errmsg})
-        return
-
-    ts = f"{p_ts.replace('p', '')[:10]}.{p_ts[11:]}"
-    reaction = inputs["reaction"]["value"].replace(":", "")  # :boom:
-    try:
-        resp = client.reactions_add(channel=channel_id, timestamp=ts, name=reaction)
-        complete(outputs={})
-    except slack_sdk.errors.SlackApiError as e:
-        if e.response["error"] == "already_reacted":
-            complete(outputs={})
-        else:
-            logger.error(e.response)
-            errmsg = f"Slack Error: unable to add reaction. {e.response['error']}"
-            fail(error={"message": errmsg})
-
-
-def run_find_message(
-    step: dict,
-    complete: Complete,
-    fail: Fail,
-    logger: logging.Logger,
-):
-    # https://api.slack.com/methods/search.messages
-    inputs = step["inputs"]
-    search_query = inputs["search_query"]["value"]
-    sort = inputs["sort"]["value"]
-    sort_dir = inputs["sort_dir"]["value"]
-    delay_seconds = inputs["delay_seconds"]["value"]
-    fail_if_empty_results = utils.sbool(inputs["fail_if_empty_results"]["value"])
-
-    try:
-        delay_seconds = int(inputs["delay_seconds"]["value"])
-        lower_bound = 0
-        upper_bound = c.WAIT_STATE_MAX_SECONDS
-        if delay_seconds <= lower_bound or delay_seconds > upper_bound:
-            raise ValueError("Not in valid Workflow Buddy Wait Step range.")
-    except ValueError:
-        errmsg = f"err5466: seconds value is not in our valid range, given: {inputs['delay_seconds']['value']} but must be in {lower_bound} - {upper_bound}."
-        fail(error={"message": errmsg})
-
-    # TODO: team_id is required attribute if using an org-token
-    try:
-        user_token = os.environ["SLACK_USER_TOKEN"]
-        client = slack_sdk.WebClient(token=user_token)
-    except KeyError:
-        errmsg = "No SLACK_USER_TOKEN provided to Workflow Buddy - required for searching Slack messages."
-        fail(error={"message": errmsg})
-        return
-
-    if delay_seconds > 0:
-        seconds_needed_before_new_message_shows_in_search = delay_seconds
-        time.sleep(seconds_needed_before_new_message_shows_in_search)
-
-    kwargs = {"query": search_query, "count": 1, "sort": sort, "sort_dir": sort_dir}
-    try:
-        resp = client.search_messages(**kwargs)
-        message = resp["messages"]["matches"][0]
-        channel_id = message["channel"]["id"]
-        outputs = {
-            "channel": channel_id,
-            "channel_id": channel_id,
-            "message_ts": message["ts"],
-            "permalink": message["permalink"],
-            "message_text": message["text"],
-            "user": message["user"],
-            "user_id": message["user"],
-        }
-        complete(outputs=outputs)
-    except IndexError:
-        if fail_if_empty_results:
-            errmsg = f"Search results came back empty for query: {search_query}."
-            fail(error={"message": errmsg})
-        else:
-            complete(outputs={})
-    except slack_sdk.errors.SlackApiError as e:
-        logger.error(e.response)
-        errmsg = f"Slack Error: failed to search messages. {e.response['error']}"
-        fail(error={"message": errmsg})
-
-
 def execute_utils(
     step: dict,
     body: dict,
@@ -1315,7 +773,7 @@ def execute_utils(
     if debug_mode and debug_conversation_id and not already_sent_debug_message:
         try:
             execution_id = step["workflow_step_execute_id"]
-            fallback_text = f"Debug Step: {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
+            fallback_text = f"Debug (Inputs): {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
             blocks = [
                 {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
                 {
@@ -1365,89 +823,73 @@ def execute_utils(
                 f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
             )
 
-    # save as JSON in button metadata? then call this execute function with
-    # some sort of marker so we know not to infinitely loop on debug
+    outputs = {}
     try:
         logging.info(f"Chosen action: {chosen_action}")
         if chosen_action == "webhook":
-            run_webhook(step, complete, fail)
+            outputs = buddy.run_webhook(step)
         elif chosen_action == "random_int":
-            run_random_int(step, complete, fail)
+            outputs = buddy.run_random_int(step)
         elif chosen_action == "random_uuid":
-            run_random_uuid(step, complete, fail)
+            outputs = buddy.run_random_uuid(step)
         elif chosen_action == "random_member_picker":
-            run_random_member_picker(step, complete, fail, client, logger)
+            outputs = buddy.run_random_member_picker(step, client, logger)
         elif chosen_action == "set_channel_topic":
-            run_set_channel_topic(step, complete, fail, client, logger)
+            outputs = buddy.run_set_channel_topic(step, client, logger)
         elif chosen_action == "manual_complete":
-            run_manual_complete(step, body, event, fail, client, logger)
+            buddy.run_manual_complete(step, body, event, client, logger)
         elif chosen_action == "wait_for_webhook":
-            run_wait_for_webhook(step, event, fail, logger)
+            buddy.run_wait_for_webhook(step, event)
         elif chosen_action == "json_extractor":
-            run_json_extractor(step, complete, fail)
+            outputs = buddy.run_json_extractor(step)
         elif chosen_action == "get_email_from_slack_user":
-            run_get_email_from_slack_user(step, complete, fail, client, logger)
+            outputs = buddy.run_get_email_from_slack_user(step, client, logger)
         elif chosen_action == "add_reaction":
-            run_add_reaction(step, complete, fail, client, logger)
+            outputs = buddy.run_add_reaction(step, client, logger)
         elif chosen_action == "find_message":
-            run_find_message(step, complete, fail, logger)
+            outputs = buddy.run_find_message(step, logger)
         elif chosen_action == "wait_state":
-            run_wait_state(step, complete, fail)
+            outputs = buddy.run_wait_state(step)
         elif chosen_action == "conversations_create":
-            channel_name = inputs["channel_name"]["value"]
-            resp = client.conversations_create(name=channel_name)
-            logger.debug(f"RESP|{resp}")
-            if resp["ok"]:
-                outputs = {
-                    "channel_id": resp["channel"]["id"],
-                    "channel_id_text": resp["channel"]["id"],
-                }
-                complete(outputs=outputs)
-            else:
-                errmsg = f"Slack err: {resp.get('error')}"
-                logger.error(errmsg)
-                fail(error={"message": errmsg})
+            outputs = buddy.run_conversations_create(inputs, client)
         elif chosen_action == "find_user_by_email":
-            user_email = inputs["user_email"]["value"]
-            resp = client.users_lookupByEmail(email=user_email)
-            if resp["ok"]:
-                outputs = {
-                    "user": resp["user"]["id"],
-                    "user_id": resp["user"]["id"],
-                    "team_id": resp["user"]["team_id"],
-                    "real_name": resp["user"]["real_name"],
-                }
-                complete(outputs=outputs)
-            else:
-                errmsg = f"Slack err: {resp.get('error')}"
-                logger.error(errmsg)
-                fail(error={"message": errmsg})
+            outputs = buddy.run_find_user_by_email(inputs, client)
         elif chosen_action == "schedule_message":
-            channel = inputs["channel"]["value"]
-            post_at = inputs["post_at"]["value"]  # unix epoch timestamp
-            # TODO: needs to support the time format in Workflow Builder variables
-            # -> Tuesday, September 27th 8:38:26 AM (at least in message display it's converted to user's TZ
-            # will have to check how it's passed internally)
-            text = inputs["msg_text"]["value"]
-            resp = client.chat_scheduleMessage(
-                channel=channel, post_at=post_at, text=text
-            )
-            if resp["ok"]:
-                outputs = {
-                    "scheduled_message_id": resp["scheduled_message_id"],
-                }
-                complete(outputs=outputs)
-            else:
-                errmsg = f"Slack err: {resp.get('error')}"
-                logger.error(errmsg)
-                fail(error={"message": errmsg})
+            outputs = buddy.run_schedule_message(inputs, client)
         else:
             fail(error={"message": f"Unknown action chosen - {chosen_action}"})
+    except buddy.errors.WorkflowStepFailError as e:
+        fail(error={"message": e.errmsg})
     except Exception as e:
         # catch everything, otherwise our failures lead to orphaned 'In progress'
         logger.exception(e)
         exc_message = f"Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
         fail(error={"message": exc_message})
+
+    if debug_mode and debug_conversation_id and not already_sent_debug_message:
+        # finish debug mode by sending `outputs` to the same location
+        try:
+            execution_id = step["workflow_step_execute_id"]
+            fallback_text = f"Debug (Outputs): {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(outputs, indent=2)}```"
+            blocks = [
+                {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
+                {"type": "divider"},
+                {
+                    "type": "context",
+                    "elements": [
+                        {"type": "mrkdwn", "text": f"execution_id: {execution_id}."}
+                    ],
+                },
+            ]
+            resp = client.chat_postMessage(
+                channel=debug_conversation_id, text=fallback_text, blocks=blocks
+            )
+        except slack_sdk.errors.SlackApiError as e:
+            logger.error(
+                f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
+            )
+
+    complete(outputs=outputs)
 
 
 def edit_webhook(ack: Ack, step: dict, configure: Configure):
@@ -1466,7 +908,7 @@ def edit_webhook(ack: Ack, step: dict, configure: Configure):
     )
     # have to make sure we aren't accidentally editing config blocks in memory
     blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
-    update_blocks_with_previous_input_based_on_config(
+    utils.update_blocks_with_previous_input_based_on_config(
         blocks, "webhook", existing_inputs, chosen_config_item
     )
     configure(blocks=blocks)
@@ -1483,7 +925,6 @@ def save_webhook(
     selected_utility_callback_id = "webhook"
     curr_action_config = c.UTILS_CONFIG[selected_utility_callback_id]
 
-    # TODO: add debug mode here as well
     inputs = {}
     inputs, errors = utils.parse_values_from_input_config(
         client, values, inputs, curr_action_config
@@ -1510,8 +951,10 @@ def execute_webhook(
     fail: Fail,
     logger: logging.Logger,
 ):
+    # TODO: add debug mode here as well
     try:
-        run_webhook(step, complete, fail)
+        outputs = buddy.run_webhook(step)
+        complete(outputs=outputs)
     except Exception as e:
         # catch everything, otherwise our failures lead to orphaned 'In progress'
         logger.exception(e)
@@ -1553,9 +996,11 @@ def home():
 <br />
 <h4>Endpoints</h4>
 <ul>
+    <li>Health: /health</li>
     <li>Events: /slack/events</li>
     <li>Interactivity: /slack/events</li>
     <li>Webhooks: /webhook</li>
+    <li>Finish Execution: /workflow/finish-execution</li>
 </ul>
 """
 
@@ -1563,16 +1008,6 @@ def home():
 @flask_app.route("/health", methods=["GET"])
 def health():
     return jsonify({"ok": True}), 201
-
-
-# @flask_app.route("/sleep", methods=["POST"])
-# def sleep():
-#     duration = 60
-#     for i in range(duration):
-#         time.sleep(1)
-#         print('sleep', i)
-#     # time.sleep(duration)
-#     return jsonify({"ok": True, "waited_seconds": duration}), 208
 
 
 @flask_app.route("/slack/events", methods=["POST"])
@@ -1587,7 +1022,7 @@ def inbound_webhook():
     return jsonify({"ok": True}), 201
 
 
-@flask_app.route("/finish-execution", methods=["POST"])
+@flask_app.route("/workflow/finish-execution", methods=["POST"])
 def finish_step_execution():
     json_body = request.json
     status_code, resp_body = utils.finish_step_execution_from_webhook(json_body)

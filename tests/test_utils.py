@@ -1,4 +1,4 @@
-import utils as sut
+import buddy.utils as sut
 import logging
 import json
 import unittest.mock as mock
@@ -170,7 +170,7 @@ def test_includes_slack_workflow_variable(value, expected_result):
 
 
 @pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
-@mock.patch("utils.send_webhook")
+@mock.patch("buddy.utils.send_webhook")
 def test_generic_event_proxy(patched_send, name, event):
     # TODO: Gotta mock out DB for each run to actually test something useful, otherwise it's unkown what you're hitting
     patched_send.return_value = FakeResponse(201, {"body": True})
@@ -309,7 +309,7 @@ def test_finish_step_execution_from_webhook():
         "sk": "1" * 20,
         "mark_as_failed": True,
     }
-    with mock.patch("utils.slack_sdk.WebClient") as mock_class:
+    with mock.patch("buddy.utils.slack_sdk.WebClient") as mock_class:
         # https://stackoverflow.com/questions/17731477/python-mock-class-instance-variable#17731909
         # instance = mock_class.return_value
         # instance.workflows_stepCompleted.return_value =
@@ -325,7 +325,7 @@ def test_finish_step_execution_from_webhook_api_error():
         "mark_as_failed": True,
         "err_msg": "Something blew up in external service.",
     }
-    with mock.patch("utils.slack_sdk.WebClient") as mock_class:
+    with mock.patch("buddy.utils.slack_sdk.WebClient") as mock_class:
         # https://stackoverflow.com/questions/17731477/python-mock-class-instance-variable#17731909
         instance = mock_class.return_value
         slack_error = slack_sdk.errors.SlackApiError("slack boom", {"error": "errmsg"})
