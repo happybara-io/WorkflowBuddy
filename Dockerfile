@@ -7,6 +7,7 @@ ENV ENV=PROD
 WORKDIR /usr/src/app/
 COPY requirements.txt ./requirements.txt
 RUN pip install -U pip && pip install -r ./requirements.txt
+ADD buddy ./buddy
 COPY ./*.py ./*.sh .
 
 RUN useradd demo

@@ -1,5 +1,7 @@
 .git
+assets/
 event_trigger_example_workflows/
 test_workflows/
 tests/
 .pytest_cache/
+**pycache**

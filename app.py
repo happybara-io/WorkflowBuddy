@@ -17,8 +17,7 @@ import slack_sdk
 from flask import Flask, jsonify, request
 from slack_bolt import Ack, App, Respond
 from slack_bolt.adapter.flask import SlackRequestHandler
-from slack_bolt.workflows.step import (Complete, Configure, Fail, Update,
-                                       WorkflowStep)
+from slack_bolt.workflows.step import Complete, Configure, Fail, Update, WorkflowStep
 from slack_sdk.models.views import View
 
 import buddy

@@ -13,3 +13,4 @@ workflow-buddy-data/
 .coverage
 misc/
 htmlcov
+.mypy_cache
