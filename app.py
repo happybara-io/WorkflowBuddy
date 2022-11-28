@@ -866,7 +866,7 @@ def execute_utils(
         exc_message = f"Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
         fail(error={"message": exc_message})
 
-    if debug_mode and debug_conversation_id and not already_sent_debug_message:
+    if debug_mode and debug_conversation_id:
         # finish debug mode by sending `outputs` to the same location
         try:
             execution_id = step["workflow_step_execute_id"]
