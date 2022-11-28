@@ -285,9 +285,9 @@ def debug_button_clicked(
     else:
         cache_data = DEBUG_STEP_DATA_CACHE[workflow_step_execute_id]
         step = cache_data["step"]
-        event = cache_data["event"]
+        orig_execute_body = cache_data["body"]
         logger.debug(
-            f"execution_id:{workflow_step_execute_id}|step:{step}|event:{event}.===="
+            f"execution_id:{workflow_step_execute_id}|step:{step}|orig_body:{orig_execute_body}.===="
         )
 
         replacement_text = f"👉Debug step continued for `{workflow_step_execute_id}`.\n```{pprint.pformat(step, indent=2)}```"
@@ -297,7 +297,7 @@ def debug_button_clicked(
         complete = Complete(client=client, body=execution_body)
 
         step["already_sent_debug_message"] = True
-        execute_utils(step, event, complete, fail, client, logger)
+        execute_utils(step, orig_execute_body, complete, fail, client, logger)
         logger.debug(f"DEBUG_STEPCACHE: {DEBUG_STEP_DATA_CACHE}")
 
 
@@ -755,7 +755,6 @@ def save_utils(
 def execute_utils(
     step: dict,
     body: dict,
-    event: dict,
     complete: Complete,
     fail: Fail,
     client: slack_sdk.WebClient,
@@ -764,6 +763,7 @@ def execute_utils(
     global DEBUG_STEP_DATA_CACHE
 
     inputs = step["inputs"]
+    event = body["event"]
     already_sent_debug_message = step.get("already_sent_debug_message", False)
     chosen_action = inputs["selected_utility"]["value"]
     # TODO: instead of this, leave the input - but add something to step so we can check if this is new run
@@ -815,7 +815,7 @@ def execute_utils(
                 channel=debug_conversation_id, text=fallback_text, blocks=blocks
             )
             logger.info(resp)
-            DEBUG_STEP_DATA_CACHE[execution_id] = {"step": step, "event": event}
+            DEBUG_STEP_DATA_CACHE[execution_id] = {"step": step, "body": body}
             logger.debug(f"DEBUG_STEPCACHE: {DEBUG_STEP_DATA_CACHE}")
             return
         except slack_sdk.errors.SlackApiError as e:
