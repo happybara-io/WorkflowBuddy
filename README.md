@@ -55,7 +55,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 
 Want to get rockin' with Workflow Buddy, but running into trouble? You have a number of resources to help you out:
 
-- 📚 Read the docs - _currently everything is in this README!_
+- 📚 Read the docs - _in this README, and the [wiki](https://github.com/happybara-io/WorkflowBuddy/wiki)_
 - 👬 Search through or ask a question in the [Community Discussions](https://github.com/happybara-io/WorkflowBuddy/discussions) - _no question is too small_.
 - 📩 Send an email to [support@happybara.io](mailto:support@happybara.io). 
 - 🙋‍♀️ If you found a bug; open a [new GitHub issue](https://github.com/happybara-io/WorkflowBuddy/issues/new/choose). _⚠ If in doubt, please use the Discussions rather than Issues._
@@ -313,7 +313,7 @@ Occasionally I run into handy utilities that make life easier when building auto
 
 For any Workflow Buddy Step, you can enable `Debug Mode`, which will pause and send you a message with information about the `inputs` and metadata, then wait for you to click `Continue`.
 
-![Workflow Buddy Debug step](/assets/workflow-buddy-debug-step.png)
+[Learn More | Wiki](https://github.com/happybara-io/WorkflowBuddy/wiki/Debug-Mode)
 
 ### Shortcut: Inspect Message
 
