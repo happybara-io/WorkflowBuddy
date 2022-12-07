@@ -122,7 +122,7 @@ Workflow Buddy was originally intended for expanding the available Workflow Buil
 
 ### Your great idea here
 
-There are tons of awesome use cases we haven't thought of yet, submit a PR or reach out to tell us about yours!
+There are tons of awesome use cases we haven't thought of yet, submit a PR or reach out to tell us about yours! You can also find more general templates at [Workflow Builder Templates | Building on Slack](https://buildingonslack.com/docs/slack/workflow-builder-templates/).
 
 ---
 
@@ -206,7 +206,7 @@ The utilities currently available within WorkflowBuddy for use as Workflow Steps
 
 ### Send an Outgoing Webhook/ HTTP Request
 
-Send data from your Slack Workflows to almost any service. You can trigger GitHub repos, Jenkins Builds, Salesforce actions, you name it.
+Send data from your Slack Workflows to almost any service. You can trigger GitHub repos, Jenkins Builds, Salesforce actions, you name it. Read a bit more about the use cases on the site [HTTP Request Tool | Building on Slack](https://buildingonslack.com/docs/slack/slack-workflow-builder-http-request-tool/).
 
 ### Extract Values from JSON
 
@@ -620,7 +620,7 @@ Now we have a Slack app & a Workflow Buddy server running, we just need to make 
 
 ## Development
 
-If you're interested in contributing to Workflow Buddy through code.
+If you're interested in contributing to Workflow Buddy through code. New to developing Slack Workflow Steps? Check out the _[Workflow Builder Developer Guide | Building on Slack](https://buildingonslack.com/docs/slack/workflow-builder-developer-guide/)_.
 
 ### UI/UX Development
 
