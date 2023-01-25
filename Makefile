@@ -3,7 +3,7 @@
 prep: format test
 
 format:
-	poetry run black .
+	poetry run black buddy/ tests/ app.py
 
 ngrok:
 	ngrok http 4747

@@ -14,3 +14,5 @@ workflow-buddy-data/
 misc/
 htmlcov
 .mypy_cache
+test_output/*
+.env.demo
