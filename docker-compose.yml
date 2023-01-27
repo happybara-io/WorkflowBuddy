@@ -15,5 +15,8 @@ services:
     # Docker Compose loads from .env file automatically
       ENV: PROD
       WB_DATA_DIR: /usr/app/data/
-      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      # SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY}

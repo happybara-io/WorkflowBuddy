@@ -36,6 +36,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 logging.getLogger("slack_bolt").setLevel(logging.INFO)
 logging.getLogger("slack_sdk").setLevel(logging.INFO)
 
+ENV = os.environ.get("ENV", "DEV")
 slack_client_id = os.environ["SLACK_CLIENT_ID"]
 encryption_key = os.environ.get("SECRET_ENCRYPTION_KEY")
 ignore_encryption_warning = os.environ.get("IGNORE_ENCRYPTION", False)
@@ -44,8 +45,10 @@ if not encryption_key and not ignore_encryption_warning:
         "[!] Starting server without an encryption key...data will not be encrypted at rest by this application."
     )
 
-# TODO: SEt up SQLALChemy Engine
+# TODO: Sett up SQLALChemy Engine
 LOCAL_SQLITE_DB = "workflow_buddy.db"
+if ENV == "PROD":
+    LOCAL_SQLITE_DB = f"/usr/app/data/{LOCAL_SQLITE_DB}"
 LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_DB}"
 # TODO: if an alternative connection string is provided
 conn_str = os.environ.get("SQL_CONN_STR", LOCAL_SQLITE_CONN_STR)

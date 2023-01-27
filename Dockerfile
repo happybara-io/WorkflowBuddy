@@ -6,13 +6,12 @@ ENV ENV=PROD
 
 WORKDIR /usr/src/app/
 COPY requirements.txt ./requirements.txt
-RUN pip install -U pip && pip install -r ./requirements.txt
+RUN mkdir -p /usr/app/data/ && pip install -U pip && pip install -r ./requirements.txt
 ADD buddy ./buddy
 COPY ./*.py ./*.sh .
 
-RUN useradd demo
+RUN useradd demo && chown demo /usr/app/data/
 # RUN chown demo /usr/src/app/
-# RUN chown demo /usr/app/data/
 USER demo
 
 EXPOSE 4747
