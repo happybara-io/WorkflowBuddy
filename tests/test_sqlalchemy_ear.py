@@ -16,6 +16,8 @@ import buddy.sqlalchemy_ear as sut
 from slack_sdk.oauth.installation_store import Installation
 from cryptography.fernet import Fernet
 
+from tests.tools import oasd
+
 IN_MEMORY_SQLITE_CONN_STR = "sqlite:///:memory:"
 LOCAL_SQLITE_FILE = "test_output/test-sqlalchemy.db"
 LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_FILE}"
@@ -55,15 +57,16 @@ def get_db_objects():
     store = sut.SQLAlchemyInstallationStore(
         client_id="111.222", engine=engine, encryption_key=FAKE_SECRET_KEY
     )
+    store.metadata.drop_all(engine)
     store.metadata.create_all(engine)
 
     print("set up DB engine!")
     yield (engine, store)  # this is where the testing happens
 
     # Teardown : fill with any logic you want
-    print("Teardown after all tests!")
-    store.metadata.drop_all(engine)
-    engine.dispose()
+    # print("Teardown after all tests!")
+    # store.metadata.drop_all(engine)
+    # engine.dispose()
 
 
 def test_save_and_find(get_db_objects):
@@ -71,6 +74,7 @@ def test_save_and_find(get_db_objects):
     # do stuff
 
     installation = copy.deepcopy(FAKE_GENERIC_INSTALLATION_TEMPLATE)
+    store.encryption_key = None
     store.save(installation)
 
     # find bots
@@ -125,6 +129,7 @@ def test_org_installation(get_db_objects):
     engine, store = get_db_objects
 
     installation = copy.deepcopy(FAKE_GENERIC_ORG_INSTALLATION_TEMPLATE)
+    store.encryption_key = None
     store.save(installation)
 
     # inspector = sqlalchemy.inspection.inspect(engine)
@@ -196,15 +201,17 @@ def test_org_installation(get_db_objects):
 
 def test_save_and_find_encrypted(get_db_objects):
     engine, store = get_db_objects
-    # do stuff
 
     installation = copy.deepcopy(FAKE_GENERIC_INSTALLATION_TEMPLATE)
-    store.save(installation, encrypt=True)
+    store.encryption_key = FAKE_SECRET_KEY
+    store.save(installation)
 
     # find bots
+    bot = store.find_bot(enterprise_id="E111", team_id="T111", decrypt=False)
+    assert (
+        bot.bot_token != FAKE_BOT_TOKEN
+    ), "Value wasn't stored encrypted to begin with."
     bot = store.find_bot(enterprise_id="E111", team_id="T111")
-    assert bot.bot_token != FAKE_BOT_TOKEN, "Value wasn't stored encrypted."
-    bot = store.find_bot(enterprise_id="E111", team_id="T111", decrypt=True)
     assert bot.bot_token == FAKE_BOT_TOKEN, "Decryption failed."
 
     bot = store.find_bot(enterprise_id="E111", team_id="T222")
@@ -218,7 +225,7 @@ def test_save_and_find_encrypted(get_db_objects):
     assert bot is None
 
     # find installations
-    i = store.find_installation(enterprise_id="E111", team_id="T111")
+    i = store.find_installation(enterprise_id="E111", team_id="T111", decrypt=False)
     assert i.bot_token != FAKE_BOT_TOKEN, "Value wasn't stored encrypted."
     i = store.find_installation(enterprise_id="E111", team_id="T111", decrypt=True)
     assert i.bot_token == FAKE_BOT_TOKEN, "Decryption didn't work."
@@ -244,7 +251,7 @@ def test_save_and_find_encrypted(get_db_objects):
 
     # delete all
     installation = copy.deepcopy(FAKE_GENERIC_INSTALLATION_TEMPLATE)
-    store.save(installation, encrypt=True)
+    store.save(installation)
     store.delete_all(enterprise_id="E111", team_id="T111")
 
     i = store.find_installation(enterprise_id="E111", team_id="T111")
@@ -259,10 +266,11 @@ def test_org_installation_encrypted(get_db_objects):
     engine, store = get_db_objects
 
     installation = copy.deepcopy(FAKE_GENERIC_ORG_INSTALLATION_TEMPLATE)
-    store.save(installation, encrypt=True)
+    store.encryption_key = FAKE_SECRET_KEY
+    store.save(installation)
 
     # find bots
-    bot = store.find_bot(enterprise_id="EO111", team_id=None)
+    bot = store.find_bot(enterprise_id="EO111", team_id=None, decrypt=False)
     assert bot.bot_token != FAKE_ORG_BOT_TOKEN, "Value wasn't stored encrypted."
     bot = store.find_bot(enterprise_id="EO111", team_id=None, decrypt=True)
     assert bot.bot_token == FAKE_ORG_BOT_TOKEN, "Decryption failed."

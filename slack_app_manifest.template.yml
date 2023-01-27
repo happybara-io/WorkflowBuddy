@@ -20,7 +20,11 @@ features:
       callback_id: utilities
     - name: Outgoing Webhook
       callback_id: outgoing_webhook
+# Navigate to https://example.com/slack/install to install your app
 oauth_config:
+  redirect_urls:
+    - https://example.com/slack/oauth_redirect
+# TODO: whenever Scopes changes, have to update the scopes in our constants file as well or installation will fail.
   scopes:
     user:
       - search:read
@@ -53,6 +57,7 @@ settings:
   interactivity:
     is_enabled: true
     request_url: https://example.com/slack/events
+  # https://api.slack.com/enterprise/apps
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false

@@ -11,8 +11,6 @@ from typing import Tuple
 
 import buddy.constants as c
 
-logging.basicConfig(level=logging.DEBUG)
-
 import slack_sdk
 from flask import Flask, jsonify, request
 from slack_bolt import Ack, App, Respond
@@ -23,9 +21,66 @@ from slack_sdk.models.views import View
 import buddy
 import buddy.errors
 import buddy.utils as utils
+from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
+from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
+from slack_sdk.oauth import OAuthStateUtils
+from slack_bolt import App, Ack, Respond, BoltContext
+from slack_bolt.oauth.oauth_settings import OAuthSettings
+import sqlalchemy
+from sqlalchemy.engine import Engine
 
-slack_app = App()
+# attempting and failing to silence DEBUG loggers
+logger = logging.getLogger(__name__).setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+logging.getLogger("slack_bolt").setLevel(logging.INFO)
+logging.getLogger("slack_sdk").setLevel(logging.INFO)
 
+slack_client_id = os.environ["SLACK_CLIENT_ID"]
+encryption_key = os.environ.get("SECRET_ENCRYPTION_KEY")
+ignore_encryption_warning = os.environ.get("IGNORE_ENCRYPTION", False)
+if not encryption_key and not ignore_encryption_warning:
+    logging.warning(
+        "[!] Starting server without an encryption key...data will not be encrypted at rest by this application."
+    )
+
+# TODO: SEt up SQLALChemy Engine
+LOCAL_SQLITE_DB = "workflow_buddy.db"
+LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_DB}"
+# TODO: if an alternative connection string is provided
+conn_str = os.environ.get("SQL_CONN_STR", LOCAL_SQLITE_CONN_STR)
+logging.info(f"Starting SQLAlchemy connected to: {conn_str}")
+engine: Engine = sqlalchemy.create_engine(conn_str)
+
+
+installation_store = SQLAlchemyInstallationStore(
+    engine=engine,
+    client_id=slack_client_id,
+    encryption_key=encryption_key,
+    logger=logger,
+)
+oauth_state_store = SQLAlchemyOAuthStateStore(
+    engine=engine,
+    expiration_seconds=OAuthStateUtils.default_expiration_seconds,
+    logger=logger,
+)
+try:
+    engine.execute("select count(*) from slack_bots")
+except Exception as e:
+    installation_store.metadata.create_all(engine)
+    oauth_state_store.metadata.create_all(engine)
+
+slack_app = App(
+    signing_secret=os.environ["SLACK_SIGNING_SECRET"],
+    oauth_settings=OAuthSettings(
+        client_id=slack_client_id,
+        client_secret=os.environ["SLACK_CLIENT_SECRET"],
+        scopes=c.SCOPES,
+        user_scopes=c.USER_SCOPES,
+        installation_store=installation_store,
+        state_store=oauth_state_store,
+    ),
+)
 
 # TODO: this only works if we have a single process, not good! Tech debt!
 DEBUG_STEP_DATA_CACHE = {}
@@ -342,7 +397,11 @@ def manage_scheduled_messages(
 
 @slack_app.action("action_export")
 def export_button_clicked(
-    ack: Ack, body: dict, logger: logging.Logger, client: slack_sdk.WebClient
+    ack: Ack,
+    body: dict,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+    context: BoltContext,
 ):
     ack()
     exported_json = json.dumps(utils.db_export(), indent=2)
@@ -433,7 +492,12 @@ def manual_complete_view_submission(
 
 @slack_app.view("import_submission")
 def import_config_view_submission(
-    ack: Ack, body, client: slack_sdk.WebClient, view: View, logger: logging.Logger
+    ack: Ack,
+    body,
+    client: slack_sdk.WebClient,
+    view: View,
+    logger: logging.Logger,
+    context: BoltContext,
 ):
     values = view["state"]["values"]
     user_id = body["user"]["id"]
@@ -466,7 +530,11 @@ def import_config_view_submission(
 
 @slack_app.action("event_delete_clicked")
 def delete_event_mapping(
-    ack: Ack, body: dict, logger: logging.Logger, client: slack_sdk.WebClient
+    ack: Ack,
+    body: dict,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+    context: BoltContext,
 ):
     ack()
     user_id = body["user"]["id"]
@@ -478,7 +546,9 @@ def delete_event_mapping(
 
 
 @slack_app.action("action_add_webhook")
-def add_button_clicked(ack: Ack, body: dict, client: slack_sdk.WebClient):
+def add_button_clicked(
+    ack: Ack, body: dict, client: slack_sdk.WebClient, context: BoltContext
+):
     ack()
     add_webhook_modal = utils.build_add_webhook_modal()
     client.views_open(trigger_id=body["trigger_id"], view=add_webhook_modal)
@@ -569,7 +639,13 @@ def handle_workflow_step_deleted_events(body: dict, logger: logging.Logger):
 
 
 @slack_app.event(c.EVENT_APP_HOME_OPENED)
-def update_app_home(event: dict, logger: logging.Logger, client: slack_sdk.WebClient):
+def update_app_home(
+    event: dict,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+    context: BoltContext,
+):
+    team_id = context.team_id
     app_home_view = utils.build_app_home_view()
     client.views_publish(user_id=event["user"], view=app_home_view)
 
@@ -580,6 +656,7 @@ def edit_utils(
     configure: Configure,
     client: slack_sdk.WebClient,
     logger: logging.Logger,
+    context: BoltContext,
 ):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
@@ -610,7 +687,9 @@ def edit_utils(
             },
         }
     )
-    blocks.extend(utils.dynamic_modal_top_blocks(chosen_action))
+    blocks.extend(
+        utils.dynamic_modal_top_blocks(chosen_action, user_token=context.user_token)
+    )
     # have to make sure we aren't accidentally editing config blocks in memory
     blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
     utils.update_blocks_with_previous_input_based_on_config(
@@ -623,7 +702,11 @@ def edit_utils(
 # Lots of people want to update their Step view.
 @slack_app.action(re.compile("(utilities_action_select_value|debug_mode)"))
 def utils_update_step_modal(
-    ack: Ack, body: dict, logger: logging.Logger, client: slack_sdk.WebClient
+    ack: Ack,
+    body: dict,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+    context: BoltContext,
 ):
     ack()
     logger.info(f"ACTION_CHANGE: {body}")
@@ -660,7 +743,11 @@ def utils_update_step_modal(
         }
     )
 
-    updated_blocks.extend(utils.dynamic_modal_top_blocks(selected_buddy_action))
+    updated_blocks.extend(
+        utils.dynamic_modal_top_blocks(
+            selected_buddy_action, user_token=context.user_token
+        )
+    )
     updated_blocks.extend(c.UTILS_CONFIG[selected_buddy_action]["modal_input_blocks"])
     updated_view = {
         "type": "workflow_step",
@@ -719,7 +806,7 @@ def save_utils(
             errors[
                 "search_query_input"
             ] = f"Need a valid SLACK_USER_TOKEN secret for {c.UTILS_ACTION_LABELS[selected_utility_callback_id]}."
-        except slack_sdk.errors.SlackAPIError as e:
+        except slack_sdk.errors.SlackApiError as e:
             logger.error(e.response)
             errmsg = f"Slack Error: Need a valid user token. {e.response['error']}"
             errors[action_select_block_id] = errmsg
@@ -758,73 +845,81 @@ def execute_utils(
     complete: Complete,
     fail: Fail,
     client: slack_sdk.WebClient,
+    context: BoltContext,
     logger: logging.Logger,
 ):
     global DEBUG_STEP_DATA_CACHE
 
-    inputs = step["inputs"]
-    event = body["event"]
-    already_sent_debug_message = step.get("already_sent_debug_message", False)
-    chosen_action = inputs["selected_utility"]["value"]
-    # TODO: instead of this, leave the input - but add something to step so we can check if this is new run
-    debug_mode = inputs.get("debug_mode_enabled", {"value": "false"})["value"] == "true"
-    debug_conversation_id = inputs["debug_conversation_id"]["value"]
-
-    if debug_mode and debug_conversation_id and not already_sent_debug_message:
-        try:
-            execution_id = step["workflow_step_execute_id"]
-            fallback_text = f"Debug (Inputs): {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
-            blocks = [
-                {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "button",
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Continue",
-                                "emoji": True,
-                            },
-                            "value": f"{execution_id}",
-                            "style": "primary",
-                            "action_id": "debug-continue",
-                        },
-                        {
-                            "type": "button",
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Stop",
-                                "emoji": True,
-                            },
-                            "value": f"{execution_id}",
-                            "action_id": "debug-stop",
-                            "style": "danger",
-                        },
-                    ],
-                },
-                {"type": "divider"},
-                {
-                    "type": "context",
-                    "elements": [
-                        {"type": "mrkdwn", "text": f"execution_id: {execution_id}."}
-                    ],
-                },
-            ]
-            resp = client.chat_postMessage(
-                channel=debug_conversation_id, text=fallback_text, blocks=blocks
-            )
-            logger.info(resp)
-            DEBUG_STEP_DATA_CACHE[execution_id] = {"step": step, "body": body}
-            logger.debug(f"DEBUG_STEPCACHE: {DEBUG_STEP_DATA_CACHE}")
-            return
-        except slack_sdk.errors.SlackApiError as e:
-            logger.error(
-                f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
-            )
-
-    outputs = {}
     try:
+        should_send_complete_signal = True
+        inputs = step["inputs"]
+        event = body["event"]
+        already_sent_debug_message = step.get("already_sent_debug_message", False)
+        chosen_action = inputs["selected_utility"]["value"]
+        # TODO: instead of this, leave the input - but add something to step so we can check if this is new run
+        debug_mode = utils.get_input_val(inputs, "debug_mode_enabled", False)
+        debug_conversation_id = utils.get_input_val(
+            inputs, "debug_conversation_id", None
+        )
+
+        if debug_mode and debug_conversation_id and not already_sent_debug_message:
+            try:
+                execution_id = step["workflow_step_execute_id"]
+                fallback_text = f"Debug (Inputs): {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
+                blocks = [
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": fallback_text},
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Continue",
+                                    "emoji": True,
+                                },
+                                "value": f"{execution_id}",
+                                "style": "primary",
+                                "action_id": "debug-continue",
+                            },
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Stop",
+                                    "emoji": True,
+                                },
+                                "value": f"{execution_id}",
+                                "action_id": "debug-stop",
+                                "style": "danger",
+                            },
+                        ],
+                    },
+                    {"type": "divider"},
+                    {
+                        "type": "context",
+                        "elements": [
+                            {"type": "mrkdwn", "text": f"execution_id: {execution_id}."}
+                        ],
+                    },
+                ]
+                resp = client.chat_postMessage(
+                    channel=debug_conversation_id, text=fallback_text, blocks=blocks
+                )
+                logger.info(resp)
+                DEBUG_STEP_DATA_CACHE[execution_id] = {"step": step, "body": body}
+                logger.debug(f"DEBUG_STEPCACHE: {DEBUG_STEP_DATA_CACHE}")
+                return
+            except slack_sdk.errors.SlackApiError as e:
+                logger.error(
+                    f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
+                )
+
+        outputs = {}
+
         logging.info(f"Chosen action: {chosen_action}")
         if chosen_action == "webhook":
             outputs = buddy.run_webhook(step)
@@ -837,8 +932,10 @@ def execute_utils(
         elif chosen_action == "set_channel_topic":
             outputs = buddy.run_set_channel_topic(step, client, logger)
         elif chosen_action == "manual_complete":
+            should_send_complete_signal = False
             buddy.run_manual_complete(step, body, event, client, logger)
         elif chosen_action == "wait_for_webhook":
+            should_send_complete_signal = False
             buddy.run_wait_for_webhook(step, event)
         elif chosen_action == "json_extractor":
             outputs = buddy.run_json_extractor(step)
@@ -847,7 +944,7 @@ def execute_utils(
         elif chosen_action == "add_reaction":
             outputs = buddy.run_add_reaction(step, client, logger)
         elif chosen_action == "find_message":
-            outputs = buddy.run_find_message(step, logger)
+            outputs = buddy.run_find_message(step, logger, context)
         elif chosen_action == "wait_state":
             outputs = buddy.run_wait_state(step)
         elif chosen_action == "conversations_create":
@@ -863,7 +960,7 @@ def execute_utils(
     except Exception as e:
         # catch everything, otherwise our failures lead to orphaned 'In progress'
         logger.exception(e)
-        exc_message = f"Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
+        exc_message = f"|## Want help? Check the community discussion (https://github.com/happybara-io/WorkflowBuddy/discussions), or reach out to support@happybara.io ##| Your error info --> Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
         fail(error={"message": exc_message})
 
     if debug_mode and debug_conversation_id:
@@ -889,7 +986,8 @@ def execute_utils(
                 f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
             )
 
-    complete(outputs=outputs)
+    if should_send_complete_signal:
+        complete(outputs=outputs)
 
 
 def edit_webhook(ack: Ack, step: dict, configure: Configure):
@@ -1012,6 +1110,16 @@ def health():
 
 @flask_app.route("/slack/events", methods=["POST"])
 def slack_events():
+    return handler.handle(request)
+
+
+@flask_app.route("/slack/install", methods=["GET"])
+def install():
+    return handler.handle(request)
+
+
+@flask_app.route("/slack/oauth_redirect", methods=["GET"])
+def oauth_redirect():
     return handler.handle(request)
 
 

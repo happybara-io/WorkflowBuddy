@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import slack_sdk
+from slack_bolt import BoltContext
 from jsonpath_ng import jsonpath
 from jsonpath_ng.ext import parse
 
@@ -71,8 +72,7 @@ def run_find_user_by_email(inputs: dict, client: slack_sdk.WebClient) -> Outputs
 
 
 def run_find_message(
-    step: dict,
-    logger: logging.Logger,
+    step: dict, logger: logging.Logger, context: BoltContext
 ) -> Outputs:
     # https://api.slack.com/methods/search.messages
     inputs = step["inputs"]
@@ -94,7 +94,7 @@ def run_find_message(
 
     # TODO: team_id is required attribute if using an org-token
     try:
-        user_token = os.environ["SLACK_USER_TOKEN"]
+        user_token = context.user_token
         client = slack_sdk.WebClient(token=user_token)
     except KeyError:
         errmsg = "No SLACK_USER_TOKEN provided to Workflow Buddy - required for searching Slack messages."

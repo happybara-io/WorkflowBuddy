@@ -18,3 +18,4 @@ test_output/*
 .env.demo
 workflow-buddy-dev/
 workflow-buddy-local/
+workflow_buddy.db

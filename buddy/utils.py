@@ -49,6 +49,10 @@ logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
 ###################
 # Utils
 ###################
+def get_input_val(inputs: dict, key: str, default_val: Any) -> Any:
+    return inputs.get(key, {"value": default_val})["value"]
+
+
 def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
     block_kit_base_url = "https://app.slack.com/block-kit-builder/"
     payload = view
@@ -623,14 +627,15 @@ def pretty_json_error_msg(prefix: str, orig_input: str, e: json.JSONDecodeError)
     return f"{prefix} Error: {str(e)}.\n|Problem Area(chars{start_index}-{end_index}):-->{problem_area}<--|\nInput was: {repr(orig_input)}."
 
 
-def dynamic_modal_top_blocks(action_name: str):
+def dynamic_modal_top_blocks(action_name: str, **kwargs):
     if action_name == "find_message":
         context_text = ""
         try:
-            user_token = os.environ["SLACK_USER_TOKEN"]
+            user_token = kwargs["user_token"]
+            if not user_token:
+                logging.error("User token is empty! What gives!")
             client = slack_sdk.WebClient(token=user_token)
-            kwargs = {"query": "a", "count": 1}
-            resp = client.auth_test(**kwargs)
+            resp = client.auth_test(token=user_token)
             context_text = f"> Current authed user for search is: <@{resp.get('user_id')}>. Results will match what is visible to them. Questions? Check the <{c.URLS['github-repo']['home']}|repo for info.>"
         except KeyError:
             context_text = f"> ❌💥 *Need a valid SLACK_USER_TOKEN secret for {c.UTILS_ACTION_LABELS[action_name]}.* ❌"

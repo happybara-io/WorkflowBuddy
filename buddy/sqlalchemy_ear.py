@@ -149,12 +149,9 @@ class SQLAlchemyInstallationStore(InstallationStore):
     def logger(self) -> Logger:
         return self._logger
 
-    def save(self, installation: Installation, encrypt: Optional[bool] = False):
-        if encrypt:
-            if self.encryption_key is None:
-                raise ValueError(
-                    "Encryption requested when saving data, but no encryption key provided!"
-                )
+    def save(self, installation: Installation, encrypt: Optional[bool] = True):
+        # If they took the time to set the key, they'll expect it to be on.
+        if encrypt and self.encryption_key:
             # TODO: is modifying in place a bad practice?
             crypto.encrypt_slack_fields(self.encryption_key, installation)
 
@@ -192,14 +189,9 @@ class SQLAlchemyInstallationStore(InstallationStore):
         field_encryption_needed = False
         self.save_bot(installation.to_bot(), encrypt=field_encryption_needed)
 
-    def save_bot(self, bot: Bot, encrypt: bool = False):
-        # TODO: when called by save_installation(), fields are already encrypted.
-        # This works; but add checks so we don't accidentally do a 2nd time.
-        if encrypt:
-            if self.encryption_key is None:
-                raise ValueError(
-                    "Encryption requested when saving data, but no encryption key provided!"
-                )
+    def save_bot(self, bot: Bot, encrypt: bool = True):
+        # when called by save(), fields are already encrypted. Encrypt should be false
+        if encrypt and self.encryption_key:
             # TODO: is modifying in place a bad practice?
             crypto.encrypt_slack_fields(self.encryption_key, bot)
 
@@ -222,6 +214,7 @@ class SQLAlchemyInstallationStore(InstallationStore):
                 .limit(1)
             )
             bots_row_id: Optional[str] = None
+            # TODO: seems like something is happening with it trying to update?
             for row in bots_rows:
                 bots_row_id = row["id"]
             if bots_row_id is None:
@@ -238,7 +231,7 @@ class SQLAlchemyInstallationStore(InstallationStore):
         enterprise_id: Optional[str],
         team_id: Optional[str],
         is_enterprise_install: Optional[bool] = False,
-        decrypt: Optional[bool] = False,
+        decrypt: Optional[bool] = True,
     ) -> Optional[Bot]:
         if is_enterprise_install or team_id is None:
             team_id = None
@@ -275,11 +268,10 @@ class SQLAlchemyInstallationStore(InstallationStore):
                     is_enterprise_install=row["is_enterprise_install"],
                     installed_at=row["installed_at"],
                 )
-                if decrypt:
-                    if self.encryption_key is None:
-                        raise ValueError(
-                            "Decryption requested when finding bot, but no encryption key provided!"
-                        )
+                if decrypt and self.encryption_key:
+                    # raise ValueError(
+                    #     "Decryption requested when finding bot, but no encryption key provided!"
+                    # )
                     crypto.decrypt_slack_fields(self.encryption_key, bot)
                 return bot
             return None
@@ -291,7 +283,7 @@ class SQLAlchemyInstallationStore(InstallationStore):
         team_id: Optional[str],
         user_id: Optional[str] = None,
         is_enterprise_install: Optional[bool] = False,
-        decrypt: Optional[bool] = False,
+        decrypt: Optional[bool] = True,
     ) -> Optional[Installation]:
         if is_enterprise_install or team_id is None:
             team_id = None
@@ -372,11 +364,11 @@ class SQLAlchemyInstallationStore(InstallationStore):
                     installation.bot_refresh_token = row["bot_refresh_token"]
                     installation.bot_token_expires_at = row["bot_token_expires_at"]
 
-        if decrypt:
-            if self.encryption_key is None:
-                raise ValueError(
-                    "Decryption requested when finding installation, but no encryption key provided!"
-                )
+        if decrypt and self.encryption_key:
+            # if self.encryption_key is None:
+            #     raise ValueError(
+            #         "Decryption requested when finding installation, but no encryption key provided!"
+            #     )
             crypto.decrypt_slack_fields(self.encryption_key, installation)
         return installation
 
