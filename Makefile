@@ -19,8 +19,8 @@ cov:
 	# wslview for linux on windows - on Mac you can use 'open', on linux 'xdg-open'
 	wslview htmlcov/index.html || true
 
-type-check:
-	poetry run python -m mypy buddy/ # app.py
+typecheck:
+	poetry run python -m mypy --no-warn-unused-ignores buddy/ # app.py
 
 generate-requirements:
 	poetry export -o requirements.txt --without-hashes

@@ -29,7 +29,7 @@ repos:
         pass_filenames: false
       - id: static-type-check
         name: Type Checking
-        entry: make type-check
+        entry: make typecheck
         language: system
         verbose: true
         pass_filenames: false

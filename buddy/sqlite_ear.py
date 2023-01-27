@@ -1,7 +1,9 @@
 # type: ignore
 ###########################
 #
-# Base of file copied entirely from https://github.com/slackapi/python-slack-sdk/blob/main/slack_sdk/oauth/installation_store/sqlite3/__init__.py
+# Base of file copied entirely from Slack implementations of SQlite3
+# - InstallationStore https://github.com/slackapi/python-slack-sdk/blob/main/slack_sdk/oauth/installation_store/sqlite3/__init__.py
+# - StateStore https://github.com/slackapi/python-slack-sdk/blob/main/slack_sdk/oauth/state_store/sqlite3/__init__.py
 # Editing here for easier testing with real application.
 #
 ###########################
@@ -10,6 +12,7 @@ import sqlite3
 from logging import Logger
 from sqlite3 import Connection
 from typing import Optional
+from uuid import uuid4
 
 from slack_sdk.oauth.installation_store.async_installation_store import (
     AsyncInstallationStore,
@@ -17,6 +20,10 @@ from slack_sdk.oauth.installation_store.async_installation_store import (
 from slack_sdk.oauth.installation_store.installation_store import InstallationStore
 from slack_sdk.oauth.installation_store.models.bot import Bot
 from slack_sdk.oauth.installation_store.models.installation import Installation
+
+# from slack_sdk.oauth.state_store.state_store import OAuthStateStore
+# from slack_sdk.oauth.state_store.async_state_store import AsyncOAuthStateStore
+import buddy.crypto as crypto
 
 
 class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
@@ -26,11 +33,14 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
         database: str,
         client_id: str,
         logger: Logger = logging.getLogger(__name__),
+        encryption_key: Optional[str] = None,
     ):
         self.database = database
         self.client_id = client_id
         self.init_called = False
         self._logger = logger
+        # TODO: is it safe to keep it in memory, or should we load it from ENV variable every time it's needed?
+        self.encryption_key = encryption_key
 
     @property
     def logger(self) -> Logger:
@@ -140,7 +150,15 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
     async def async_save_bot(self, bot: Bot):
         return self.save_bot(bot)
 
-    def save(self, installation: Installation, encrypted=False):
+    def save(self, installation: Installation, encrypt: Optional[bool] = False):
+        if encrypt:
+            if self.encryption_key is None:
+                raise ValueError(
+                    "Encryption requested when saving data, but no encryption key provided!"
+                )
+            # TODO: is modifying in place a bad practice?
+            crypto.encrypt_slack_fields(self.encryption_key, installation)
+
         with self.connect() as conn:
             conn.execute(
                 """
@@ -232,9 +250,20 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
             )
             conn.commit()
 
-        self.save_bot(installation.to_bot())
+        field_encryption_needed = False
+        self.save_bot(installation.to_bot(), encrypt=field_encryption_needed)
 
-    def save_bot(self, bot: Bot, encrypted=False):
+    def save_bot(self, bot: Bot, encrypt: bool = False):
+        # TODO: when called by save_installation(), fields are already encrypted.
+        # This works; but add checks so we don't accidentally do a 2nd time.
+        if encrypt:
+            if self.encryption_key is None:
+                raise ValueError(
+                    "Encryption requested when saving data, but no encryption key provided!"
+                )
+            # TODO: is modifying in place a bad practice?
+            crypto.encrypt_slack_fields(self.encryption_key, bot)
+
         with self.connect() as conn:
             conn.execute(
                 """
@@ -307,6 +336,7 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
         enterprise_id: Optional[str],
         team_id: Optional[str],
         is_enterprise_install: Optional[bool] = False,
+        decrypt: Optional[bool] = False,
     ) -> Optional[Bot]:
         if is_enterprise_install or team_id is None:
             team_id = ""
@@ -363,6 +393,12 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
                         is_enterprise_install=row[11],
                         installed_at=row[12],
                     )
+                    if decrypt:
+                        if self.encryption_key is None:
+                            raise ValueError(
+                                "Decryption requested when finding bot, but no encryption key provided!"
+                            )
+                        crypto.decrypt_slack_fields(self.encryption_key, bot)
                     return bot
                 return None
 
@@ -396,6 +432,7 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
         team_id: Optional[str],
         user_id: Optional[str] = None,
         is_enterprise_install: Optional[bool] = False,
+        decrypt: Optional[bool] = False,
     ) -> Optional[Installation]:
         if is_enterprise_install or team_id is None:
             team_id = ""
@@ -540,6 +577,12 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
                         installation.bot_refresh_token = row[4]
                         installation.bot_token_expires_at = row[5]
 
+                    if decrypt:
+                        if self.encryption_key is None:
+                            raise ValueError(
+                                "Decryption requested when finding installation, but no encryption key provided!"
+                            )
+                        crypto.decrypt_slack_fields(self.encryption_key, installation)
                     return installation
                 return None
 
@@ -626,3 +669,98 @@ class SQLite3InstallationStore(InstallationStore, AsyncInstallationStore):
                 self.logger.exception(message)
             else:
                 self.logger.warning(message)
+
+
+# class SQLite3OAuthStateStore(OAuthStateStore, AsyncOAuthStateStore):
+#     def __init__(
+#         self,
+#         *,
+#         database: str,
+#         expiration_seconds: int,
+#         logger: Logger = logging.getLogger(__name__),
+#     ):
+#         self.database = database
+#         self.expiration_seconds = expiration_seconds
+#         self.init_called = False
+#         self._logger = logger
+
+#     @property
+#     def logger(self) -> Logger:
+#         if self._logger is None:
+#             self._logger = logging.getLogger(__name__)
+#         return self._logger
+
+#     def init(self):
+#         try:
+#             with sqlite3.connect(database=self.database) as conn:
+#                 cur = conn.execute("select count(1) from oauth_states;")
+#                 row_num = cur.fetchone()[0]
+#                 self.logger.debug(
+#                     f"{row_num} oauth states are stored in {self.database}"
+#                 )
+#         except Exception:  # skipcq: PYL-W0703
+#             self.create_tables()
+#         self.init_called = True
+
+#     def connect(self) -> Connection:
+#         if not self.init_called:
+#             self.init()
+#         return sqlite3.connect(database=self.database)
+
+#     def create_tables(self):
+#         with sqlite3.connect(database=self.database) as conn:
+#             conn.execute(
+#                 """
+#             create table oauth_states (
+#                 id integer primary key autoincrement,
+#                 state text not null,
+#                 expire_at datetime not null
+#             );
+#             """
+#             )
+#             self.logger.debug(f"Tables have been created (database: {self.database})")
+#             conn.commit()
+
+#     async def async_issue(self, *args, **kwargs) -> str:
+#         return self.issue(*args, **kwargs)
+
+#     async def async_consume(self, state: str) -> bool:
+#         return self.consume(state)
+
+#     def issue(self, *args, **kwargs) -> str:
+#         state: str = str(uuid4())
+#         with self.connect() as conn:
+#             parameters = [
+#                 state,
+#                 time.time() + self.expiration_seconds,
+#             ]
+#             conn.execute(
+#                 "insert into oauth_states (state, expire_at) values (?, ?);", parameters
+#             )
+#             self.logger.debug(
+#                 f"issue's insertion result: {parameters} (database: {self.database})"
+#             )
+#             conn.commit()
+#         return state
+
+#     def consume(self, state: str) -> bool:
+#         try:
+#             with self.connect() as conn:
+#                 cur = conn.execute(
+#                     "select id, state from oauth_states where state = ? and expire_at > ?;",
+#                     [state, time.time()],
+#                 )
+#                 row = cur.fetchone()
+#                 self.logger.debug(
+#                     f"consume's query result: {row} (database: {self.database})"
+#                 )
+#                 if row and len(row) > 0:
+#                     id = row[0]  # skipcq: PYL-W0622
+#                     conn.execute("delete from oauth_states where id = ?;", [id])
+#                     conn.commit()
+#                     return True
+#             return False
+#         except Exception as e:  # skipcq: PYL-W0703
+#             message = f"Failed to find any persistent data for state: {state} - {e}"
+#             self.logger.warning(message)
+#             return False

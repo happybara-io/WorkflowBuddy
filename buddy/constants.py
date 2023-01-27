@@ -1,5 +1,25 @@
 from typing import Any, Dict, List
 
+UTF8 = "utf-8"
+
+# THIS HAS TO MATCH WHAT'S IN THE SLACK APP DEFINITION
+SCOPES = [
+    "app_mentions:read",
+    "channels:manage",
+    "channels:read",
+    "chat:write",
+    "commands",
+    "groups:write",
+    "reactions:read",
+    "reactions:write",
+    "users:read",
+    "users:read.email",
+    "workflow.steps:execute",
+    "chat:write.public",
+]
+
+USER_SCOPES = ["search:read"]
+
 URLS: Dict[str, Any] = {
     "images": {
         "bara_main_logo": "https://s3.happybara.io/happybara/main_logo.png",
