@@ -53,7 +53,7 @@ LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_DB}"
 # TODO: if an alternative connection string is provided
 conn_str = os.environ.get("SQL_CONN_STR", LOCAL_SQLITE_CONN_STR)
 logging.info(f"Starting SQLAlchemy connected to: {conn_str}")
-engine: Engine = sqlalchemy.create_engine(conn_str)
+engine: Engine = sqlalchemy.create_engine(conn_str, future=True)
 
 
 installation_store = SQLAlchemyInstallationStore(
