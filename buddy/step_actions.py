@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import random
+import copy
 import string
 import time
 import uuid
@@ -16,6 +17,8 @@ import buddy.constants as c
 import buddy.utils as utils
 from buddy.errors import WorkflowStepFailError
 from buddy.types import Outputs
+
+from typing import List, Dict, Any
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -413,7 +416,7 @@ def run_webhook(step: dict) -> Outputs:
     body = {}
     bool_flags_input = inputs.get("bool_flags", {})
     try:
-        selected_checkboxes = json.loads(bool_flags_input.get("value", []))
+        selected_checkboxes = json.loads(bool_flags_input.get("value", "[]"))
         for box_item in selected_checkboxes:
             flag_name = box_item["value"]
             bool_flags[flag_name] = True
@@ -479,3 +482,40 @@ def run_webhook(step: dict) -> Outputs:
             "webhook_response_text": f"{sanitized_resp}",
         }
     )
+
+
+def edit_utils(step: Dict[str, Any], user_token: str) -> List[Dict[Any, Any]]:
+    existing_inputs = copy.deepcopy(
+        step["inputs"]
+    )  # avoid potential issue when we delete from input dict
+
+    blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
+    DEFAULT_ACTION = "webhook"
+    chosen_action = (
+        existing_inputs.get("selected_utility", {}).get("value") or DEFAULT_ACTION
+    )
+    chosen_config_item = c.UTILS_CONFIG[chosen_action]
+    debug_mode_enabled = utils.sbool(
+        existing_inputs.get("debug_mode_enabled", {}).get("value")
+    )
+
+    if debug_mode_enabled:
+        copy_of_debug_blocks = copy.deepcopy(c.DEBUG_MODE_BLOCKS)
+        blocks.extend(copy_of_debug_blocks)
+
+    blocks.append(
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"{chosen_config_item.get('description')}",
+            },
+        }
+    )
+    blocks.extend(utils.dynamic_modal_top_blocks(chosen_action, user_token=user_token))
+    # have to make sure we aren't accidentally editing config blocks in memory
+    blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
+    utils.update_blocks_with_previous_input_based_on_config(
+        blocks, chosen_action, existing_inputs, chosen_config_item
+    )
+    return blocks

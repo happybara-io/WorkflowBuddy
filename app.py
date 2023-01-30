@@ -663,41 +663,7 @@ def edit_utils(
 ):
     # TODO: if I want to update modal, need to listen for the action/event separately
     ack()
-    existing_inputs = copy.deepcopy(
-        step["inputs"]
-    )  # avoid potential issue when we delete from input dict
-
-    blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
-    DEFAULT_ACTION = "webhook"
-    chosen_action = (
-        existing_inputs.get("selected_utility", {}).get("value") or DEFAULT_ACTION
-    )
-    chosen_config_item = c.UTILS_CONFIG[chosen_action]
-    debug_mode_enabled = utils.sbool(
-        existing_inputs.get("debug_mode_enabled", {}).get("value")
-    )
-
-    if debug_mode_enabled:
-        copy_of_debug_blocks = copy.deepcopy(c.DEBUG_MODE_BLOCKS)
-        blocks.extend(copy_of_debug_blocks)
-
-    blocks.append(
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"{chosen_config_item.get('description')}",
-            },
-        }
-    )
-    blocks.extend(
-        utils.dynamic_modal_top_blocks(chosen_action, user_token=context.user_token)
-    )
-    # have to make sure we aren't accidentally editing config blocks in memory
-    blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
-    utils.update_blocks_with_previous_input_based_on_config(
-        blocks, chosen_action, existing_inputs, chosen_config_item
-    )
+    blocks = buddy.edit_utils(step, context.user_token)
     configure(blocks=blocks)
 
 
@@ -1076,7 +1042,7 @@ slack_app.step(utils_ws)
 
 webhook_ws = WorkflowStep(
     callback_id=c.WORKFLOW_STEP_WEBHOOK_CALLBACK_ID,
-    edit=edit_webhook,
+    edit=buddy.edit_webhook,
     save=save_webhook,
     execute=execute_webhook,
 )

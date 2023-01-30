@@ -83,3 +83,83 @@ def test_run_add_reaction_invalid_permalink():
     mock_client = mock.MagicMock(name="slack_client")
     with pytest.raises(WorkflowStepFailError):
         out = sut.run_add_reaction(test_step, mock_client, dummy_logger)
+
+
+@mock.patch("buddy.step_actions.utils.send_webhook")
+def test_run_webhook_happy_path(mock_send_webhook):
+    # mock_utils = mock.MagicMock(name="MockBuddyUtils")
+    mock_resp = mock.MagicMock(name="MockWebhookResp")
+    mock_resp.status_code = 204
+    mock_resp.text = "response text."
+    mock_send_webhook.return_value = mock_resp
+    step = {
+        "inputs": {
+            "webhook_url": {"value": "https://fake-webhook.com"},
+            "http_method": {"value": "POST"},
+        }
+    }
+
+    outputs = sut.run_webhook(step)
+    assert outputs["webhook_status_code"] == str(mock_resp.status_code)
+
+
+@mock.patch("buddy.step_actions.utils.send_webhook")
+def test_run_webhook_continues_workflow_if_no_flag(mock_send_webhook):
+    # mock_utils = mock.MagicMock(name="MockBuddyUtils")
+    mock_resp = mock.MagicMock(name="MockWebhookResp")
+    mock_resp.status_code = 500
+    mock_resp.text = "Failure response text."
+    mock_send_webhook.return_value = mock_resp
+    step = {
+        "inputs": {
+            "webhook_url": {"value": "https://fake-webhook.com"},
+            "http_method": {"value": "POST"},
+        }
+    }
+
+    outputs = sut.run_webhook(step)
+    assert outputs["webhook_status_code"] == str(mock_resp.status_code)
+
+
+@mock.patch("buddy.step_actions.utils.send_webhook")
+def test_run_webhook_stops_workflow_if_flagged(mock_send_webhook):
+    # mock_utils = mock.MagicMock(name="MockBuddyUtils")
+    mock_resp = mock.MagicMock(name="MockWebhookResp")
+    mock_resp.status_code = 407
+    mock_resp.text = "Failure response text."
+    mock_send_webhook.return_value = mock_resp
+    step = {
+        "inputs": {
+            "webhook_url": {"value": "https://fake-webhook.com"},
+            "http_method": {"value": "POST"},
+            "bool_flags": {"value": '[{"value": "fail_on_http_error"}]'},
+        }
+    }
+
+    with pytest.raises(WorkflowStepFailError):
+        _ = sut.run_webhook(step)
+
+
+def test_edit_utils_debug_mode_adds_blocks():
+    step = {
+        "inputs": {
+            "selected_utility": {"value": "random_int"},
+            "debug_mode_enabled": {"value": "true"},
+        }
+    }
+    user_token = None
+    blocks = sut.edit_utils(step, user_token)
+    assert blocks[2]["block_id"] == "debug_conversation_id_input"
+
+
+def test_edit_utils_no_debug_mode_adds_no_blocks():
+    step = {
+        "inputs": {
+            "selected_utility": {"value": "random_int"},
+            "debug_mode_enabled": {"value": "false"},
+        }
+    }
+    user_token = None
+    blocks = sut.edit_utils(step, user_token)
+    for b in blocks:
+        assert b.get("block_id", "") != "debug_conversation_id_input"

@@ -526,6 +526,16 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 "block_id": "block_checkboxes",
                 "element": {
                     "type": "checkboxes",
+                    "initial_options": [
+                        {
+                            "text": {"type": "mrkdwn", "text": " "},
+                            "description": {
+                                "type": "mrkdwn",
+                                "text": "_Check this if you want Workflow to halt on server errors, otherwise it can continue._",
+                            },
+                            "value": "fail_on_http_error",
+                        }
+                    ],
                     "options": [
                         {
                             "text": {"type": "mrkdwn", "text": " "},

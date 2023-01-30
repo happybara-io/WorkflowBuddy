@@ -2,11 +2,13 @@ import json
 import logging
 import unittest.mock as mock
 from typing import List
+import copy
 
 import pytest
 import slack_sdk.errors
 
 import buddy.utils as sut
+import buddy.constants as c
 import tests.tc as test_const
 
 test_logger = logging.getLogger("TestLogger")
@@ -356,3 +358,30 @@ def test_slack_deeplink():
     app_id = "A123445"
     app_home_deeplink = sut.slack_deeplink("app_home", team_id, app_id=app_id)
     assert team_id in app_home_deeplink and app_id in app_home_deeplink
+
+
+def test_updating_blocks_with_no_previous_inputs():
+    # Very similar to app.edit_webhook()
+    existing_inputs = None
+    curr_blocks = copy.deepcopy(c.WEBHOOK_STEP_MODAL_COMMON_BLOCKS)
+    action = "webhook"
+    action_config_item = c.UTILS_CONFIG[action]
+    curr_blocks.append(
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"{action_config_item.get('description')}",
+            },
+        }
+    )
+    curr_blocks.extend(copy.deepcopy(action_config_item["modal_input_blocks"]))
+
+    did_edit = sut.update_blocks_with_previous_input_based_on_config(
+        curr_blocks,
+        action,
+        existing_inputs,
+        action_config_item,
+    )
+
+    assert not did_edit

@@ -912,8 +912,9 @@ def iget(inputs: dict, key: str, default: str) -> str:
 
 
 def update_blocks_with_previous_input_based_on_config(
-    blocks: list, chosen_action, existing_inputs: dict, action_config_item: dict
-) -> None:
+    blocks: list, chosen_action: str, existing_inputs: dict, action_config_item: dict
+) -> bool:
+    did_edit = False
     # TODO: workflow builder keeps pulling old input on the step even when you are creating it totally new 🤔
     # kinda a crappy way to fill out existing inputs into initial values, but fast enough
     if existing_inputs:
@@ -1003,7 +1004,10 @@ def update_blocks_with_previous_input_based_on_config(
                         else:
                             # assume plain_text_input cuz it's common
                             block["element"]["initial_value"] = prev_input_value or ""
+        did_edit = True
     else:
         logging.debug(
             "No previous inputs to reload, anything you see is happening because of bad coding."
         )
+
+    return did_edit
