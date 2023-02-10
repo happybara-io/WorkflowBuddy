@@ -1,0 +1,58 @@
+display_information:
+  name: WorkflowBuddy
+  description: Automating the Slack workspace.
+  background_color: "#ad650c"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: false
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: WorkflowBuddy
+    always_online: true
+  shortcuts:
+    - name: Inspect Message
+      type: message
+      callback_id: message_details
+      description: Pulls up Slack metadata on message, including ts.
+  workflow_steps:
+    - name: Workflow Buddy Utilities
+      callback_id: utilities
+    - name: Outgoing Webhook
+      callback_id: outgoing_webhook
+oauth_config:
+  scopes:
+    user:
+      - search:read
+    bot:
+      - app_mentions:read
+      - channels:manage
+      - channels:read
+      - chat:write
+      - commands
+      - groups:write
+      - reactions:read
+      - reactions:write
+      - users:read
+      - users:read.email
+      - workflow.steps:execute
+      - chat:write.public
+settings:
+  event_subscriptions:
+    request_url: https://example.com/slack/events
+    bot_events:
+      - app_home_opened
+      - app_mention
+      - channel_created
+      - reaction_added
+      - workflow_deleted
+      - workflow_published
+      - workflow_step_deleted
+      - workflow_step_execute
+      - workflow_unpublished
+  interactivity:
+    is_enabled: true
+    request_url: https://example.com/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
