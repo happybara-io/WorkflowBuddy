@@ -57,7 +57,7 @@ Want to get rockin' with Workflow Buddy, but running into trouble? You have a nu
 
 - 📚 Read the docs - _in this README, and the [wiki](https://github.com/happybara-io/WorkflowBuddy/wiki)_
 - 👬 Search through or ask a question in the [Community Discussions](https://github.com/happybara-io/WorkflowBuddy/discussions) - _no question is too small_.
-- 📩 Send an email to [support@happybara.io](mailto:support@happybara.io). 
+- 📩 Send an email to [support@happybara.io](mailto:support@happybara.io).
 - 🙋‍♀️ If you found a bug; open a [new GitHub issue](https://github.com/happybara-io/WorkflowBuddy/issues/new/choose). _⚠ If in doubt, please use the Discussions rather than Issues._
 
 ---
@@ -647,6 +647,14 @@ It's using a very simple cache + JSON file to persist webhook config data - it's
 
 Depending on your deployment options, you may need to take extra steps to persist the local file data until a more persistent data store is added.
 
+
+### TODO: documenting SQLite & Nocodb usage
+
+After setting up Nocodb in the same container, was able to configure the `NC_DB` variable to point at a SQLite DB in the same directory that is saved as a volume to persist data.
+
+Once I was logged in at `localhost:8080`, I was able to create a new project, and then connect a new data source under `Bases->Sqlite`. To connect to the workflow buddy DB successfully, I just had to pass the full path `/usr/app/data/workflow_buddy.db` and then it loaded all my tables up!
+
+Oddly, it's only showing logs for the background Nocodb process, but not seeing anything from my Workflow Buddy process. Confusing.
 
 ### Tools
 

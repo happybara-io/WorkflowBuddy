@@ -9,6 +9,7 @@ services:
     build: '.'
     ports:
       - '4747:4747'
+      - '8080:8080'
     volumes:
       - workflow-buddy:/usr/app/data/
     environment:
