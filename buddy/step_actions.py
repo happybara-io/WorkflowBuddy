@@ -7,6 +7,7 @@ import string
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
+import pprint
 
 import slack_sdk
 from slack_bolt import BoltContext
@@ -519,3 +520,71 @@ def edit_utils(step: Dict[str, Any], user_token: str) -> List[Dict[Any, Any]]:
         blocks, chosen_action, existing_inputs, chosen_config_item
     )
     return blocks
+
+
+# def handle_debug_mode_and_get_action(step: dict, body: dict, client: slack_sdk.WebClient) -> str:
+#     inputs = step["inputs"]
+#     already_sent_debug_message = step.get("already_sent_debug_message", False)
+#     chosen_action = utils.get_input_val(inputs, "selected_utility", None)
+#     # TODO: instead of this, leave the input - but add something to step so we can check if this is new run
+#     debug_mode = utils.get_input_val(inputs, "debug_mode_enabled", False)
+#     debug_conversation_id = utils.get_input_val(
+#         inputs, "debug_conversation_id", None
+#     )
+
+#     if debug_mode and debug_conversation_id and not already_sent_debug_message:
+#         try:
+#             execution_id = step["workflow_step_execute_id"]
+#             fallback_text = f"Debug (Inputs): {c.UTILS_ACTION_LABELS[chosen_action]}.\n```{pprint.pformat(step, indent=2)}```"
+#             blocks = [
+#                 {
+#                     "type": "section",
+#                     "text": {"type": "mrkdwn", "text": fallback_text},
+#                 },
+#                 {
+#                     "type": "actions",
+#                     "elements": [
+#                         {
+#                             "type": "button",
+#                             "text": {
+#                                 "type": "plain_text",
+#                                 "text": "Continue",
+#                                 "emoji": True,
+#                             },
+#                             "value": f"{execution_id}",
+#                             "style": "primary",
+#                             "action_id": "debug-continue",
+#                         },
+#                         {
+#                             "type": "button",
+#                             "text": {
+#                                 "type": "plain_text",
+#                                 "text": "Stop",
+#                                 "emoji": True,
+#                             },
+#                             "value": f"{execution_id}",
+#                             "action_id": "debug-stop",
+#                             "style": "danger",
+#                         },
+#                     ],
+#                 },
+#                 {"type": "divider"},
+#                 {
+#                     "type": "context",
+#                     "elements": [
+#                         {"type": "mrkdwn", "text": f"execution_id: {execution_id}."}
+#                     ],
+#                 },
+#             ]
+#             resp = client.chat_postMessage(
+#                 channel=debug_conversation_id, text=fallback_text, blocks=blocks
+#             )
+#             logging.info(resp)
+#             DEBUG_STEP_DATA_CACHE[execution_id] = {"step": step, "body": body}
+#             logging.debug(f"DEBUG_STEPCACHE: {DEBUG_STEP_DATA_CACHE}")
+#             return "stop-for-debug"
+#         except slack_sdk.errors.SlackApiError as e:
+#             logging.error(
+#                 f"Debug Error: unable to send message with context. Continuing, so as to not block execution. {e.response['error']}."
+#             )
+#     return chosen_action

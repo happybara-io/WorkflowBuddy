@@ -9,7 +9,7 @@ ngrok:
 	ngrok http 4747
 
 run-dev:
-	./run-dev.sh
+	poetry run ./run-dev.sh
 
 test:
 	poetry run python -m pytest -sv tests/

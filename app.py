@@ -21,18 +21,16 @@ from slack_sdk.models.views import View
 import buddy
 import buddy.errors
 import buddy.utils as utils
+import buddy.db as db
 from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from slack_sdk.oauth import OAuthStateUtils
 from slack_bolt import App, Ack, Respond, BoltContext
 from slack_bolt.oauth.oauth_settings import OAuthSettings
-import sqlalchemy
-from sqlalchemy.engine import Engine
 
 # attempting and failing to silence DEBUG loggers
 logger = logging.getLogger(__name__).setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
-logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 logging.getLogger("slack_bolt").setLevel(logging.INFO)
 logging.getLogger("slack_sdk").setLevel(logging.INFO)
 
@@ -45,33 +43,24 @@ if not encryption_key and not ignore_encryption_warning:
         "[!] Starting server without an encryption key...data will not be encrypted at rest by this application."
     )
 
-# TODO: Sett up SQLALChemy Engine
-LOCAL_SQLITE_DB = "workflow_buddy.db"
-if ENV == "PROD":
-    LOCAL_SQLITE_DB = f"/usr/app/data/{LOCAL_SQLITE_DB}"
-LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_DB}"
-# TODO: if an alternative connection string is provided
-conn_str = os.environ.get("SQL_CONN_STR", LOCAL_SQLITE_CONN_STR)
-logging.info(f"Starting SQLAlchemy connected to: {conn_str}")
-engine: Engine = sqlalchemy.create_engine(conn_str, future=True)
-
+db_engine = db.ENGINE
 
 installation_store = SQLAlchemyInstallationStore(
-    engine=engine,
+    engine=db_engine,
     client_id=slack_client_id,
     encryption_key=encryption_key,
     logger=logger,
 )
 oauth_state_store = SQLAlchemyOAuthStateStore(
-    engine=engine,
+    engine=db_engine,
     expiration_seconds=OAuthStateUtils.default_expiration_seconds,
     logger=logger,
 )
 try:
-    engine.execute("select count(*) from slack_bots")
+    db_engine.execute("select count(*) from slack_bots")
 except Exception as e:
-    installation_store.metadata.create_all(engine)
-    oauth_state_store.metadata.create_all(engine)
+    installation_store.metadata.create_all(db_engine)
+    oauth_state_store.metadata.create_all(db_engine)
 
 slack_app = App(
     signing_secret=os.environ["SLACK_SIGNING_SECRET"],
@@ -823,6 +812,7 @@ def execute_utils(
         should_send_complete_signal = True
         inputs = step["inputs"]
         event = body["event"]
+
         already_sent_debug_message = step.get("already_sent_debug_message", False)
         chosen_action = inputs["selected_utility"]["value"]
         # TODO: instead of this, leave the input - but add something to step so we can check if this is new run
@@ -890,6 +880,8 @@ def execute_utils(
         outputs = {}
 
         logging.info(f"Chosen action: {chosen_action}")
+        # TODO: gotta add some actual team info to it
+        db.save_usage(chosen_action)
         if chosen_action == "webhook":
             outputs = buddy.run_webhook(step)
         elif chosen_action == "random_int":
@@ -1020,6 +1012,7 @@ def execute_webhook(
 ):
     # TODO: add debug mode here as well
     try:
+        db.save_usage("webhook")
         outputs = buddy.run_webhook(step)
         complete(outputs=outputs)
     except Exception as e:
@@ -1042,7 +1035,7 @@ slack_app.step(utils_ws)
 
 webhook_ws = WorkflowStep(
     callback_id=c.WORKFLOW_STEP_WEBHOOK_CALLBACK_ID,
-    edit=buddy.edit_webhook,
+    edit=edit_webhook,
     save=save_webhook,
     execute=execute_webhook,
 )
