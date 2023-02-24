@@ -5,12 +5,15 @@ import logging
 import json
 
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, text
-from sqlalchemy import event, create_engine, select
+from sqlalchemy import event, create_engine, select, delete, func
 from sqlalchemy.orm import declarative_base, relationship, Session
 from datetime import datetime
 from sqlalchemy.engine import Engine
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Union, List
+from contextlib import nullcontext
 
+# TODO: feels like I shouldn't have to write all these CRUD ops by hand,
+# I must be missing something with SQLAlchemy
 logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARN)
 
 ENV = os.environ.get("ENV", "DEV")
@@ -23,10 +26,10 @@ LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_DB}"
 # TODO: if an alternative connection string is provided - postgres?
 conn_str = os.environ.get("SQL_CONN_STR", LOCAL_SQLITE_CONN_STR)
 logging.info(f"Starting SQLAlchemy connected to: {conn_str}")
-ENGINE: Engine = create_engine(conn_str, future=True)
+DB_ENGINE: Engine = create_engine(conn_str, future=True)
 
 
-@event.listens_for(ENGINE, "connect")
+@event.listens_for(DB_ENGINE, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     if IS_SQLITE_DB:
         # disable pysqlite's emitting of the BEGIN statement entirely.
@@ -38,7 +41,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.close()
 
 
-@event.listens_for(ENGINE, "begin")
+@event.listens_for(DB_ENGINE, "begin")
 def do_begin(conn):
     if IS_SQLITE_DB:
         # emit our own BEGIN
@@ -74,8 +77,13 @@ class TeamConfig(Base):
     client_id = Column(String(32), nullable=False)
     team_id = Column(String(32))
     enterprise_id = Column(String(32))
-    unhandled_events = Column(String)  # comma separated list; easiest to do
-    event_configs = relationship("EventConfig")
+    unhandled_events = Column(String, default="")  # comma separated list; easiest to do
+    event_configs = relationship(
+        "EventConfig", back_populates="team_config", cascade="all, delete-orphan"
+    )
+    usages = relationship(
+        "Usage", back_populates="team_config", cascade="all, delete-orphan"
+    )
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(
         DateTime, default=datetime.now, onupdate=datetime.now
@@ -93,7 +101,10 @@ class EventConfig(Base):
 
     __tablename__ = EVENT_CONFIG_TABLE_NAME
     id = Column(Integer, primary_key=True)
-    team_config_id = Column(Integer, ForeignKey(f"{TEAM_CONFIG_TABLE_NAME}.id"))
+    team_config_id = Column(
+        Integer, ForeignKey(f"{TEAM_CONFIG_TABLE_NAME}.id"), nullable=False
+    )
+    team_config = relationship("TeamConfig", back_populates="event_configs")
     event_type = Column(String)  # (app_mention, etc)
     desc = Column(String)
     webhook_url = Column(String)
@@ -107,19 +118,19 @@ class EventConfig(Base):
         return f"EventConfig({str(self.__dict__)})"
 
 
-# TODO: track num and type of the step actions being used
-# TODO: what else? don't want it to be too granular and
-# get overwhelmed in data that doesn't matter.
 class Usage(Base):
     """
     Usages to help understand how we are using the sytem, what features are most
     valuable, etc.
+
+    For now, usage_type should just be the different step actions - signifying they were ran by that team.
     """
 
     __tablename__ = USAGE_TABLE_NAME
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, default=datetime.now)
     team_config_id = Column(Integer, ForeignKey(f"{TEAM_CONFIG_TABLE_NAME}.id"))
+    team_config = relationship("TeamConfig", back_populates="usages")
     usage_type = Column(String)
 
     def __repr__(self):
@@ -145,41 +156,141 @@ class DebugDataCache(Base):
         return f"DebugDataCache({str(self.__dict__)})"
 
 
-# TODO: data to track
-# unhandled events (by team)
-# event configs (by team)
-# import/export (meh utility now)
-# Debug step data cache - cache in a sqlite table rather than in memory
-
-# class DB():
-#     """
-#     Generic class for data store interactions
-#     """
-#     def __init__(self, engine: Engine=None) -> None:
-#         self.engine = engine
-
-# def remove_event(self, event_type: str) -> None:
-#     pass
+def set_unhandled_event(
+    event_type: str, team_id: str, enterprise_id: Optional[str] = None
+) -> None:
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            s, team_id, enterprise_id=enterprise_id
+        )
+        curr_str = team_config.unhandled_events or ""
+        if event_type not in curr_str:
+            new_str = f"{curr_str}{event_type},"
+            team_config.unhandled_events = new_str
+            s.commit()
 
 
-# def get_event_config(self, event_type: str) -> Dict[Any, Any]:
-#     pass
-
-
-# def set_unhandled_event(self, event_type: str) -> None:
-#     pass
-
-
-# def remove_unhandled_event_type(self, event_type) -> bool:
-#     pass
-
-
-def save_usage(usage_type: str) -> None:
-    # TODO: find team in this func from values?
-    team_config_id = "5"
-    with Session(ENGINE) as s:
-        s.add(Usage(team_config_id=team_config_id, usage_type=usage_type))
+def remove_unhandled_event(
+    event_type: str, team_id: str, enterprise_id: Optional[str] = None
+) -> None:
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            s, team_id, enterprise_id=enterprise_id
+        )
+        events_str = team_config.unhandled_events or ""
+        new_str = events_str.replace(f"{event_type},", "")
+        team_config.unhandled_events = new_str
         s.commit()
+
+
+def get_team_config(
+    session: Session,
+    team_id: Optional[str],
+    enterprise_id: Optional[str],
+    is_enterprise_install: Optional[bool] = False,
+    fail_on_none=True,
+) -> Union[TeamConfig, None]:
+    # TODO: do i want this to be more flexible to use enterprise id OR client_id OR team_id and be successful?
+    # copied logic from Slack's own installation lookup
+    if is_enterprise_install or team_id is None:
+        team_id = None
+    stmt = select(TeamConfig).filter(
+        TeamConfig.enterprise_id == enterprise_id, TeamConfig.team_id == team_id
+    )
+    team_config = session.execute(stmt).scalar_one_or_none()
+    if fail_on_none and not team_config:
+        raise ValueError(f"No team config found for that team id({team_id})!")
+
+    return team_config
+
+
+def set_event_config(
+    team_id: str,
+    event_type: str,
+    desc: str,
+    webhook_url: str,
+    creator: str,
+    enterprise_id: Optional[str] = None,
+) -> None:
+    # TODO: handle duplicates being submitted - just upsert?
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            s, team_id, enterprise_id=enterprise_id
+        )
+        ec_vals = {
+            "event_type": event_type,
+            "desc": desc,
+            "webhook_url": webhook_url,
+            "creator": creator,
+        }
+        new_event_config = EventConfig(**ec_vals)
+        team_config.event_configs.append(new_event_config)
+        s.commit()
+
+
+def get_event_config(
+    event_type: str,
+    team_id: str,
+    enterprise_id: Optional[str] = None,
+    session: Optional[Session] = None,
+) -> Union[EventConfig, None]:
+    with Session(DB_ENGINE) if not session else nullcontext(session) as s:
+        team_config: TeamConfig = get_team_config(
+            s, team_id, enterprise_id=enterprise_id
+        )
+        stmt = select(EventConfig).filter(
+            EventConfig.team_config_id == team_config.id,
+            EventConfig.event_type == event_type,
+        )
+        return s.execute(stmt).scalar_one_or_none()
+
+
+def remove_event_config(ec: EventConfig) -> None:
+    with Session(DB_ENGINE) as s:
+        s.delete(ec)
+        s.commit()
+
+
+def find_and_remove_event_config(
+    event_type: str, team_id: str, enterprise_id: Optional[str] = None
+) -> None:
+    with Session(DB_ENGINE) as s:
+        # TODO: seems like this could be done in one query rather than two....
+        team_config: TeamConfig = get_team_config(
+            s, team_id, enterprise_id=enterprise_id
+        )
+        stmt = delete(EventConfig).where(
+            EventConfig.team_config_id == team_config.id,
+            EventConfig.event_type == event_type,
+        )
+        s.execute(stmt)
+        s.commit()
+
+
+def save_usage(
+    usage_type: str, team_id: str, enterprise_id: Optional[str] = None
+) -> None:
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            s, team_id, enterprise_id=enterprise_id
+        )
+        usage_vals = {"usage_type": usage_type}
+        new_usage = Usage(**usage_vals)
+        team_config.usages.append(new_usage)
+        s.commit()
+
+
+def pull_team_usage(
+    team_id: str, enterprise_id: Optional[str] = None
+) -> Dict[str, int]:
+    with Session(DB_ENGINE) as s:
+        stmt = (
+            select(Usage.usage_type, func.count())
+            .where(TeamConfig.id == Usage.team_config_id)
+            .group_by(Usage.usage_type)
+        )
+        rows = s.execute(stmt).all()
+        return {row[0]: row[1] for row in rows}
 
 
 def save_debug_data_to_cache(
@@ -187,7 +298,7 @@ def save_debug_data_to_cache(
 ) -> None:
     cache_data = {"step": step, "body": body}
     json_str = json.dumps(cache_data)
-    with Session(ENGINE) as s:
+    with Session(DB_ENGINE) as s:
         s.add(
             DebugDataCache(
                 execution_id=workflow_step_execute_id, json_str_data=json_str
@@ -197,7 +308,7 @@ def save_debug_data_to_cache(
 
 
 def fetch_debug_data_from_cache(workflow_step_execute_id: str) -> DebugDataCache:
-    with Session(ENGINE) as s:
+    with Session(DB_ENGINE) as s:
         return (
             s.query(DebugDataCache)
             .filter(DebugDataCache.execution_id == workflow_step_execute_id)
@@ -206,7 +317,7 @@ def fetch_debug_data_from_cache(workflow_step_execute_id: str) -> DebugDataCache
 
 
 def delete_debug_data_from_cache(workflow_step_execute_id: str) -> None:
-    with Session(ENGINE) as s:
+    with Session(DB_ENGINE) as s:
         target = (
             s.query(DebugDataCache)
             .filter(DebugDataCache.execution_id == workflow_step_execute_id)

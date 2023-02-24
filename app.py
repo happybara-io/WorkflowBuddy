@@ -43,7 +43,7 @@ if not encryption_key and not ignore_encryption_warning:
         "[!] Starting server without an encryption key...data will not be encrypted at rest by this application."
     )
 
-db_engine = db.ENGINE
+db_engine = db.DB_ENGINE
 
 installation_store = SQLAlchemyInstallationStore(
     engine=db_engine,
