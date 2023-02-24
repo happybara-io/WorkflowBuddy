@@ -4,7 +4,7 @@ import os
 import logging
 import json
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, text
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, text, Boolean
 from sqlalchemy import event, create_engine, select, delete, func
 from sqlalchemy.orm import declarative_base, relationship, Session
 from datetime import datetime
@@ -97,6 +97,8 @@ class EventConfig(Base):
     """
     Event configs should contain the metadata needed so when a new event is received,
     Buddy knows what actions to take on it: proxy it to a webhook, drop it, etc.
+
+    Multiple EventConfig's are allowed per event_type
     """
 
     __tablename__ = EVENT_CONFIG_TABLE_NAME
@@ -109,6 +111,9 @@ class EventConfig(Base):
     desc = Column(String)
     webhook_url = Column(String)
     creator = Column(String)
+    use_raw_event = Column(Boolean, default=False)
+    filter_react = Column(String)
+    filter_channel = Column(String)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(
         DateTime, default=datetime.now, onupdate=datetime.now
@@ -183,12 +188,23 @@ def remove_unhandled_event(
         s.commit()
 
 
+def get_unhandled_events(
+    team_id: str, enterprise_id: Optional[str] = None
+) -> List[str]:
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            s, team_id, enterprise_id=enterprise_id
+        )
+        events_str = team_config.unhandled_events or ""
+        return [x for x in events_str.split(",") if x]
+
+
 def get_team_config(
     session: Session,
     team_id: Optional[str],
     enterprise_id: Optional[str],
     is_enterprise_install: Optional[bool] = False,
-    fail_on_none=True,
+    fail_if_none=False,
 ) -> Union[TeamConfig, None]:
     # TODO: do i want this to be more flexible to use enterprise id OR client_id OR team_id and be successful?
     # copied logic from Slack's own installation lookup
@@ -198,10 +214,25 @@ def get_team_config(
         TeamConfig.enterprise_id == enterprise_id, TeamConfig.team_id == team_id
     )
     team_config = session.execute(stmt).scalar_one_or_none()
-    if fail_on_none and not team_config:
-        raise ValueError(f"No team config found for that team id({team_id})!")
+    if not team_config:
+        if fail_if_none:
+            raise ValueError(f"No team config found for that team id({team_id})!")
+        # create it if it doesn't exist
+        team_config = create_team_config("", team_id, enterprise_id, session=session)
 
     return team_config
+
+
+def create_team_config(
+    client_id: str, team_id: str, enterprise_id: str, session: Optional[Session] = None
+) -> TeamConfig:
+    with Session(DB_ENGINE) if not session else nullcontext(session) as s:
+        tc = TeamConfig(
+            client_id=client_id, team_id=team_id, enterprise_id=enterprise_id
+        )
+        s.add(tc)
+        s.commit()
+        return tc
 
 
 def set_event_config(
@@ -211,8 +242,8 @@ def set_event_config(
     webhook_url: str,
     creator: str,
     enterprise_id: Optional[str] = None,
-) -> None:
-    # TODO: handle duplicates being submitted - just upsert?
+) -> int:
+    # Multiple EventConfig's are allowed of the same event_type, so no need to worry about duplicates
     with Session(DB_ENGINE) as s:
         team_config: TeamConfig = get_team_config(
             s, team_id, enterprise_id=enterprise_id
@@ -226,14 +257,15 @@ def set_event_config(
         new_event_config = EventConfig(**ec_vals)
         team_config.event_configs.append(new_event_config)
         s.commit()
+        return new_event_config.id
 
 
-def get_event_config(
+def get_event_configs(
     event_type: str,
     team_id: str,
     enterprise_id: Optional[str] = None,
     session: Optional[Session] = None,
-) -> Union[EventConfig, None]:
+) -> List[EventConfig]:
     with Session(DB_ENGINE) if not session else nullcontext(session) as s:
         team_config: TeamConfig = get_team_config(
             s, team_id, enterprise_id=enterprise_id
@@ -242,15 +274,26 @@ def get_event_config(
             EventConfig.team_config_id == team_config.id,
             EventConfig.event_type == event_type,
         )
-        return s.execute(stmt).scalar_one_or_none()
+        return s.execute(stmt).scalars().all()
 
 
-def remove_event_config(ec: EventConfig) -> None:
+def remove_event_configs(ids: List[int] = [], ecs: List[EventConfig] = []) -> None:
+    if not ids and not ecs:
+        raise ValueError(
+            "Need at least one valid way to identify EventConfigs to remove..."
+        )
+
     with Session(DB_ENGINE) as s:
-        s.delete(ec)
+        for id in ids:
+            event_config = s.get(EventConfig, id)
+            s.delete(event_config)
+
+        for ec in ecs:
+            s.delete(ec)
         s.commit()
 
 
+# TODO: how do I want to handle it, since there can be multiple event configs of the same event type?
 def find_and_remove_event_config(
     event_type: str, team_id: str, enterprise_id: Optional[str] = None
 ) -> None:

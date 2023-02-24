@@ -7,7 +7,7 @@ import pprint
 import re
 import traceback as tb
 from datetime import datetime, timedelta, timezone
-from typing import Tuple
+from typing import Tuple, Union, Dict, List
 
 import buddy.constants as c
 
@@ -26,6 +26,8 @@ from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from slack_sdk.oauth import OAuthStateUtils
 from slack_bolt import App, Ack, Respond, BoltContext
+from slack_bolt.error import BoltError
+from slack_sdk.errors import SlackApiError
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 
 # attempting and failing to silence DEBUG loggers
@@ -76,6 +78,13 @@ slack_app = App(
 
 # TODO: this only works if we have a single process, not good! Tech debt!
 DEBUG_STEP_DATA_CACHE = {}
+
+# TODO: if user facing action, send them a nice message to let them know it broke
+# @slack_app.error
+# def custom_error_handler(error: Union[BoltError, SlackApiError], body: dict, logger: logging.Logger):
+#     # kwargs available https://slack.dev/bolt-python/api-docs/slack_bolt/kwargs_injection/args.html
+#     logger.exception(f"Error: {error}")
+#     logger.info(f"Request body: {body}")
 
 
 @slack_app.middleware  # or app.use(log_request)
@@ -554,6 +563,7 @@ def handle_config_webhook_submission(
     view: View,
     logger: logging.Logger,
 ):
+    # TODO: add more robust error handling
     values = view["state"]["values"]
     user_id = body["user"]["id"]
     event_type = values["event_type_input"]["event_type_value"]["value"]
@@ -590,34 +600,59 @@ def handle_config_webhook_submission(
     utils.update_app_home(client, user_id)
 
 
+# TODO: can Slack bolt handle multiple @event() attached to a single func to save this mess?
 @slack_app.event(c.EVENT_APP_MENTION)
-def event_app_mention(logger: logging.Logger, event: dict, body: dict):
-    utils.generic_event_proxy(logger, event, body)
+def event_app_mention(
+    logger: logging.Logger, event: dict, body: dict, context: BoltContext
+):
+    utils.generic_event_proxy(
+        logger, event, body, context.team_id, context.enterprise_id
+    )
 
 
 @slack_app.event(c.EVENT_CHANNEL_ARCHIVE)
-def event_channel_archive(logger: logging.Logger, event: dict, body: dict):
-    utils.generic_event_proxy(logger, event, body)
+def event_channel_archive(
+    logger: logging.Logger, event: dict, body: dict, context: BoltContext
+):
+    utils.generic_event_proxy(
+        logger, event, body, context.team_id, context.enterprise_id
+    )
 
 
 @slack_app.event(c.EVENT_CHANNEL_CREATED)
-def event_channel_created(logger: logging.Logger, event: dict, body: dict):
-    utils.generic_event_proxy(logger, event, body)
+def event_channel_created(
+    logger: logging.Logger, event: dict, body: dict, context: BoltContext
+):
+    utils.generic_event_proxy(
+        logger, event, body, context.team_id, context.enterprise_id
+    )
 
 
 @slack_app.event(c.EVENT_CHANNEL_DELETED)
-def event_channel_deleted(logger: logging.Logger, event: dict, body: dict):
-    utils.generic_event_proxy(logger, event, body)
+def event_channel_deleted(
+    logger: logging.Logger, event: dict, body: dict, context: BoltContext
+):
+    utils.generic_event_proxy(
+        logger, event, body, context.team_id, context.enterprise_id
+    )
 
 
 @slack_app.event(c.EVENT_CHANNEL_UNARCHIVE)
-def event_channel_unarchive(logger: logging.Logger, event: dict, body: dict):
-    utils.generic_event_proxy(logger, event, body)
+def event_channel_unarchive(
+    logger: logging.Logger, event: dict, body: dict, context: BoltContext
+):
+    utils.generic_event_proxy(
+        logger, event, body, context.team_id, context.enterprise_id
+    )
 
 
 @slack_app.event(c.EVENT_REACTION_ADDED)
-def event_reaction_added(logger: logging.Logger, event: dict, body: dict):
-    utils.generic_event_proxy(logger, event, body)
+def event_reaction_added(
+    logger: logging.Logger, event: dict, body: dict, context: BoltContext
+):
+    utils.generic_event_proxy(
+        logger, event, body, context.team_id, context.enterprise_id
+    )
 
 
 @slack_app.event(c.EVENT_WORKFLOW_PUBLISHED)
@@ -671,7 +706,6 @@ def utils_update_step_modal(
 
     # TODO: can get selectd action from the body
     curr_modal_state_values = body["view"]["state"]["values"]
-    print("STATE", curr_modal_state_values)
     selected_buddy_action = curr_modal_state_values["general_options_action_select"][
         "utilities_action_select_value"
     ]["selected_option"]["value"]
@@ -1009,10 +1043,11 @@ def execute_webhook(
     complete: Complete,
     fail: Fail,
     logger: logging.Logger,
+    context: BoltContext,
 ):
     # TODO: add debug mode here as well
     try:
-        db.save_usage("webhook")
+        db.save_usage("webhook", context.team_id)
         outputs = buddy.run_webhook(step)
         complete(outputs=outputs)
     except Exception as e:

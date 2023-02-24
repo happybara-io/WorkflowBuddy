@@ -115,6 +115,8 @@ def test_unhandled_event(get_db_objects):
 
     event_type = "test_event"
     event_type_2 = "test_event_2"
+    sut.remove_unhandled_event(event_type, test_team_id)
+
     sut.set_unhandled_event(event_type, test_team_id)
     sut.set_unhandled_event(event_type_2, test_team_id)
     sut.set_unhandled_event(event_type, test_team_id)
@@ -127,6 +129,10 @@ def test_unhandled_event(get_db_objects):
     assert (
         first_item.unhandled_events == f"{event_type},{event_type_2},"
     ), "Must only store one of an event type, and concatenate unique types into comma list."
+
+    unhandled = sut.get_unhandled_events(test_team_id)
+    assert len(unhandled) == 2, "Must only store one of an event type."
+
     sut.remove_unhandled_event(event_type, test_team_id)
     sut.remove_unhandled_event(event_type_2, test_team_id)
 
@@ -152,27 +158,35 @@ def test_event_config(get_db_objects):
     desc = "description"
     webhook_url = "https://webhook.test.url"
     creator = "U0000"
-    sut.set_event_config(test_team_id, event_type, desc, webhook_url, creator)
+    first_id = sut.set_event_config(
+        test_team_id, event_type, desc, webhook_url, creator
+    )
+    second_id = sut.set_event_config(
+        test_team_id,
+        event_type,
+        "alternate description",
+        "https://diff-webhook_url",
+        creator,
+    )
     sut.set_event_config(test_team_id, event_type_2, desc, webhook_url, creator)
-    # TODO: handle duplicates submissions being updated
 
     with Session(engine) as session:
         # TODO: how to add event config tied to a team?
         stmt = select(sut.TeamConfig).where(sut.TeamConfig.team_id == test_team_id)
-        first_item: sut.TeamConfig = session.scalars(stmt).one()
-        assert len(first_item.event_configs) == 2
+        team_config: sut.TeamConfig = session.scalars(stmt).one()
+        assert len(team_config.event_configs) == 3
 
-    sut.find_and_remove_event_config(event_type, test_team_id)
+    sut.remove_event_configs(ids=[first_id, second_id])
 
     with Session(engine) as session:
         # TODO: how to add event config tied to a team?
         stmt = select(sut.TeamConfig).where(sut.TeamConfig.team_id == test_team_id)
-        first_item: sut.TeamConfig = session.scalars(stmt).one()
-        assert len(first_item.event_configs) == 1
+        team_config: sut.TeamConfig = session.scalars(stmt).one()
+        assert len(team_config.event_configs) == 1
 
     # get the remaining event config, and check it
-    event_config_2 = sut.get_event_config(event_type_2, test_team_id)
-    assert event_config_2.event_type == event_type_2
+    event_configs = sut.get_event_configs(event_type_2, test_team_id)
+    assert event_configs[0].event_type == event_type_2
 
 
 def test_usages(get_db_objects):

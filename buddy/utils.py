@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib import parse, response
+import buddy.db as db
 
 import requests
 import slack_sdk
@@ -63,30 +64,39 @@ def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
 
 
 # TODO: accept any of the keyword args that are allowed?
-def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None:
+def generic_event_proxy(
+    logger: logging.Logger,
+    event: dict,
+    body: dict,
+    team_id: Union[str, None],
+    enterprise_id: Union[str, None],
+) -> None:
     event_type = event.get("type")
     logger.info(f"||{event_type}|BODY:{body}")
-    try:
-        workflow_webhooks_to_request = db_get_event_config(event_type)
-        db_remove_unhandled_event(event_type)
-    except KeyError as e:
-        logger.debug(f"KeyError - setting unhandled event for {event_type}:{e}")
-        db_set_unhandled_event(event_type)
-        return
 
-    for webhook_config in workflow_webhooks_to_request:
-        should_filter_reason = should_filter_event(webhook_config, event)
+    # TODO: this has gotta be plural
+    event_configs = db.get_event_configs(
+        event_type, team_id, enterprise_id=enterprise_id
+    )
+    if not event_configs:
+        db.set_unhandled_event(event_type, team_id, enterprise_id=enterprise_id)
+    else:
+        db.remove_unhandled_event(event_type, team_id, enterprise_id=enterprise_id)
+
+    # TODO: run through each event
+    for ec in event_configs:
+        should_filter_reason = should_filter_event(ec, event)
         if should_filter_reason:
             logger.info(f"Filtering event. Reason:{should_filter_reason} event:{event}")
             continue
 
-        if webhook_config.get("raw_event"):
+        if ec.raw_event:
             json_body = event
         else:
             json_body = flatten_payload_for_slack_workflow_builder(event)
-        resp = send_webhook(webhook_config["webhook_url"], json_body)
+        resp = send_webhook(ec.webhook_url, json_body)
         if resp.status_code >= 300:
-            logger.error(f"{resp.status_code}:{resp.text}|config:{webhook_config}")
+            logger.error(f"{resp.status_code}:{resp.text}|config:{ec}")
     logger.info("Finished sending all webhooks for event")
 
 
@@ -105,33 +115,33 @@ def send_webhook(
     return resp
 
 
-def db_get_unhandled_events() -> List[str]:
-    try:
-        return IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
-    except KeyError:
-        return []
+# def db_get_unhandled_events() -> List[str]:
+#     try:
+#         return IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
+#     except KeyError:
+#         return []
 
 
-def db_remove_unhandled_event(event_type) -> None:
-    with contextlib.suppress(ValueError, KeyError):
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
-        logging.info(f"Remove unhandled event: {event_type}")
-        sync_cache_to_disk()
+# def db_remove_unhandled_event(event_type) -> None:
+#     with contextlib.suppress(ValueError, KeyError):
+#         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
+#         logging.info(f"Remove unhandled event: {event_type}")
+#         sync_cache_to_disk()
 
 
-def db_set_unhandled_event(event_type) -> None:
-    logging.info(f"Adding unhandled event: {event_type}")
-    try:
-        curr = IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
-        curr.append(event_type)
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = list(set(curr))
-    except KeyError:
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
-    sync_cache_to_disk()
+# def db_set_unhandled_event(event_type) -> None:
+#     logging.info(f"Adding unhandled event: {event_type}")
+#     try:
+#         curr = IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
+#         curr.append(event_type)
+#         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = list(set(curr))
+#     except KeyError:
+#         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
+#     sync_cache_to_disk()
 
 
-def db_get_event_config(event_type) -> List[Dict[str, Any]]:
-    return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
+# def db_get_event_config(event_type) -> List[Dict[str, Any]]:
+#     return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
 
 
 def sync_cache_to_disk() -> None:
@@ -181,14 +191,15 @@ def update_app_home(client, user_id, view=None) -> None:
     client.views_publish(user_id=user_id, view=app_home_view)
 
 
-def build_app_home_view() -> dict:
+def build_app_home_view(team_id: str) -> dict:
+    # TODO: gotta pull existing events - this might be just as easy as team config
     data = db_export()
     curr_events = list(data.keys())
     with contextlib.suppress(ValueError):
         curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
-    unhandled_events = db_get_unhandled_events()
-    if len(unhandled_events) > 0:
+    unhandled_events = db.get_unhandled_events(team_id)
+    if unhandled_events:
         blocks.extend(
             [
                 {
@@ -549,15 +560,15 @@ def load_json_body_from_untrusted_input_str(input_str: str) -> dict:
     return data
 
 
-def should_filter_event(webhook_config: dict, event: dict) -> Optional[str]:
+def should_filter_event(event_config: db.EventConfig, event: dict) -> Optional[str]:
     # from past experience, make sure to explicitly log if you drop in case logic is messed up
     event_type = event.get("type")
     should_filter_reason = None
 
     if event_type == c.EVENT_REACTION_ADDED:
         # https://api.slack.com/events/reaction_added
-        filter_react = webhook_config.get("filter_react", "")
-        filter_channel = webhook_config.get("filter_channel", "")
+        filter_react = event_config.filter_react or ""
+        filter_channel = event_config.filter_channel or ""
         # allow messy config
         filter_react = filter_react.replace(":", "")
         reaction = event.get("reaction")
@@ -569,7 +580,7 @@ def should_filter_event(webhook_config: dict, event: dict) -> Optional[str]:
                 f"No channel match: {filter_channel} but got {channel_id}."
             )
     elif event_type == c.EVENT_APP_MENTION:
-        filter_channel = webhook_config.get("filter_channel", "")
+        filter_channel = event_config.filter_channel or ""
         channel_id = event.get("channel")
         if filter_channel and filter_channel != channel_id:
             should_filter_reason = (

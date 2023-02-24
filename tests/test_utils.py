@@ -178,7 +178,9 @@ def test_includes_slack_workflow_variable(value, expected_result):
 def test_generic_event_proxy(patched_send, name, event):
     # TODO: Gotta mock out DB for each run to actually test something useful, otherwise it's unkown what you're hitting
     patched_send.return_value = FakeResponse(201, {"body": True})
-    sut.generic_event_proxy(test_logger, event, {})
+    mock_team_id = "T11111"
+    mock_enterprise_id = None
+    sut.generic_event_proxy(test_logger, event, {}, mock_team_id, mock_enterprise_id)
 
 
 @pytest.mark.parametrize(
