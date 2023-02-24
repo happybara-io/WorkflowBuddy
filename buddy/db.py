@@ -3,13 +3,14 @@
 import os
 import logging
 import json
+from pathlib import Path
 
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, text, Boolean
 from sqlalchemy import event, create_engine, select, delete, func
-from sqlalchemy.orm import declarative_base, relationship, Session
+from sqlalchemy.orm import declarative_base, relationship, Session, selectinload
 from datetime import datetime
 from sqlalchemy.engine import Engine
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, Union, List, Generator
 from contextlib import nullcontext
 
 # TODO: feels like I shouldn't have to write all these CRUD ops by hand,
@@ -19,14 +20,28 @@ logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARN)
 ENV = os.environ.get("ENV", "DEV")
 IS_SQLITE_DB = os.environ.get("DB_TYPE", "sqlite") == "sqlite"
 
-LOCAL_SQLITE_DB = "workflow_buddy.db"
-if ENV == "PROD":
-    LOCAL_SQLITE_DB = f"/usr/app/data/{LOCAL_SQLITE_DB}"
+WB_DATA_DIR = os.getenv("WB_DATA_DIR") or (
+    "/usr/app/data/" if ENV == "PROD" else "./workflow-buddy-local/"
+)
+Path(WB_DATA_DIR).mkdir(parents=True, exist_ok=True)
+
+DB_FILE_NAME = "workflow_buddy.db"
+LOCAL_SQLITE_DB = f"{WB_DATA_DIR}{DB_FILE_NAME}"
 LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_DB}"
 # TODO: if an alternative connection string is provided - postgres?
 conn_str = os.environ.get("SQL_CONN_STR", LOCAL_SQLITE_CONN_STR)
 logging.info(f"Starting SQLAlchemy connected to: {conn_str}")
 DB_ENGINE: Engine = create_engine(conn_str, future=True)
+
+
+# Using a global variable seems to roughly map to Flask-SQLAlchemy
+# having a db = SQLAlchemy(), and then using db.session.* in requests.
+# Appears it handles that behind the scenes.
+# "the basic pattern is create a Session at the start of a web request, ...then close the session at the end of web request."
+# DB_SESSION: Session = None
+# SessionLocal: Generator = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# TODO: it's bad practice to manage session from within these funcs - but also it's easy enough to reason
+# through and the alternatives have been confusing. Explore updating if needed.
 
 
 @event.listens_for(DB_ENGINE, "connect")
@@ -166,7 +181,7 @@ def set_unhandled_event(
 ) -> None:
     with Session(DB_ENGINE) as s:
         team_config: TeamConfig = get_team_config(
-            s, team_id, enterprise_id=enterprise_id
+            team_id, enterprise_id=enterprise_id, session=s
         )
         curr_str = team_config.unhandled_events or ""
         if event_type not in curr_str:
@@ -180,7 +195,7 @@ def remove_unhandled_event(
 ) -> None:
     with Session(DB_ENGINE) as s:
         team_config: TeamConfig = get_team_config(
-            s, team_id, enterprise_id=enterprise_id
+            team_id, enterprise_id=enterprise_id, session=s
         )
         events_str = team_config.unhandled_events or ""
         new_str = events_str.replace(f"{event_type},", "")
@@ -188,37 +203,45 @@ def remove_unhandled_event(
         s.commit()
 
 
+# TODO: when do I ever need this, but not the rest of team config?
 def get_unhandled_events(
     team_id: str, enterprise_id: Optional[str] = None
 ) -> List[str]:
     with Session(DB_ENGINE) as s:
         team_config: TeamConfig = get_team_config(
-            s, team_id, enterprise_id=enterprise_id
+            team_id, enterprise_id=enterprise_id, session=s
         )
         events_str = team_config.unhandled_events or ""
         return [x for x in events_str.split(",") if x]
 
 
 def get_team_config(
-    session: Session,
     team_id: Optional[str],
     enterprise_id: Optional[str],
     is_enterprise_install: Optional[bool] = False,
     fail_if_none=False,
+    session: Optional[Session] = None,
 ) -> Union[TeamConfig, None]:
     # TODO: do i want this to be more flexible to use enterprise id OR client_id OR team_id and be successful?
     # copied logic from Slack's own installation lookup
-    if is_enterprise_install or team_id is None:
-        team_id = None
-    stmt = select(TeamConfig).filter(
-        TeamConfig.enterprise_id == enterprise_id, TeamConfig.team_id == team_id
-    )
-    team_config = session.execute(stmt).scalar_one_or_none()
-    if not team_config:
-        if fail_if_none:
-            raise ValueError(f"No team config found for that team id({team_id})!")
-        # create it if it doesn't exist
-        team_config = create_team_config("", team_id, enterprise_id, session=session)
+    with Session(DB_ENGINE, expire_on_commit=False) if not session else nullcontext(
+        session
+    ) as s:
+        if is_enterprise_install or team_id is None:
+            team_id = None
+        stmt = (
+            select(TeamConfig)
+            .options(selectinload(TeamConfig.event_configs))
+            .filter(
+                TeamConfig.enterprise_id == enterprise_id, TeamConfig.team_id == team_id
+            )
+        )
+        team_config = s.execute(stmt).scalar_one_or_none()
+        if not team_config:
+            if fail_if_none:
+                raise ValueError(f"No team config found for that team id({team_id})!")
+            # create it if it doesn't exist
+            team_config = create_team_config("", team_id, enterprise_id, session=s)
 
     return team_config
 
@@ -235,24 +258,30 @@ def create_team_config(
         return tc
 
 
-def set_event_config(
+def create_event_config(
     team_id: str,
     event_type: str,
     desc: str,
     webhook_url: str,
     creator: str,
     enterprise_id: Optional[str] = None,
+    filter_react: Optional[str] = None,
+    filter_channel: Optional[str] = None,
+    use_raw_event: Optional[bool] = False,
 ) -> int:
     # Multiple EventConfig's are allowed of the same event_type, so no need to worry about duplicates
     with Session(DB_ENGINE) as s:
         team_config: TeamConfig = get_team_config(
-            s, team_id, enterprise_id=enterprise_id
+            team_id, enterprise_id=enterprise_id, session=s
         )
         ec_vals = {
             "event_type": event_type,
             "desc": desc,
             "webhook_url": webhook_url,
             "creator": creator,
+            "filter_react": filter_react,
+            "filter_channel": filter_channel,
+            "use_raw_event": use_raw_event,
         }
         new_event_config = EventConfig(**ec_vals)
         team_config.event_configs.append(new_event_config)
@@ -266,9 +295,11 @@ def get_event_configs(
     enterprise_id: Optional[str] = None,
     session: Optional[Session] = None,
 ) -> List[EventConfig]:
-    with Session(DB_ENGINE) if not session else nullcontext(session) as s:
+    with Session(DB_ENGINE, expire_on_commit=False) if not session else nullcontext(
+        session
+    ) as s:
         team_config: TeamConfig = get_team_config(
-            s, team_id, enterprise_id=enterprise_id
+            team_id, enterprise_id=enterprise_id, session=s
         )
         stmt = select(EventConfig).filter(
             EventConfig.team_config_id == team_config.id,
@@ -277,7 +308,11 @@ def get_event_configs(
         return s.execute(stmt).scalars().all()
 
 
-def remove_event_configs(ids: List[int] = [], ecs: List[EventConfig] = []) -> None:
+def remove_event_configs(ids: List[int] = None, ecs: List[EventConfig] = None) -> None:
+    if ids is None:
+        ids = []
+    if ecs is None:
+        ecs = []
     if not ids and not ecs:
         raise ValueError(
             "Need at least one valid way to identify EventConfigs to remove..."
@@ -300,7 +335,7 @@ def find_and_remove_event_config(
     with Session(DB_ENGINE) as s:
         # TODO: seems like this could be done in one query rather than two....
         team_config: TeamConfig = get_team_config(
-            s, team_id, enterprise_id=enterprise_id
+            team_id, enterprise_id=enterprise_id, session=s
         )
         stmt = delete(EventConfig).where(
             EventConfig.team_config_id == team_config.id,
@@ -315,7 +350,7 @@ def save_usage(
 ) -> None:
     with Session(DB_ENGINE) as s:
         team_config: TeamConfig = get_team_config(
-            s, team_id, enterprise_id=enterprise_id
+            team_id, enterprise_id=enterprise_id, session=s
         )
         usage_vals = {"usage_type": usage_type}
         new_usage = Usage(**usage_vals)
@@ -323,10 +358,8 @@ def save_usage(
         s.commit()
 
 
-def pull_team_usage(
-    team_id: str, enterprise_id: Optional[str] = None
-) -> Dict[str, int]:
-    with Session(DB_ENGINE) as s:
+def get_team_usage(team_id: str, enterprise_id: Optional[str] = None) -> Dict[str, int]:
+    with Session(DB_ENGINE, expire_on_commit=False) as s:
         stmt = (
             select(Usage.usage_type, func.count())
             .where(TeamConfig.id == Usage.team_config_id)
@@ -339,7 +372,11 @@ def pull_team_usage(
 def save_debug_data_to_cache(
     workflow_step_execute_id: str, step: dict, body: dict
 ) -> None:
-    cache_data = {"step": step, "body": body}
+    cache_data = {
+        "workflow_step_execute_id": workflow_step_execute_id,
+        "step": step,
+        "body": body,
+    }
     json_str = json.dumps(cache_data)
     with Session(DB_ENGINE) as s:
         s.add(
@@ -350,13 +387,20 @@ def save_debug_data_to_cache(
         s.commit()
 
 
-def fetch_debug_data_from_cache(workflow_step_execute_id: str) -> DebugDataCache:
-    with Session(DB_ENGINE) as s:
-        return (
+def get_debug_data_from_cache(
+    workflow_step_execute_id: str,
+) -> Union[Dict[str, Union[str, Dict[str, Any]]], None]:
+    with Session(DB_ENGINE, expire_on_commit=False) as s:
+        cache_data: DebugDataCache = (
             s.query(DebugDataCache)
             .filter(DebugDataCache.execution_id == workflow_step_execute_id)
             .first()
         )
+        if cache_data:
+            json_str = cache_data.json_str_data
+            if json_str:
+                return json.loads(cache_data.json_str_data)
+        return None
 
 
 def delete_debug_data_from_cache(workflow_step_execute_id: str) -> None:

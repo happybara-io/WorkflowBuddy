@@ -21,31 +21,6 @@ import buddy.constants as c
 
 logging.basicConfig(level=logging.DEBUG)
 
-ENV = os.environ.get("ENV", "TEST")
-WB_DATA_DIR = os.getenv("WB_DATA_DIR") or (
-    "./workflow-buddy-test/" if ENV == "TEST" else "/usr/app/data/"
-)
-logging.info(f"ENV: {ENV} WB_DATA_DIR:{WB_DATA_DIR}")
-
-
-Path(WB_DATA_DIR).mkdir(parents=True, exist_ok=True)
-PERSISTED_JSON_FILE = f"{WB_DATA_DIR}/workflow-buddy-db.json"
-Path(PERSISTED_JSON_FILE).touch()
-logging.info(f"Using DB file path: {PERSISTED_JSON_FILE}...")
-
-# !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
-IN_MEMORY_WRITE_THROUGH_CACHE: Dict[str, List] = {}
-# on startup, load current contents into cache
-with open(PERSISTED_JSON_FILE, "r") as jf:
-    try:
-
-        IN_MEMORY_WRITE_THROUGH_CACHE = json.load(jf)
-        logging.info("Cache loaded from file")
-    except json.decoder.JSONDecodeError as e:
-        logging.warning("Unable to load from file, starting empty cache.")
-        IN_MEMORY_WRITE_THROUGH_CACHE = {}
-logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
-
 
 ###################
 # Utils
@@ -90,7 +65,7 @@ def generic_event_proxy(
             logger.info(f"Filtering event. Reason:{should_filter_reason} event:{event}")
             continue
 
-        if ec.raw_event:
+        if ec.use_raw_event:
             json_body = event
         else:
             json_body = flatten_payload_for_slack_workflow_builder(event)
@@ -115,90 +90,47 @@ def send_webhook(
     return resp
 
 
-# def db_get_unhandled_events() -> List[str]:
-#     try:
-#         return IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
-#     except KeyError:
-#         return []
-
-
-# def db_remove_unhandled_event(event_type) -> None:
-#     with contextlib.suppress(ValueError, KeyError):
-#         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
-#         logging.info(f"Remove unhandled event: {event_type}")
-#         sync_cache_to_disk()
-
-
-# def db_set_unhandled_event(event_type) -> None:
-#     logging.info(f"Adding unhandled event: {event_type}")
-#     try:
-#         curr = IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
-#         curr.append(event_type)
-#         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = list(set(curr))
-#     except KeyError:
-#         IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
-#     sync_cache_to_disk()
-
-
-# def db_get_event_config(event_type) -> List[Dict[str, Any]]:
-#     return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
-
-
-def sync_cache_to_disk() -> None:
-    logging.debug(f"Syncing cache to disk - {IN_MEMORY_WRITE_THROUGH_CACHE}")
-    json_str = json.dumps(IN_MEMORY_WRITE_THROUGH_CACHE, indent=2)
-    with open(PERSISTED_JSON_FILE, "w") as jf:
-        jf.write(json_str)
-
-
-def db_add_webhook_to_event(
-    event_type, name, webhook_url, adding_user_id, filter_reaction=None
+def update_app_home(
+    client, user_id, team_id: str, enterprise_id: Optional[str] = None, view=None
 ) -> None:
-    new_webhook = {"name": name, "webhook_url": webhook_url, "added_by": adding_user_id}
-    if filter_reaction:
-        new_webhook["filter_reaction"] = filter_reaction
-    try:
-        IN_MEMORY_WRITE_THROUGH_CACHE[event_type].append(new_webhook)
-    except KeyError:
-        IN_MEMORY_WRITE_THROUGH_CACHE[event_type] = [new_webhook]
-    sync_cache_to_disk()
-
-
-def db_remove_event(event_type) -> None:
-    try:
-        del IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
-        sync_cache_to_disk()
-    except KeyError:
-        logging.info("Key doesnt exist to delete")
-
-
-def db_import(new_data) -> int:
-    count = len(new_data.keys())
-    for k, v in new_data.items():
-        IN_MEMORY_WRITE_THROUGH_CACHE[k] = v
-    sync_cache_to_disk()
-    return count
-
-
-def db_export() -> dict:
-    return IN_MEMORY_WRITE_THROUGH_CACHE
-
-
-def update_app_home(client, user_id, view=None) -> None:
     app_home_view = view
     if not view:
-        app_home_view = build_app_home_view()
+        app_home_view = build_app_home_view(team_id, enterprise_id=enterprise_id)
     client.views_publish(user_id=user_id, view=app_home_view)
 
 
-def build_app_home_view(team_id: str) -> dict:
+def build_app_home_view(team_id: str, enterprise_id: Optional[str] = None) -> dict:
     # TODO: gotta pull existing events - this might be just as easy as team config
-    data = db_export()
-    curr_events = list(data.keys())
-    with contextlib.suppress(ValueError):
-        curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
+    team_config = db.get_team_config(team_id, enterprise_id=enterprise_id)
+    event_configs: List[db.EventConfig] = team_config.event_configs
+    unhandled_events = comma_str_to_list(team_config.unhandled_events or "")
+
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
-    unhandled_events = db.get_unhandled_events(team_id)
+    team_usages = db.get_team_usage(team_id)
+    blocks.extend(
+        [
+            {
+                "type": "header",
+                "text": {"type": "plain_text", "text": f"Team Usage", "emoji": True},
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Slack team id: `{team_id}`",
+                },
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"```\n{team_usages}\n```",
+                },
+            },
+        ]
+    )
+
+    blocks.extend(copy.deepcopy(c.APP_HOME_EVENT_TRIGGER_BLOCKS))
     if unhandled_events:
         blocks.extend(
             [
@@ -218,7 +150,7 @@ def build_app_home_view(team_id: str) -> dict:
                 },
             ]
         )
-    if not curr_events:
+    if not event_configs:
         blocks.append(
             {
                 "type": "section",
@@ -229,21 +161,19 @@ def build_app_home_view(team_id: str) -> dict:
             }
         )
 
-    for event_type, webhook_list in data.items():
-        if event_type == c.DB_UNHANDLED_EVENTS_KEY:
-            continue
+    for ec in event_configs:
         single_event_row: List[Dict[str, Any]] = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":black_small_square: `{event_type}`",
+                    "text": f":black_small_square: `{ec.event_type}`",
                 },
                 "accessory": {
                     "type": "button",
                     "text": {"type": "plain_text", "text": "Delete", "emoji": True},
                     "style": "danger",
-                    "value": f"{event_type}",
+                    "value": f"EventConfig-{ec.id}",
                     "action_id": "event_delete_clicked",
                 },
             },
@@ -252,7 +182,7 @@ def build_app_home_view(team_id: str) -> dict:
                 "elements": [
                     {
                         "type": "plain_text",
-                        "text": f"--> {str(webhook_list)}",
+                        "text": f"--> url:`{ec.webhook_url}`,  creator:`{ec.creator}`, created:`{str(ec.created_at)}`, filter_react:`{ec.filter_react}`, use_raw_event:{ec.use_raw_event}, desc:`{ec.desc}`.",
                         "emoji": True,
                     }
                 ],
@@ -317,7 +247,6 @@ def test_if_bot_able_to_post_to_conversation_deprecated(
     now = datetime.now()
     three_months = timedelta(days=90)
     post_at = int((now + three_months).timestamp())
-    print("Time to post at", post_at)
     text = "Testing channel membership. If you see this, please ignore."
 
     # Attempt to schedule a message - ask for forgiveness, not permission
@@ -1022,3 +951,7 @@ def update_blocks_with_previous_input_based_on_config(
         )
 
     return did_edit
+
+
+def comma_str_to_list(s: str) -> List[str]:
+    return [x for x in s.split(",") if x]

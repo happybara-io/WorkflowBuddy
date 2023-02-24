@@ -57,7 +57,7 @@ Want to get rockin' with Workflow Buddy, but running into trouble? You have a nu
 
 - 📚 Read the docs - _in this README, and the [wiki](https://github.com/happybara-io/WorkflowBuddy/wiki)_
 - 👬 Search through or ask a question in the [Community Discussions](https://github.com/happybara-io/WorkflowBuddy/discussions) - _no question is too small_.
-- 📩 Send an email to [support@happybara.io](mailto:support@happybara.io). 
+- 📩 Send an email to [support@happybara.io](mailto:support@happybara.io).
 - 🙋‍♀️ If you found a bug; open a [new GitHub issue](https://github.com/happybara-io/WorkflowBuddy/issues/new/choose). _⚠ If in doubt, please use the Discussions rather than Issues._
 
 ---
@@ -149,7 +149,7 @@ The events that have been tested and are known to be working - other Slack event
 
 Options that work the same across event types.
 
-- `raw_event`: By default, Workflow Buddy will flatten & limit the JSON it receives to fit with the [Slack limitations](#templates-for-event-triggers) of 20 variables and no nested data. Set this to `true` to turn off the transformation.
+- `use_raw_event`: By default, Workflow Buddy will flatten & limit the JSON it receives to fit with the [Slack limitations](#templates-for-event-triggers) of 20 variables and no nested data. Set this to `true` to turn off the transformation.
 
 #### **app_mention** - [_docs_](https://api.slack.com/events/app_mention)
 

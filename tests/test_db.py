@@ -22,7 +22,9 @@ def get_db_objects():
     sut.create_tables(engine)
 
     print("set up DB engine!")
-    yield (engine, None)  # this is where the testing happens
+    with Session(sut.DB_ENGINE) as session:
+        # sut.DB_SESSION = session
+        yield (engine, None)  # this is where the testing happens
 
     # Teardown : fill with any logic you want
     # print("Teardown after all tests!")
@@ -65,11 +67,11 @@ def test_save_and_fetch_debug_data_to_cache(get_db_objects):
     mock_step = {"abc": 233}
     mock_body = {"body": True}
     sut.save_debug_data_to_cache(execution_id, mock_step, mock_body)
-    data = sut.fetch_debug_data_from_cache(execution_id)
-    assert type(data) is sut.DebugDataCache
+    data = sut.get_debug_data_from_cache(execution_id)
+    assert data["workflow_step_execute_id"] == execution_id
 
     sut.delete_debug_data_from_cache(execution_id)
-    data = sut.fetch_debug_data_from_cache(execution_id)
+    data = sut.get_debug_data_from_cache(execution_id)
     assert data is None
 
 
@@ -158,22 +160,25 @@ def test_event_config(get_db_objects):
     desc = "description"
     webhook_url = "https://webhook.test.url"
     creator = "U0000"
-    first_id = sut.set_event_config(
+    first_id = sut.create_event_config(
         test_team_id, event_type, desc, webhook_url, creator
     )
-    second_id = sut.set_event_config(
+    second_id = sut.create_event_config(
         test_team_id,
         event_type,
         "alternate description",
         "https://diff-webhook_url",
         creator,
     )
-    sut.set_event_config(test_team_id, event_type_2, desc, webhook_url, creator)
+    sut.create_event_config(test_team_id, event_type_2, desc, webhook_url, creator)
 
     with Session(engine) as session:
         # TODO: how to add event config tied to a team?
-        stmt = select(sut.TeamConfig).where(sut.TeamConfig.team_id == test_team_id)
-        team_config: sut.TeamConfig = session.scalars(stmt).one()
+        # stmt = select(sut.TeamConfig).where(sut.TeamConfig.team_id == test_team_id)
+        # team_config: sut.TeamConfig = session.scalars(stmt).one()
+        team_config: sut.TeamConfig = sut.get_team_config(
+            test_team_id, None, fail_if_none=True, session=session
+        )
         assert len(team_config.event_configs) == 3
 
     sut.remove_event_configs(ids=[first_id, second_id])
@@ -206,7 +211,7 @@ def test_usages(get_db_objects):
         sut.save_usage(event_type, test_team_id)
         sut.save_usage(event_type_2, test_team_id)
 
-    usage_map = sut.pull_team_usage(test_team_id)
+    usage_map = sut.get_team_usage(test_team_id)
     assert len(usage_map.keys()) == num_unique_events
     for v in usage_map.values():
         assert v == num_events_per_usage

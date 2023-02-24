@@ -4,11 +4,13 @@ import unittest.mock as mock
 from typing import List
 import copy
 
+from sqlalchemy.orm import Session
 import pytest
 import slack_sdk.errors
 
 import buddy.utils as sut
 import buddy.constants as c
+import buddy.db as db
 import tests.tc as test_const
 
 test_logger = logging.getLogger("TestLogger")
@@ -387,3 +389,38 @@ def test_updating_blocks_with_no_previous_inputs():
     )
 
     assert not did_edit
+
+
+def test_comma_str_to_list_empty():
+    s = ","
+    out = sut.comma_str_to_list(s)
+    assert out == []
+
+
+def test_comma_str_to_list_happy_path():
+    s = "a,b,c"
+    out = sut.comma_str_to_list(s)
+    assert out == ["a", "b", "c"]
+
+
+def test_build_app_home_view_shows_event_configs_and_unhandled():
+    # TODO: make this a helper func or something
+    team_id = "T44444"
+    unhandled = "bad_event,another_unhandled"
+    # create a basic team item & event configs
+    with Session(db.DB_ENGINE) as s:
+        s.add(
+            db.TeamConfig(
+                client_id="3334444a", team_id=team_id, unhandled_events=unhandled
+            )
+        )
+        s.add(db.EventConfig(team_config_id=1, event_type="test_eventy"))
+        s.add(db.EventConfig(team_config_id=1, event_type="test_eventy_2"))
+        s.commit()
+
+    app_home_data = sut.build_app_home_view(team_id)
+    json_str = json.dumps(app_home_data)
+    assert "bad_event" in json_str
+    assert "another_unhandled" in json_str
+    assert "test_eventy" in json_str
+    assert "test_eventy_2" in json_str

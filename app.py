@@ -22,6 +22,7 @@ import buddy
 import buddy.errors
 import buddy.utils as utils
 import buddy.db as db
+from sqlalchemy.orm import Session
 from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from slack_sdk.oauth import OAuthStateUtils
@@ -61,8 +62,15 @@ oauth_state_store = SQLAlchemyOAuthStateStore(
 try:
     db_engine.execute("select count(*) from slack_bots")
 except Exception as e:
+    logging.info("Creating Slack installation tables...")
     installation_store.metadata.create_all(db_engine)
     oauth_state_store.metadata.create_all(db_engine)
+
+try:
+    db_engine.execute("select count(*) from team_config")
+except Exception as e:
+    logging.info("Creating tables...")
+    db.create_tables(db_engine)
 
 slack_app = App(
     signing_secret=os.environ["SLACK_SIGNING_SECRET"],
@@ -76,8 +84,6 @@ slack_app = App(
     ),
 )
 
-# TODO: this only works if we have a single process, not good! Tech debt!
-DEBUG_STEP_DATA_CACHE = {}
 
 # TODO: if user facing action, send them a nice message to let them know it broke
 # @slack_app.error
@@ -317,7 +323,6 @@ def debug_button_clicked(
     client: slack_sdk.WebClient,
     respond: Respond,
 ):
-    global DEBUG_STEP_DATA_CACHE
     logger.debug("Continuing from debug button clicked...")
     logger.debug(f"ACTION_BODY: {body}")
     ack()
@@ -339,7 +344,7 @@ def debug_button_clicked(
         replacement_text = f"🛑 Halted debug step for `{workflow_step_execute_id}`."
         respond(replace_original=True, text=replacement_text)
     else:
-        cache_data = DEBUG_STEP_DATA_CACHE[workflow_step_execute_id]
+        cache_data = db.get_debug_data_from_cache(workflow_step_execute_id)
         step = cache_data["step"]
         orig_execute_body = cache_data["body"]
         logger.debug(
@@ -348,13 +353,12 @@ def debug_button_clicked(
 
         replacement_text = f"👉Debug step continued for `{workflow_step_execute_id}`.\n```{pprint.pformat(step, indent=2)}```"
         respond(replace_original=True, text=replacement_text)
-        del DEBUG_STEP_DATA_CACHE[workflow_step_execute_id]
+        db.delete_debug_data_from_cache(workflow_step_execute_id)
 
         complete = Complete(client=client, body=execution_body)
 
         step["already_sent_debug_message"] = True
         execute_utils(step, orig_execute_body, complete, fail, client, logger)
-        logger.debug(f"DEBUG_STEPCACHE: {DEBUG_STEP_DATA_CACHE}")
 
 
 @slack_app.action("scheduled_message_delete_clicked")
@@ -396,65 +400,65 @@ def manage_scheduled_messages(
     client.views_open(trigger_id=body["trigger_id"], view=sm_modal)
 
 
-@slack_app.action("action_export")
-def export_button_clicked(
-    ack: Ack,
-    body: dict,
-    logger: logging.Logger,
-    client: slack_sdk.WebClient,
-    context: BoltContext,
-):
-    ack()
-    exported_json = json.dumps(utils.db_export(), indent=2)
-    export_modal = {
-        "type": "modal",
-        "title": {"type": "plain_text", "text": "Webhook Config Export", "emoji": True},
-        "close": {"type": "plain_text", "text": "Close", "emoji": True},
-        "blocks": [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Exported Config:* \n```{exported_json}```",
-                },
-            }
-        ],
-    }
-    client.views_open(trigger_id=body["trigger_id"], view=export_modal)
+# @slack_app.action("action_export")
+# def export_button_clicked(
+#     ack: Ack,
+#     body: dict,
+#     logger: logging.Logger,
+#     client: slack_sdk.WebClient,
+#     context: BoltContext,
+# ):
+#     ack()
+#     exported_json = json.dumps(utils.db_export(), indent=2)
+#     export_modal = {
+#         "type": "modal",
+#         "title": {"type": "plain_text", "text": "Webhook Config Export", "emoji": True},
+#         "close": {"type": "plain_text", "text": "Close", "emoji": True},
+#         "blocks": [
+#             {
+#                 "type": "section",
+#                 "text": {
+#                     "type": "mrkdwn",
+#                     "text": f"*Exported Config:* \n```{exported_json}```",
+#                 },
+#             }
+#         ],
+#     }
+#     client.views_open(trigger_id=body["trigger_id"], view=export_modal)
 
 
-@slack_app.action("action_import")
-def import_button_clicked(
-    ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
-):
-    ack()
-    blocks = [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": 'Import a JSON config of event type mapped to lists of webhooks.\n*Example:*\n```{"app_mention": [{"name": "Helpful Description","webhook_url": "https://webhook.site/4bf6c228"}]}```\n\nUpdates existing keys, but doesn\'t remove any.',
-            },
-        },
-        {
-            "type": "input",
-            "block_id": "json_config_input",
-            "element": {
-                "type": "plain_text_input",
-                "multiline": True,
-                "action_id": "json_config_value",
-            },
-            "label": {"type": "plain_text", "text": "JSON Config", "emoji": True},
-        },
-    ]
-    import_modal = {
-        "type": "modal",
-        "callback_id": "import_submission",
-        "title": {"type": "plain_text", "text": "Import Event Mappings"},
-        "submit": {"type": "plain_text", "text": "Import"},
-        "blocks": blocks,
-    }
-    client.views_open(trigger_id=body["trigger_id"], view=import_modal)
+# @slack_app.action("action_import")
+# def import_button_clicked(
+#     ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
+# ):
+#     ack()
+#     blocks = [
+#         {
+#             "type": "section",
+#             "text": {
+#                 "type": "mrkdwn",
+#                 "text": 'Import a JSON config of event type mapped to lists of webhooks.\n*Example:*\n```{"app_mention": [{"name": "Helpful Description","webhook_url": "https://webhook.site/4bf6c228"}]}```\n\nUpdates existing keys, but doesn\'t remove any.',
+#             },
+#         },
+#         {
+#             "type": "input",
+#             "block_id": "json_config_input",
+#             "element": {
+#                 "type": "plain_text_input",
+#                 "multiline": True,
+#                 "action_id": "json_config_value",
+#             },
+#             "label": {"type": "plain_text", "text": "JSON Config", "emoji": True},
+#         },
+#     ]
+#     import_modal = {
+#         "type": "modal",
+#         "callback_id": "import_submission",
+#         "title": {"type": "plain_text", "text": "Import Event Mappings"},
+#         "submit": {"type": "plain_text", "text": "Import"},
+#         "blocks": blocks,
+#     }
+#     client.views_open(trigger_id=body["trigger_id"], view=import_modal)
 
 
 @slack_app.view("manual_complete_submission")
@@ -491,42 +495,43 @@ def manual_complete_view_submission(
         logger.exception(f"Failed to send confirmation message {e}")
 
 
-@slack_app.view("import_submission")
-def import_config_view_submission(
-    ack: Ack,
-    body,
-    client: slack_sdk.WebClient,
-    view: View,
-    logger: logging.Logger,
-    context: BoltContext,
-):
-    values = view["state"]["values"]
-    user_id = body["user"]["id"]
-    json_config_str = values["json_config_input"]["json_config_value"]["value"]
-    errors = {}
-    try:
-        data = json.loads(json_config_str)
-        ack()
-    except json.JSONDecodeError as e:
-        errors["json_config_input"] = f"Invalid JSON. Error: {str(e)}"
-        ack(response_action="errors", errors=errors)
-        return
+# TODO: bring back if it matters at all
+# @slack_app.view("import_submission")
+# def import_config_view_submission(
+#     ack: Ack,
+#     body,
+#     client: slack_sdk.WebClient,
+#     view: View,
+#     logger: logging.Logger,
+#     context: BoltContext,
+# ):
+#     values = view["state"]["values"]
+#     user_id = body["user"]["id"]
+#     json_config_str = values["json_config_input"]["json_config_value"]["value"]
+#     errors = {}
+#     try:
+#         data = json.loads(json_config_str)
+#         ack()
+#     except json.JSONDecodeError as e:
+#         errors["json_config_input"] = f"Invalid JSON. Error: {str(e)}"
+#         ack(response_action="errors", errors=errors)
+#         return
 
-    msg = ""
-    try:
-        # Save to DB
-        num_keys_updated = utils.db_import(data)
-        msg = f"Imported {num_keys_updated} event_type keys into Workflow Buddy."
-    except Exception as e:
-        logger.exception(e)
-        msg = "There was an error with your submission"
+#     msg = ""
+#     try:
+#         # Save to DB
+#         num_keys_updated = utils.db_import(data)
+#         msg = f"Imported {num_keys_updated} event_type keys into Workflow Buddy."
+#     except Exception as e:
+#         logger.exception(e)
+#         msg = "There was an error with your submission"
 
-    try:
-        client.chat_postMessage(channel=user_id, text=msg)
-    except e:
-        logger.exception(f"Failed to post a message {e}")
+#     try:
+#         client.chat_postMessage(channel=user_id, text=msg)
+#     except e:
+#         logger.exception(f"Failed to post a message {e}")
 
-    utils.update_app_home(client, user_id)
+#     utils.update_app_home(client, user_id, context.team_id, enterprise_id=context.enterprise_id)
 
 
 @slack_app.action("event_delete_clicked")
@@ -540,10 +545,13 @@ def delete_event_mapping(
     ack()
     user_id = body["user"]["id"]
     payload = body["actions"][0]
-    event_type = payload["value"]
-    logger.info(f"EVENT_DELETE_CLICKED - {event_type}")
-    utils.db_remove_event(event_type)
-    utils.update_app_home(client, user_id)
+    value = payload["value"]
+    _, ec_id = value.split("EventConfig-")
+    logger.info(f"EVENT_DELETE_CLICKED - {value}")
+    db.remove_event_configs(ids=[ec_id])
+    utils.update_app_home(
+        client, user_id, context.team_id, enterprise_id=context.enterprise_id
+    )
 
 
 @slack_app.action("action_add_webhook")
@@ -556,37 +564,50 @@ def add_button_clicked(
 
 
 @slack_app.view("webhook_form_submission")
-def handle_config_webhook_submission(
+def handle_event_config_submission(
     ack: Ack,
     body: dict,
     client: slack_sdk.WebClient,
     view: View,
     logger: logging.Logger,
+    context: BoltContext,
 ):
     # TODO: add more robust error handling
-    values = view["state"]["values"]
-    user_id = body["user"]["id"]
-    event_type = values["event_type_input"]["event_type_value"]["value"]
-    name = values["desc_input"]["desc_value"]["value"]
-    webhook_url = values["webhook_url_input"]["webhook_url_value"]["value"]
-    filter_reaction = values["filter_reaction_input"]["filter_reaction_value"]["value"]
-    # Validate the inputs
-    logger.info(f"submission: {event_type}|{name}|{webhook_url}|{filter_reaction}")
+    # TODO: add support for 'raw_event' and 'filter_channel'
     errors = {}
-    if (event_type is not None and webhook_url is not None) and not utils.is_valid_url(
-        webhook_url
-    ):
-        block_id = "webhook_url_input"
-        errors[block_id] = f"Must be a valid URL with `http(s)://.`"
-    if len(errors) > 0:
+    try:
+        values = view["state"]["values"]
+        user_id = body["user"]["id"]
+        event_type = values["event_type_input"]["event_type_value"]["value"]
+        desc = values["desc_input"]["desc_value"]["value"]
+        webhook_url = values["webhook_url_input"]["webhook_url_value"]["value"]
+        filter_react = values["filter_reaction_input"]["filter_reaction_value"]["value"]
+        # Validate the inputs
+        logger.info(f"submission: {event_type}|{desc}|{webhook_url}|{filter_react}")
+        if (
+            event_type is not None and webhook_url is not None
+        ) and not utils.is_valid_url(webhook_url):
+            block_id = "webhook_url_input"
+            errors[block_id] = "Must be a valid URL with `http(s)://.`"
+    except Exception as e:
+        errors[
+            "filter_reaction_input"
+        ] = f"💥 Sorry, but Buddy hit a server error. If you don't recognize the following failure, it's on us: {type(e).__name__}|{e}."
+    if errors:
         ack(response_action="errors", errors=errors)
         return
     ack()
 
     msg = ""
     try:
-        utils.db_add_webhook_to_event(
-            event_type, name, webhook_url, user_id, filter_reaction=filter_reaction
+        db.create_event_config(
+            context.team_id,
+            event_type,
+            desc,
+            webhook_url,
+            user_id,
+            filter_react=filter_react,
+            enterprise_id=context.enterprise_id,
         )
         msg = f"Your addition of {event_type}:{webhook_url} was successful."
     except Exception as e:
@@ -597,7 +618,9 @@ def handle_config_webhook_submission(
     except e:
         logger.exception(f"Failed to post a message {e}")
 
-    utils.update_app_home(client, user_id)
+    utils.update_app_home(
+        client, user_id, context.team_id, enterprise_id=context.enterprise_id
+    )
 
 
 # TODO: can Slack bolt handle multiple @event() attached to a single func to save this mess?
@@ -673,7 +696,9 @@ def update_app_home(
     context: BoltContext,
 ):
     team_id = context.team_id
-    app_home_view = utils.build_app_home_view()
+    app_home_view = utils.build_app_home_view(
+        context.team_id, enterprise_id=context.enterprise_id
+    )
     client.views_publish(user_id=event["user"], view=app_home_view)
 
 
@@ -840,8 +865,6 @@ def execute_utils(
     context: BoltContext,
     logger: logging.Logger,
 ):
-    global DEBUG_STEP_DATA_CACHE
-
     try:
         should_send_complete_signal = True
         inputs = step["inputs"]
@@ -903,8 +926,7 @@ def execute_utils(
                     channel=debug_conversation_id, text=fallback_text, blocks=blocks
                 )
                 logger.info(resp)
-                DEBUG_STEP_DATA_CACHE[execution_id] = {"step": step, "body": body}
-                logger.debug(f"DEBUG_STEPCACHE: {DEBUG_STEP_DATA_CACHE}")
+                db.save_debug_data_to_cache(execution_id, step, body)
                 return
             except slack_sdk.errors.SlackApiError as e:
                 logger.error(
@@ -915,7 +937,7 @@ def execute_utils(
 
         logging.info(f"Chosen action: {chosen_action}")
         # TODO: gotta add some actual team info to it
-        db.save_usage(chosen_action)
+        db.save_usage(chosen_action, context.team_id)
         if chosen_action == "webhook":
             outputs = buddy.run_webhook(step)
         elif chosen_action == "random_int":

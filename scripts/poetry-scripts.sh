@@ -5,6 +5,13 @@
 # just the one for now, can easily add more options here
 set -x
 
-test_file=$1
-echo "Running tests on only the file: $test_file..."
-poetry run python -m pytest -sv "$test_file"
+action=$1
+
+if [ "$action" == "m" ]; then
+    module_name=$2
+    echo "Running tests on only the file: $module_name..."
+    poetry run python -m pytest -sv "tests/test_$module_name.py"
+elif [ "$action" == "k" ]; then
+    test_func_string=$2
+    poetry run python -m pytest -sv -k "$test_func_string"
+fi

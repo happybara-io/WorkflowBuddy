@@ -51,8 +51,6 @@ EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
 WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
-DB_UNHANDLED_EVENTS_KEY = "unhandled_events"
-
 TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
 
@@ -89,6 +87,9 @@ APP_HOME_HEADER_BLOCKS: List[Dict[str, Any]] = [
         ],
     },
     {"type": "divider"},
+]
+
+APP_HOME_EVENT_TRIGGER_BLOCKS = [
     {
         "type": "header",
         "text": {"type": "plain_text", "text": "Event Triggers", "emoji": True},
@@ -142,19 +143,19 @@ APP_HOME_HEADER_BLOCKS: List[Dict[str, Any]] = [
                 "value": "add_webhook",
                 "action_id": "action_add_webhook",
             },
-            {
-                "type": "button",
-                "style": "primary",
-                "text": {"type": "plain_text", "text": "Import", "emoji": True},
-                "value": "import",
-                "action_id": "action_import",
-            },
-            {
-                "type": "button",
-                "text": {"type": "plain_text", "text": "Export", "emoji": True},
-                "value": "export",
-                "action_id": "action_export",
-            },
+            # {
+            #     "type": "button",
+            #     "style": "primary",
+            #     "text": {"type": "plain_text", "text": "Import", "emoji": True},
+            #     "value": "import",
+            #     "action_id": "action_import",
+            # },
+            # {
+            #     "type": "button",
+            #     "text": {"type": "plain_text", "text": "Export", "emoji": True},
+            #     "value": "export",
+            #     "action_id": "action_export",
+            # },
         ],
     },
     # {"type": "divider"},
