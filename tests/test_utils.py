@@ -7,8 +7,7 @@ import copy
 from sqlalchemy.orm import Session
 import pytest
 import slack_sdk.errors
-from requests import ConnectionError, Timeout
-
+from requests.exceptions import ConnectionError, Timeout, HTTPError
 import buddy.utils as sut
 import buddy.constants as c
 import buddy.db as db
@@ -22,6 +21,10 @@ class FakeResponse:
         self.status_code: int = status_code
         self.body: Dict[str, Any] = body
         self.text: str = text
+
+    def raise_for_status(self):
+        if self.status_code >= 300:
+            raise HTTPError(self.status_code)
 
 
 SLACK_WORKFLOW_BUILDER_WEBHOOK_VARIABLES_MAX = 20
@@ -208,7 +211,18 @@ def test_send_webhook_retries_connectionerror(mock_requests: mock.MagicMock):
 
 
 @mock.patch("buddy.utils.requests")
-def test_send_webhook_retries_timeout(mock_requests: mock.MagicMock):
+def test_send_webhook_retries_http_errors(mock_requests: mock.MagicMock):
+    mock_requests.request.return_value = FakeResponse(407, {})
+    url = "https://webhook.site/addd265d-3fac-46f7-91aa-86fdb21b98aa"
+    body = {"abc": 123}
+
+    resp = sut.send_webhook(url, body)
+    assert resp.status_code == 407
+    assert mock_requests.request.call_count == c.HTTP_REQUEST_RETRIES + 1
+
+
+@mock.patch("buddy.utils.requests")
+def test_send_webhook_succeeds(mock_requests: mock.MagicMock):
     mock_requests.request.return_value = FakeResponse(205, {})
     url = "https://webhook.site/addd265d-3fac-46f7-91aa-86fdb21b98aa"
     body = {"abc": 123}

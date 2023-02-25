@@ -14,6 +14,7 @@ from urllib import parse, response
 import buddy.db as db
 import time
 
+from sqlalchemy.orm import Session
 import requests
 from requests.exceptions import Timeout, ConnectionError
 import slack_sdk
@@ -21,8 +22,7 @@ import slack_sdk.errors
 
 import buddy.constants as c
 
-logging.basicConfig(level=logging.DEBUG)
-
+logger = logging.getLogger(__name__)
 
 ###################
 # Utils
@@ -73,7 +73,7 @@ def generic_event_proxy(
             json_body = flatten_payload_for_slack_workflow_builder(event)
         resp = send_webhook(ec.webhook_url, json_body)
         if resp.status_code >= 300:
-            logger.error(f"{resp.status_code}:{resp.text}|config:{ec}")
+            logger.error(f"{resp.status_code}:{resp.text[:100]}|config:{ec}")
     logger.info("Finished sending all webhooks for event")
 
 
@@ -84,18 +84,22 @@ def send_webhook(
         headers = {"Content-Type": "application/json"}
     logging.debug(f"Method:{method}. body to send:{body}")
 
+    final_index = c.HTTP_REQUEST_RETRIES
     for i in range(c.HTTP_REQUEST_RETRIES + 1):
         try:
             resp = requests.request(
                 method=method, url=url, json=body, params=params, headers=headers
             )
-            logging.info(f"{resp.status_code}: {resp.text}")
-            if resp.status_code < 300:
+            logger.info(f"{resp.status_code}: {resp.text[:100]}")
+            ok = resp.status_code < 300
+            last_failed_attempt = resp.status_code > 300 and i == final_index
+            if ok or last_failed_attempt:
                 return resp
         except (ConnectionError, Timeout) as e:
             # try again, unless it's already the last try
-            final_index = c.HTTP_REQUEST_RETRIES
+            logger.info(f"Received exception {type(e).__name__}:{e}")
             if i == final_index:
+                logger.error("No more retry left, raising")
                 raise e
         # Don't hold up server long, but give a tiny break for whatever we're calling
         time.sleep(0.2)
@@ -112,9 +116,12 @@ def update_app_home(
 
 def build_app_home_view(team_id: str, enterprise_id: Optional[str] = None) -> dict:
     # TODO: gotta pull existing events - this might be just as easy as team config
-    team_config = db.get_team_config(team_id, enterprise_id=enterprise_id)
-    event_configs: List[db.EventConfig] = team_config.event_configs
-    unhandled_events = comma_str_to_list(team_config.unhandled_events or "")
+    with Session(db.DB_ENGINE) as s:
+        team_config = db.get_team_config(
+            team_id, enterprise_id=enterprise_id, session=s
+        )
+        event_configs: List[db.EventConfig] = team_config.event_configs
+        unhandled_events = comma_str_to_list(team_config.unhandled_events or "")
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
     team_usages = db.get_team_action_usage(team_id)

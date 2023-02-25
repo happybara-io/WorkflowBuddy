@@ -21,7 +21,7 @@ from buddy.types import Outputs
 
 from typing import List, Dict, Any
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("step_actions")
 
 ################################
 # Step Actions funcs: take `inputs`, return Slack `outputs`
@@ -52,7 +52,7 @@ def run_conversations_create(inputs: dict, client: slack_sdk.WebClient) -> Outpu
             }
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: failed to create conversation. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
@@ -70,7 +70,7 @@ def run_find_user_by_email(inputs: dict, client: slack_sdk.WebClient) -> Outputs
             }
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: failed to get email. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
@@ -175,7 +175,7 @@ def run_json_extractor(step: dict) -> Outputs:
 
     jsonpath_expr = parse(jsonpath_expr_str)
     results = jsonpath_expr.find(json_data)
-    logging.debug(f"JSONPATH {jsonpath_expr_str}| RESULTS: {results}")
+    logger.debug(f"JSONPATH {jsonpath_expr_str}| RESULTS: {results}")
     matches = [match.value for match in results]
     if len(matches) == 1:
         matches = matches[0]
@@ -197,7 +197,7 @@ def run_random_member_picker(
             channel=conversation_id, limit=num_per_request
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: unable to get conversation members from Slack. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
@@ -239,7 +239,7 @@ def run_schedule_message(inputs: dict, client: slack_sdk.WebClient) -> Outputs:
             }
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: unable to schedule message. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
@@ -306,7 +306,7 @@ def run_manual_complete(
         resp = client.chat_postMessage(
             channel=conversation_id, text=fallback_text, blocks=blocks  # type: ignore
         )
-        logger.info(resp)
+        logger.debug(resp)
     except slack_sdk.errors.SlackApiError as e:
         logger.error(e.response)
         errmsg = f"Slack Error: unable to send message with execution_id to conversation. {e.response['error']}."
@@ -413,7 +413,7 @@ def run_webhook(step: dict) -> Outputs:
     query_params_json_str = (
         inputs.get("query_params_json_str", {}).get("value", {}) or "{}"
     )
-    logging.info(f"sending to url:{url}")
+    logger.info(f"sending to url:{url}")
     body = {}
     bool_flags_input = inputs.get("bool_flags", {})
     try:
@@ -427,7 +427,7 @@ def run_webhook(step: dict) -> Outputs:
             bool_flags_input,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
     try:
@@ -439,7 +439,7 @@ def run_webhook(step: dict) -> Outputs:
             request_json_str,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
     try:
@@ -450,7 +450,7 @@ def run_webhook(step: dict) -> Outputs:
             headers_json_str,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
     try:
@@ -463,10 +463,10 @@ def run_webhook(step: dict) -> Outputs:
             query_params_json_str,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
-    logging.info(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
+    logger.info(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
     resp = utils.send_webhook(
         url, body, method=http_method, params=query_params, headers=new_headers
     )

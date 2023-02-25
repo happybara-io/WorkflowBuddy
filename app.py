@@ -23,6 +23,7 @@ import buddy.errors
 import buddy.utils as utils
 import buddy.db as db
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from slack_sdk.oauth import OAuthStateUtils
@@ -32,17 +33,20 @@ from slack_sdk.errors import SlackApiError
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 
 # attempting and failing to silence DEBUG loggers
-logger = logging.getLogger(__name__).setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
-logging.getLogger("slack_bolt").setLevel(logging.INFO)
-logging.getLogger("slack_sdk").setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.INFO)
+# logging.getLogger("slack_bolt").setLevel(logging.INFO)
+# logging.getLogger("slack_sdk").setLevel(logging.INFO)
 
+logging.info("Starting app...")
+logger.info("Starting app...")
 ENV = os.environ.get("ENV", "DEV")
 slack_client_id = os.environ["SLACK_CLIENT_ID"]
 encryption_key = os.environ.get("SECRET_ENCRYPTION_KEY")
 ignore_encryption_warning = os.environ.get("IGNORE_ENCRYPTION", False)
 if not encryption_key and not ignore_encryption_warning:
-    logging.warning(
+    logger.warning(
         "[!] Starting server without an encryption key...data will not be encrypted at rest by this application."
     )
 
@@ -59,18 +63,22 @@ oauth_state_store = SQLAlchemyOAuthStateStore(
     expiration_seconds=OAuthStateUtils.default_expiration_seconds,
     logger=logger,
 )
-try:
-    db_engine.execute("select count(*) from slack_bots")
-except Exception as e:
-    logging.info("Creating Slack installation tables...")
-    installation_store.metadata.create_all(db_engine)
-    oauth_state_store.metadata.create_all(db_engine)
 
-try:
-    db_engine.execute("select count(*) from team_config")
-except Exception as e:
-    logging.info("Creating tables...")
-    db.create_tables(db_engine)
+with db_engine.connect() as conn:
+    try:
+        conn.execute(text("select count(*) from slack_bots"))
+    except Exception as e:
+        logger.exception(e)
+        logger.info("Creating Slack installation tables...")
+        installation_store.metadata.create_all(db_engine)
+        oauth_state_store.metadata.create_all(db_engine)
+
+    try:
+        conn.execute(text("select count(*) from team_config"))
+    except Exception as e:
+        logger.exception(e)
+        logger.info("Creating tables...")
+        db.create_tables(db_engine)
 
 slack_app = App(
     signing_secret=os.environ["SLACK_SIGNING_SECRET"],
@@ -95,6 +103,9 @@ slack_app = App(
 
 @slack_app.middleware  # or app.use(log_request)
 def log_request(logger: logging.Logger, body: dict, next):
+    logger.info(
+        f'type:{body.get("type")} team_id:{body.get("team_id")} team:{body.get("team")}'
+    )
     logger.debug(body)
     return next()
 
@@ -379,7 +390,7 @@ def delete_scheduled_message(
         resp = client.views_update(
             view_id=body["view"]["id"], hash=body["view"]["hash"], view=sm_modal
         )
-        logger.info(resp)
+        logger.debug(resp)
 
 
 @slack_app.action("action_manual_complete")
@@ -609,14 +620,14 @@ def handle_event_config_submission(
             filter_react=filter_react,
             enterprise_id=context.enterprise_id,
         )
-        msg = f"Your addition of {event_type}:{webhook_url} was successful."
+        # msg = f"Your addition of {event_type}:{webhook_url} was successful."
     except Exception as e:
         logger.exception(e)
         msg = f"There was an error attempting to add {event_type}:{webhook_url}."
-    try:
-        client.chat_postMessage(channel=user_id, text=msg)
-    except e:
-        logger.exception(f"Failed to post a message {e}")
+        try:
+            client.chat_postMessage(channel=user_id, text=msg)
+        except e:
+            logger.exception(f"Failed to post a message {e}")
 
     utils.update_app_home(
         client, user_id, context.team_id, enterprise_id=context.enterprise_id
@@ -781,7 +792,7 @@ def utils_update_step_modal(
     resp = client.views_update(
         view_id=body["view"]["id"], hash=body["view"]["hash"], view=updated_view
     )
-    logger.info(resp)
+    logger.debug(resp)
 
 
 def save_utils(
@@ -873,8 +884,6 @@ def execute_utils(
     logger: logging.Logger,
 ):
     try:
-        print("BODY", body)
-        logging.warning(f"Body: {body}")
         should_send_complete_signal = True
         inputs = step["inputs"]
         event = body["event"]
@@ -934,7 +943,7 @@ def execute_utils(
                 resp = client.chat_postMessage(
                     channel=debug_conversation_id, text=fallback_text, blocks=blocks
                 )
-                logger.info(resp)
+                logger.debug(resp)
                 db.save_debug_data_to_cache(execution_id, step, body)
                 return
             except slack_sdk.errors.SlackApiError as e:
@@ -944,7 +953,7 @@ def execute_utils(
 
         outputs = {}
 
-        logging.info(f"Chosen action: {chosen_action}")
+        logger.info(f"Chosen action: {chosen_action}")
         # TODO: gotta add some actual team info to it
         db.save_execute_usage(chosen_action, context.team_id, step)
         if chosen_action == "webhook":
@@ -983,11 +992,13 @@ def execute_utils(
             fail(error={"message": f"Unknown action chosen - {chosen_action}"})
     except buddy.errors.WorkflowStepFailError as e:
         fail(error={"message": e.errmsg})
+        should_send_complete_signal = False
     except Exception as e:
         # catch everything, otherwise our failures lead to orphaned 'In progress'
         logger.exception(e)
         exc_message = f"|## Want help? Check the community discussion (https://github.com/happybara-io/WorkflowBuddy/discussions), or reach out to support@happybara.io ##| Your error info --> Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
         fail(error={"message": exc_message})
+        should_send_complete_signal = False
 
     if debug_mode and debug_conversation_id:
         # finish debug mode by sending `outputs` to the same location
@@ -1154,7 +1165,7 @@ def oauth_redirect():
 @flask_app.route("/webhook", methods=["POST"])
 def inbound_webhook():
     d = request.data
-    logging.info(f"#### RECEIVED ###: {d}")
+    logger.info(f"#### RECEIVED ###: {d}")
     return jsonify({"ok": True}), 201
 
 

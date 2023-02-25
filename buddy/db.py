@@ -13,6 +13,7 @@ from sqlalchemy.engine import Engine
 from typing import Dict, Any, Optional, Union, List, Generator
 from contextlib import nullcontext
 
+logger = logging.getLogger(__name__)
 # TODO: feels like I shouldn't have to write all these CRUD ops by hand,
 # I must be missing something with SQLAlchemy
 logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARN)
@@ -30,7 +31,7 @@ LOCAL_SQLITE_DB = f"{WB_DATA_DIR}{DB_FILE_NAME}"
 LOCAL_SQLITE_CONN_STR = f"sqlite:///{LOCAL_SQLITE_DB}"
 # TODO: if an alternative connection string is provided - postgres?
 conn_str = os.environ.get("SQL_CONN_STR", LOCAL_SQLITE_CONN_STR)
-logging.info(f"Starting SQLAlchemy connected to: {conn_str}")
+logger.info(f"Starting SQLAlchemy connected to: {conn_str}")
 DB_ENGINE: Engine = create_engine(conn_str, future=True)
 
 
