@@ -103,9 +103,17 @@ slack_app = App(
 
 @slack_app.middleware  # or app.use(log_request)
 def log_request(logger: logging.Logger, body: dict, next):
-    logger.info(
-        f'type:{body.get("type")} team_id:{body.get("team_id")} team:{body.get("team")}'
-    )
+    t = body.get("type")
+    if t == "event_callback":
+        t += f'-{body.get("event", {}).get("type")}'
+    elif t == "block_actions":
+        s = ""
+        actions = body.get("actions", [{}])
+        if len(actions) > 0:
+            s = actions[0].get("action_id")
+        t += f"-{s}"
+
+    logger.info(f'type:{t} team_id:{body.get("team_id")} team:{body.get("team")}')
     logger.debug(body)
     return next()
 
