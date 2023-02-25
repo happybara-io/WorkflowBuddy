@@ -101,9 +101,8 @@ class TeamConfig(Base):
         "Usage", back_populates="team_config", cascade="all, delete-orphan"
     )
     created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(
-        DateTime, default=datetime.now, onupdate=datetime.now
-    )  # name/desc
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    subscription = Column(String, default="self_hosted")
 
     def __repr__(self):
         return f"Team({str(self.__dict__)})"
