@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib import parse, response
 import buddy.db as db
+import time
 
 import requests
+from requests.exceptions import Timeout, ConnectionError
 import slack_sdk
 import slack_sdk.errors
 
@@ -76,18 +78,27 @@ def generic_event_proxy(
 
 
 def send_webhook(
-    url: str,
-    body: dict,
-    method="POST",
-    params=None,
-    headers={"Content-Type": "application/json"},
+    url: str, body: dict, method="POST", params=None, headers=None
 ) -> requests.Response:
+    if headers is None:
+        headers = {"Content-Type": "application/json"}
     logging.debug(f"Method:{method}. body to send:{body}")
-    resp = requests.request(
-        method=method, url=url, json=body, params=params, headers=headers
-    )
-    logging.info(f"{resp.status_code}: {resp.text}")
-    return resp
+
+    for i in range(c.HTTP_REQUEST_RETRIES + 1):
+        try:
+            resp = requests.request(
+                method=method, url=url, json=body, params=params, headers=headers
+            )
+            logging.info(f"{resp.status_code}: {resp.text}")
+            if resp.status_code < 300:
+                return resp
+        except (ConnectionError, Timeout) as e:
+            # try again, unless it's already the last try
+            final_index = c.HTTP_REQUEST_RETRIES
+            if i == final_index:
+                raise e
+        # Don't hold up server long, but give a tiny break for whatever we're calling
+        time.sleep(0.2)
 
 
 def update_app_home(
@@ -106,7 +117,7 @@ def build_app_home_view(team_id: str, enterprise_id: Optional[str] = None) -> di
     unhandled_events = comma_str_to_list(team_config.unhandled_events or "")
 
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
-    team_usages = db.get_team_usage(team_id)
+    team_usages = db.get_team_action_usage(team_id)
     blocks.extend(
         [
             {

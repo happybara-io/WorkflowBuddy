@@ -1,12 +1,13 @@
 import json
 import logging
 import unittest.mock as mock
-from typing import List
+from typing import List, Dict, Any
 import copy
 
 from sqlalchemy.orm import Session
 import pytest
 import slack_sdk.errors
+from requests import ConnectionError, Timeout
 
 import buddy.utils as sut
 import buddy.constants as c
@@ -17,9 +18,10 @@ test_logger = logging.getLogger("TestLogger")
 
 
 class FakeResponse:
-    def __init__(self, status_code, body) -> None:
-        self.status_code = status_code
-        self.body = body
+    def __init__(self, status_code, body, text="") -> None:
+        self.status_code: int = status_code
+        self.body: Dict[str, Any] = body
+        self.text: str = text
 
 
 SLACK_WORKFLOW_BUILDER_WEBHOOK_VARIABLES_MAX = 20
@@ -183,6 +185,38 @@ def test_generic_event_proxy(patched_send, name, event):
     mock_team_id = "T11111"
     mock_enterprise_id = None
     sut.generic_event_proxy(test_logger, event, {}, mock_team_id, mock_enterprise_id)
+
+
+@mock.patch("buddy.utils.requests")
+def test_send_webhook_retries_timeout(mock_requests: mock.MagicMock):
+    mock_requests.request.side_effect = Timeout()
+    url = "https://webhook.site/addd265d-3fac-46f7-91aa-86fdb21b98aa"
+    body = {"abc": 123}
+    with pytest.raises(Timeout):
+        sut.send_webhook(url, body)
+    assert mock_requests.request.call_count == c.HTTP_REQUEST_RETRIES + 1
+
+
+@mock.patch("buddy.utils.requests")
+def test_send_webhook_retries_connectionerror(mock_requests: mock.MagicMock):
+    mock_requests.request.side_effect = ConnectionError()
+    url = "https://webhook.site/addd265d-3fac-46f7-91aa-86fdb21b98aa"
+    body = {"abc": 123}
+    with pytest.raises(ConnectionError):
+        sut.send_webhook(url, body)
+    assert mock_requests.request.call_count == c.HTTP_REQUEST_RETRIES + 1
+
+
+@mock.patch("buddy.utils.requests")
+def test_send_webhook_retries_timeout(mock_requests: mock.MagicMock):
+    mock_requests.request.return_value = FakeResponse(205, {})
+    url = "https://webhook.site/addd265d-3fac-46f7-91aa-86fdb21b98aa"
+    body = {"abc": 123}
+    resp = sut.send_webhook(url, body)
+    num_times_ran = mock_requests.request.call_count
+    assert (
+        num_times_ran == 1
+    ), f"If request is successful, should not run retries, but ran {num_times_ran} times."
 
 
 @pytest.mark.parametrize(

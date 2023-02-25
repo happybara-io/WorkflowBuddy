@@ -466,7 +466,7 @@ def run_webhook(step: dict) -> Outputs:
         logging.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
-    logging.debug(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
+    logging.info(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
     resp = utils.send_webhook(
         url, body, method=http_method, params=query_params, headers=new_headers
     )

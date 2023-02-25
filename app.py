@@ -678,8 +678,15 @@ def event_reaction_added(
     )
 
 
+# Mediocre tracking of how many workflows currently are using App Steps
+# https://api.slack.com/workflows/steps#tracking
 @slack_app.event(c.EVENT_WORKFLOW_PUBLISHED)
 def handle_workflow_published_events(body: dict, logger: logging.Logger):
+    logger.debug(body)
+
+
+@slack_app.event(c.EVENT_WORKFLOW_PUBLISHED)
+def handle_workflow_deleted_events(body: dict, logger: logging.Logger):
     logger.debug(body)
 
 
@@ -866,6 +873,8 @@ def execute_utils(
     logger: logging.Logger,
 ):
     try:
+        print("BODY", body)
+        logging.warning(f"Body: {body}")
         should_send_complete_signal = True
         inputs = step["inputs"]
         event = body["event"]
@@ -937,7 +946,7 @@ def execute_utils(
 
         logging.info(f"Chosen action: {chosen_action}")
         # TODO: gotta add some actual team info to it
-        db.save_usage(chosen_action, context.team_id)
+        db.save_execute_usage(chosen_action, context.team_id, step)
         if chosen_action == "webhook":
             outputs = buddy.run_webhook(step)
         elif chosen_action == "random_int":
@@ -1069,7 +1078,7 @@ def execute_webhook(
 ):
     # TODO: add debug mode here as well
     try:
-        db.save_usage("webhook", context.team_id)
+        db.save_execute_usage("webhook", context.team_id, step)
         outputs = buddy.run_webhook(step)
         complete(outputs=outputs)
     except Exception as e:

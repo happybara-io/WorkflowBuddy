@@ -151,7 +151,11 @@ class Usage(Base):
     created_at = Column(DateTime, default=datetime.now)
     team_config_id = Column(Integer, ForeignKey(f"{TEAM_CONFIG_TABLE_NAME}.id"))
     team_config = relationship("TeamConfig", back_populates="usages")
-    usage_type = Column(String)
+    usage_type = Column(String(100))  # usually slack event type->workflow_step_execute
+    action = Column(String(100))  # usually callback_id->webhook
+    workflow_id = Column(String(50))
+    workflow_instance_id = Column(String(50))
+    step_id = Column(String(50))
 
     def __repr__(self):
         return f"Usage({str(self.__dict__)})"
@@ -345,25 +349,42 @@ def find_and_remove_event_config(
         s.commit()
 
 
-def save_usage(
-    usage_type: str, team_id: str, enterprise_id: Optional[str] = None
+def save_execute_usage(
+    action: str, team_id: str, step: dict, enterprise_id: Optional[str] = None
 ) -> None:
     with Session(DB_ENGINE) as s:
         team_config: TeamConfig = get_team_config(
             team_id, enterprise_id=enterprise_id, session=s
         )
-        usage_vals = {"usage_type": usage_type}
+        # TODO: premature optimization labeling them all as workflow_step_execute,
+        # but space isn't a concern for now.
+        usage_vals = {
+            "usage_type": "workflow_step_execute",
+            "action": action,
+            "workflow_id": step.get("workflow_id"),
+            "workflow_instance_id": step.get("workflow_instance_id"),
+            "step_id": step.get("step_id"),
+        }
         new_usage = Usage(**usage_vals)
         team_config.usages.append(new_usage)
         s.commit()
 
 
-def get_team_usage(team_id: str, enterprise_id: Optional[str] = None) -> Dict[str, int]:
+def get_team_action_usage(
+    team_id: str, enterprise_id: Optional[str] = None
+) -> Dict[str, int]:
     with Session(DB_ENGINE, expire_on_commit=False) as s:
+        # TODO: seems like it could be written as one query with join, but idk
+        # team_config: TeamConfig = get_team_config(team_id, session=s)
+        # team_config.usages
         stmt = (
-            select(Usage.usage_type, func.count())
-            .where(TeamConfig.id == Usage.team_config_id)
-            .group_by(Usage.usage_type)
+            select(Usage.action, func.count())
+            .join(TeamConfig)
+            .where(
+                TeamConfig.team_id == team_id,
+                Usage.usage_type == "workflow_step_execute",
+            )
+            .group_by(Usage.action)
         )
         rows = s.execute(stmt).all()
         return {row[0]: row[1] for row in rows}

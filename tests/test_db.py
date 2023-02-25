@@ -196,10 +196,12 @@ def test_event_config(get_db_objects):
 
 def test_usages(get_db_objects):
     engine, _ = get_db_objects
-    assert sut.DB_ENGINE == engine
+
     test_team_id = "T0112334"
+    second_team_id = "T22222"
     with Session(engine) as session:
         session.add(sut.TeamConfig(client_id="abcdefg4", team_id=test_team_id))
+        session.add(sut.TeamConfig(client_id="abcdefg4", team_id=second_team_id))
         session.commit()
 
     event_type = "webhook"
@@ -207,11 +209,19 @@ def test_usages(get_db_objects):
 
     num_unique_events = 2
     num_events_per_usage = 3
+    fake_step = {
+        "workflow_id": "427766349637366512",
+        "workflow_instance_id": "449215073169191811",
+        "step_id": "5c7487e9-0cb8-446d-8d72-29a765bbd3ff",
+    }
     for _ in range(num_events_per_usage):
-        sut.save_usage(event_type, test_team_id)
-        sut.save_usage(event_type_2, test_team_id)
+        sut.save_execute_usage(event_type, test_team_id, fake_step)
+        sut.save_execute_usage(event_type_2, test_team_id, fake_step)
+        # test that it only gets it's own teams usage events
+        sut.save_execute_usage(event_type, second_team_id, fake_step)
+        sut.save_execute_usage(event_type_2, second_team_id, fake_step)
 
-    usage_map = sut.get_team_usage(test_team_id)
+    usage_map = sut.get_team_action_usage(test_team_id)
     assert len(usage_map.keys()) == num_unique_events
     for v in usage_map.values():
         assert v == num_events_per_usage
