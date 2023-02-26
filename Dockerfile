@@ -10,6 +10,7 @@ WORKDIR ${APP_DIR}
 COPY requirements.txt ./requirements.txt
 RUN mkdir -p "${WB_DATA_DIR}" && pip install -U pip && pip install -r ./requirements.txt
 ADD buddy ./buddy
+ADD templates ./templates
 COPY ./*.py ./*.sh "${APP_DIR}"
 
 RUN useradd demo && chown demo "${WB_DATA_DIR}"
