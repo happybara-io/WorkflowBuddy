@@ -12,7 +12,7 @@ from typing import Tuple, Union, Dict, List
 import buddy.constants as c
 
 import slack_sdk
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from slack_bolt import Ack, App, Respond
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_bolt.workflows.step import Complete, Configure, Fail, Update, WorkflowStep
@@ -1135,19 +1135,7 @@ handler = SlackRequestHandler(slack_app)
 
 @flask_app.route("/", methods=["GET"])
 def home():
-    return """
-<h2>Simple Homepage</h2>
-<hr />
-<br />
-<h4>Endpoints</h4>
-<ul>
-    <li>Health: /health</li>
-    <li>Events: /slack/events</li>
-    <li>Interactivity: /slack/events</li>
-    <li>Webhooks: /webhook</li>
-    <li>Finish Execution: /workflow/finish-execution</li>
-</ul>
-"""
+    return render_template("index.html")
 
 
 @flask_app.route("/health", methods=["GET"])
