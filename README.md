@@ -647,12 +647,30 @@ It's using a very simple cache + JSON file to persist webhook config data - it's
 
 Depending on your deployment options, you may need to take extra steps to persist the local file data until a more persistent data store is added.
 
-
 ### Tools
 
 We use a number of tools in & around this repo to improve the code quality:
 
 - Black formatter
 - [Sourcery.ai - improved code suggestions for Python](https://docs.sourcery.ai/Welcome/)
+
+### Notes on using Fly.io
+
+Saving a few helpful things I've run into for those who are self-hosting.
+
+#### Pull files (like SQLite DB) to local machine
+
+There are plenty of reasons to pull files down - backups, easier querying, etc. Fly offers a number of different ways to get access to files, and I've had varying luck with each of them:
+
+- ✅ `flyctl ssh sftp shell`, then manually selecting a file with `> get < filename >`. Then Ctrl+C out of it.
+- ❌ `flyctl sftp get /usr/app/data/workflow-buddy-db.json` didn't work for me. What's odd is the same exact command with `sftp find` was able to locate the file, as well as manually selecting it with `sftp shell`. Confusing.
+
+#### Open a console and explore
+
+Easily done with `flyctl ssh console`.
+
+#### Proxy localhost to server
+
+❌ I've had no luck with `flyctl proxy 4747` - supposedly proxy should let you interact with the server as if it was running on your local, but both `curl` and my browser end up hanging indefinitely when I reach to `http://localhost:4747`.
 
 ---
