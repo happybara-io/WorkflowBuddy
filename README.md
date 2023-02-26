@@ -547,10 +547,10 @@ _If you get stuck, check out your [💡 support resources](#support)._
 
 You will need to create an account with cc details💳, though this should run on the free tier. You will then need to [install the `flyctl`](https://fly.io/docs/flyctl/installing/) tool and `flyctl auth login` so it gets connected.
 
-- Copy `fly.template.toml` to `fly.toml`. Open `fly.toml` and customize the _app name_ on the first line of the file.
-- 🥂 Run `flyctl launch` to get the app initialized with _Fly.io_. Choose `No` when it asks _"Would you like to deploy now?"_.
-  - _You can choose any name you want for it, it won't be visible except in your [Fly dashboard](https://fly.io/dashboard/personal)._
-- If you want your **data to persist between deployments**:
+- Copy `fly.template.toml` to `fly.toml`.
+- **Choose a name for your app.** `https://< your app name>.fly.dev` is where it will be hosted, and labeled in the [Fly dashboard](https://fly.io/dashboard/personal).
+- 🥂 Run `flyctl launch --name < your app name>` to get the app initialized with _Fly.io_. Choose `No` when it asks _"Would you like to deploy now?"_.
+- If you want your **data to persist between deployments** _(This has already been implemented in the template. Remove it if you don't want persistence)_:
   - Create a volume for your instance. I set this to 1 GB, but you get up to 3 GB on the free tier. I also picked `ord` since I'm in the US, but pick any [region near you](https://fly.io/docs/reference/regions/).
     `flyctl volumes create workflowbuddy_vol --size 1 -r ord`
   - _(Optional, if using alternate name)_ Ensure `fly.toml` has the mount:
@@ -563,18 +563,17 @@ You will need to create an account with cc details💳, though this should run o
 
   - _(Optional)_ update `fly.toml` config settings.
 - Add secrets from `.env` _(documented above)_ to the Fly environnment using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
-  - For each one, run: `flyctl secrets set <name>='<secret>'`.
-  - 🚀 Finally, get a running app with `flyctl deploy`!
-    - _If you run into issues with remote builders, you can always do it locally with `flyctl deploy --local-only`._
-
-> ⚠️ _Currently it uses using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed._
+  - For each one, run: `flyctl secrets set <name>='<secret>' <name2>='<secret2>'...`.
+- 🚀 Finally, get a running app with `flyctl deploy -a < your app name >`!
+  - _If you run into issues with remote builders, you can always do it locally with `flyctl deploy --local-only`._
 
 ##### Updating Workflow Buddy on Fly
 
 Currently the recommended best practice for updating Workflow Buddy:
 
-- _(Optional)_ Backup previous config.
-  - In Slack, go to `@Workflow Buddy` _App Home_ and `Export` any existing configurations, save them to a local file as a backup.
+- _(Optional)_ Backup the DB.
+  - Run `flyctl ssh sftp shell -a < your app name >`, then `> get /usr/app/data/workflow_buddy.db`.
+  - _Automated backups are on the roadmap._
 - _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
 - `cd` to your cloned WB repo. Run `git pull` for the latest updates.
   - If there were changes to `slack_app_manifest.template.yml`, you'll need to update [your Slack app](https://api.slack.com/apps/) with the latest and greatest.
@@ -639,13 +638,7 @@ For Slack events, this app basically just acts as a proxy. As long as the event 
 
 For the new actions, it registers a **Workflow Builder Step** - unfortunately each app is limited to 10 registered with Slack. To get around that limitation, we have the user select from a static select list of actions that have been implemented on the server, then update the modal to give them the appropriate options. For example, if the user wants to `Send a webhook`, we'll then update the modal to have an input for the Webhook URL, and a text box for the body they want to send.
 
-**Data**: Config data (basically just webhooks for now) is persisted on disk using Using a very simple cache + JSON file to persist webhook config data - it's not very robust, so highly recommend keeping a copy of the JSON file as backup to easily import if config is destroyed.
-
-### Where is the configuration data store?
-
-It's using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed.
-
-Depending on your deployment options, you may need to take extra steps to persist the local file data until a more persistent data store is added.
+**Data**: Config data (basically just webhooks for now) is persisted on disk using a SQlite DB.
 
 ### Tools
 
@@ -653,6 +646,7 @@ We use a number of tools in & around this repo to improve the code quality:
 
 - Black formatter
 - [Sourcery.ai - improved code suggestions for Python](https://docs.sourcery.ai/Welcome/)
+- [Fly.io](https://fly.io)
 
 ### Notes on using Fly.io
 
@@ -663,7 +657,7 @@ Saving a few helpful things I've run into for those who are self-hosting.
 There are plenty of reasons to pull files down - backups, easier querying, etc. Fly offers a number of different ways to get access to files, and I've had varying luck with each of them:
 
 - ✅ `flyctl ssh sftp shell`, then manually selecting a file with `> get < filename >`. Then Ctrl+C out of it.
-- ❌ `flyctl sftp get /usr/app/data/workflow-buddy-db.json` didn't work for me. What's odd is the same exact command with `sftp find` was able to locate the file, as well as manually selecting it with `sftp shell`. Confusing.
+- ❌ `flyctl sftp get /usr/app/data/workflow_buddy.db` didn't work for me. What's odd is the same exact command with `sftp find` was able to locate the file, as well as manually selecting it with `sftp shell`. Confusing.
 
 #### Open a console and explore
 

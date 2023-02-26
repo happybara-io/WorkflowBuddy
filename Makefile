@@ -33,3 +33,9 @@ up-build:
 
 setup-precommit-hooks:
 	poetry run pre-commit install
+
+deploy-dev:
+	fly deploy -a workflow-buddy-dev
+
+deploy-prod:
+	fly deploy -a workflow-buddy
