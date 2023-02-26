@@ -1135,7 +1135,7 @@ handler = SlackRequestHandler(slack_app)
 
 @flask_app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html")
+    return render_template("index.html", dev=ENV)
 
 
 @flask_app.route("/health", methods=["GET"])

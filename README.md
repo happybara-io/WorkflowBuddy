@@ -466,8 +466,7 @@ Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **gu
   - After a couple simple confirmation modals to go through.
   - Go to the `OAuth & Permissions` section and click `Install App` to grant permissions for your new app on the workspace. This will generate the access tokens you will need for the next step.
 - **Now create a `.env` file in your repo. We will be populating it with values from the Slack App you created.**
-  - Get the `SLACK_CLIENT_ID` & `SLACK_CLIENT_SECRET` from the `OAuth & Permissions` tab of your Slack app. This lets Workflow Buddy run the install flow to receive `bot_tokens` and `user_tokens`.
-  - Get the `SLACK_SIGNING_SECRET` from the `Basic Information` tab of your Slack app.
+  - Get the  `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, & `SLACK_SIGNING_SECRET` from the `Basic Information` tab of your Slack app. This lets Workflow Buddy run the install flow to receive `bot_tokens` and `user_tokens`.
   - The final result should look like:
 
     ```
@@ -548,10 +547,10 @@ You will need to create an account with cc details💳, though this should run o
 - Copy `fly.template.toml` to `fly.toml`.
 - **Choose a name for your app.** `https://< your app name>.fly.dev` is where it will be hosted, and labeled in the [Fly dashboard](https://fly.io/dashboard/personal).
 - 🥂 Run `flyctl launch --name < your app name> --no-deploy` to get the app initialized with _Fly.io_. _It will write an updated config to the `fly.toml` file, so don't be alarmed when it does._
-- If you want your **data to persist between deployments** _(This has already been implemented in the template. Remove it if you don't want persistence)_:
+- If you want your **data to persist between deployments**:
   - Create a volume for your instance. I set this to 1 GB, but you get up to 3 GB on the free tier. I also picked `ord` since I'm in the US, but pick any [region near you](https://fly.io/docs/reference/regions/).
-    `flyctl volumes create workflowbuddy_vol --size 1 -r ord`
-  - _(Optional, if using alternate name)_ Ensure `fly.toml` has the mount:
+    `flyctl -a <your app name > volumes create workflowbuddy_vol --size 1 -r ord`
+  - _(Optional)_ Ensure `fly.toml` has the mount added _(Optional since this has already been implemented in the template. Remove it if you don't want persistence.)_:
 
     ```
     [mounts]
@@ -563,7 +562,7 @@ You will need to create an account with cc details💳, though this should run o
 - Add secrets from `.env` _(documented [above](#slack-app-setup))_ to the Fly environnment using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
   - run: `flyctl secrets -a <your app name > set <name>='<secret>' <name2>='<secret2>'...`.
 - 🚀 Finally, get a running app with `flyctl deploy -a < your app name >`!
-  - _If you run into issues with remote builders, you can always do it locally with `flyctl deploy --local-only`._
+  - _If you run into issues with remote builders, you can always do it on Docker locally with `flyctl deploy --local-only`._
 
 ##### Updating Workflow Buddy on Fly
 
