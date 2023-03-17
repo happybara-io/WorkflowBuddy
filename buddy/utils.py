@@ -111,7 +111,8 @@ def update_app_home(
     app_home_view = view
     if not view:
         app_home_view = build_app_home_view(team_id, enterprise_id=enterprise_id)
-    client.views_publish(user_id=user_id, view=app_home_view)
+    resp = client.views_publish(user_id=user_id, view=app_home_view)
+    logger.debug(f"Home update resp:{resp}")
 
 
 def build_app_home_view(team_id: str, enterprise_id: Optional[str] = None) -> dict:
@@ -129,7 +130,7 @@ def build_app_home_view(team_id: str, enterprise_id: Optional[str] = None) -> di
         [
             {
                 "type": "header",
-                "text": {"type": "plain_text", "text": f"Team Usage", "emoji": True},
+                "text": {"type": "plain_text", "text": f"Team", "emoji": True},
             },
             {
                 "type": "section",
@@ -139,10 +140,35 @@ def build_app_home_view(team_id: str, enterprise_id: Optional[str] = None) -> di
                 },
             },
             {
+                "block_id": "home_dispatch_notify_channels",
+                "dispatch_action": True,
+                "type": "input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "action_update_fail_notify_channels",
+                    "initial_value": f"{team_config.fail_notify_channels}",
+                    "placeholder": {"type": "plain_text", "text": "C1111,C2222"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "🔔 Notify Channels on Step Failure",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "These are the channels where you would like a notification sent if a Buddy Step in a Workflow fails ❌.\n_You can acquire a channel ID by opening the 'channel details' at the top, then scrolling to the bottom of the modal._\nThis is a stopgap since Slack's Workflows fail silently as far as we can tell.\n\n⚠️Limitations: This can only notify if Buddy steps fail, NOT any other type of Step, unfortunately.",
+                    }
+                ],
+            },
+            {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"```\n{team_usages}\n```",
+                    "text": f"Team's usage by event name:\n```\n{team_usages}\n```",
                 },
             },
         ]
@@ -272,12 +298,10 @@ def test_if_bot_able_to_post_to_conversation_deprecated(
         resp = client.chat_scheduleMessage(
             channel=conversation_id, text=text, post_at=post_at
         )
-        print(resp)
         scheduled_id = resp["scheduled_message_id"]
         resp = client.chat_deleteScheduledMessage(
             channel=conversation_id, scheduled_message_id=scheduled_id
         )
-        print(resp)
         status = "can_post"
     except slack_sdk.errors.SlackApiError as e:
         print("---------failure-----", e.response["error"], "-------")
@@ -447,6 +471,16 @@ def build_add_webhook_modal():
     return add_webhook_modal
 
 
+def build_notification_manage_modal():
+    blocks = []
+    return {
+        "type": "modal",
+        "callback_id": "webhook_form_submission",
+        "title": {"type": "plain_text", "text": "🔔 Manage Failure Notifications"},
+        "blocks": blocks,
+    }
+
+
 def sanitize_webhook_response(resp_text: str) -> str:
     # need to make sure if we get JSON back, it's properly sanitized so it can be used downstream
     sanitized = resp_text.replace("\n", "")
@@ -501,7 +535,7 @@ def load_json_body_from_untrusted_input_str(input_str: str) -> dict:
     for k, v in data.items():
         convert_newline_to_list = k.startswith("__")
         if convert_newline_to_list:
-            print("CONVERTING", k, "|", v, "|")
+            # print("CONVERTING", k, "|", v, "|")
             # do our best to handle any odd data without causing errors
             data[k] = v.split("\n") if type(v) == str else v
     return data
@@ -896,13 +930,11 @@ def update_blocks_with_previous_input_based_on_config(
                     if not sbool(
                         existing_inputs.get("debug_mode_enabled", {}).get("value")
                     ):
-                        print("BYE BYE")
                         try:
                             del block["elements"][1]["initial_options"]
                         except KeyError:
                             pass
                     else:
-                        print("SETTING IT")
                         # TODO: this breaks as soon as we change anything in the constants for it
                         block["elements"][1]["initial_options"] = [
                             {
@@ -973,3 +1005,117 @@ def update_blocks_with_previous_input_based_on_config(
 
 def comma_str_to_list(s: str) -> List[str]:
     return [x for x in s.split(",") if x]
+
+
+def remove_duplicates_from_comma_separated_string(s: str) -> str:
+    items = s.split(",")
+    uniques = set(items)
+    no_empty_strings = [x for x in uniques if x]
+    return ",".join(no_empty_strings)
+
+
+def slack_send_server_error_modal(
+    client: slack_sdk.WebClient,
+    trigger_id: str,
+    blocks: Optional[List[Dict[str, Any]]] = None,
+    suppress_errors: bool = True,
+):
+    default_blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Sorry! Something went wrong on our end. Try again in a few minutes in case it was a network bug 🐛.",
+            },
+        }
+    ]
+    blocks = blocks or default_blocks
+    try:
+        server_error_modal = {
+            "type": "modal",
+            "callback_id": "server_error_modal",
+            "title": {
+                "type": "plain_text",
+                "text": "Server Error",
+                "emoji": True,
+            },
+            "close": {"type": "plain_text", "text": "Close", "emoji": True},
+            "blocks": blocks,
+        }
+        client.views_open(trigger_id=trigger_id, view=server_error_modal)
+    except Exception as e:
+        logger.exception(f"Failed to send server error message {e}")
+        if not suppress_errors:
+            raise e
+
+
+def link_to_workflow_failures_in_web_ui(team_id: str, workflow_id: str) -> str:
+    return f"https://app.slack.com/workflow-builder/{team_id}/workflow/{workflow_id}/activity?status=failed"
+
+
+def send_step_failure_notifications(
+    client: slack_sdk.WebClient,
+    chosen_action: str,
+    step: dict,
+    team_id: str,
+    short_err_msg: Optional[str] = None,
+    enterprise_id: Optional[str] = None,
+):
+    # TODO: need not only error message, but also ideally
+    # the name of the Workflow, or a link to it, or something.
+    # A generic error message isn't that helpful.
+
+    # fetch notification channels from team item
+
+    # loop through, for each one, call chat_postmessage
+
+    # don't let one failure cascade and stop the rest though.
+    workflow_id = step.get("workflow_id", "not_found")
+    workflow_step_execute_id = step.get("workflow_step_execute_id", "not_found")
+    workflow_instance_id = step.get("workflow_instance_id", "not_found")
+    step_id = step.get("workflow_id", "not_found")
+
+    link = link_to_workflow_failures_in_web_ui(team_id, workflow_id)
+
+    try:
+        with Session(db.DB_ENGINE) as s:
+            team_config = db.get_team_config(
+                team_id, enterprise_id=enterprise_id, session=s
+            )
+            fail_notify_channels = comma_str_to_list(
+                team_config.fail_notify_channels or ""
+            )
+    except Exception:
+        logger.exception(e)
+        logger.warning(
+            "Unable to fetch team config, but continuing since notification failure is non-critical."
+        )
+        return
+
+    logger.info(f"Sending step failure notifications to {fail_notify_channels}...")
+    short_err_msg = f" `{short_err_msg}`." if short_err_msg else ""
+    fallback_text = f"❌Workflow Step failed running _'{chosen_action}'_. {short_err_msg} See more details in <{link}|Workflow Builder>."
+    context_text = f"*Relevant ids*:\n workflow_id:{workflow_id} | workflow_step_execute_id:{workflow_step_execute_id} | workflow_instance_id:{workflow_instance_id} | step_id:{step_id}"
+    blocks = [
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": fallback_text},
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": context_text}],
+        },
+        {"type": "divider"},
+    ]
+
+    for channel_id in fail_notify_channels:
+        try:
+            resp = client.chat_postMessage(
+                channel=channel_id, text=fallback_text, blocks=blocks
+            )
+        except Exception as e:
+            logger.exception(e)
+            logger.warning(
+                f"Continuing past {channel_id}, since notification failure is non-critical."
+            )

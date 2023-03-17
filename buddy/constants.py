@@ -86,13 +86,14 @@ APP_HOME_HEADER_BLOCKS: List[Dict[str, Any]] = [
                 "value": URLS["github-repo"]["home"],
                 "url": URLS["github-repo"]["home"],
                 "action_id": "action_github_repo",
-            },
+            }
         ],
     },
     {"type": "divider"},
 ]
 
 APP_HOME_EVENT_TRIGGER_BLOCKS = [
+    {"type": "divider"},
     {
         "type": "header",
         "text": {"type": "plain_text", "text": "Event Triggers", "emoji": True},

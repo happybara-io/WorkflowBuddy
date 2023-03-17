@@ -103,6 +103,9 @@ class TeamConfig(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     subscription = Column(String, default="self_hosted")
+    fail_notify_channels = Column(
+        String, default=""
+    )  # comma separated list; easiest to do
 
     def __repr__(self):
         return f"Team({str(self.__dict__)})"
@@ -217,6 +220,44 @@ def get_unhandled_events(
         )
         events_str = team_config.unhandled_events or ""
         return [x for x in events_str.split(",") if x]
+
+
+def set_failure_notification_channels(
+    channel_ids: str, team_id: str, enterprise_id: Optional[str] = None
+) -> None:
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            team_id, enterprise_id=enterprise_id, session=s
+        )
+        team_config.fail_notify_channels = channel_ids
+        s.commit()
+
+
+def add_failure_notification_channel(
+    channel_id: str, team_id: str, enterprise_id: Optional[str] = None
+) -> None:
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            team_id, enterprise_id=enterprise_id, session=s
+        )
+        curr_str = team_config.fail_notify_channels or ""
+        if channel_id not in curr_str:
+            new_str = f"{curr_str}{channel_id},"
+            team_config.fail_notify_channels = new_str
+            s.commit()
+
+
+def remove_failure_notification_channel(
+    channel_id: str, team_id: str, enterprise_id: Optional[str] = None
+) -> None:
+    with Session(DB_ENGINE) as s:
+        team_config: TeamConfig = get_team_config(
+            team_id, enterprise_id=enterprise_id, session=s
+        )
+        fail_notify_channels_str = team_config.fail_notify_channels or ""
+        new_str = fail_notify_channels_str.replace(f"{channel_id},", "")
+        team_config.fail_notify_channels = new_str
+        s.commit()
 
 
 def get_team_config(

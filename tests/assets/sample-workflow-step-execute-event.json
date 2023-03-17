@@ -1,0 +1,46 @@
+{
+    "token": "XXYYZZ",
+    "team_id": "TXXXXXXXX",
+    "enterprise_id": "EXXXXXXXX",
+    "api_app_id": "AXXXXXXXX",
+    "event": {
+        "type": "workflow_step_execute",
+        "callback_id": "open_ticket",
+        "workflow_step": {
+            "workflow_step_execute_id": "1036669284371.19077474947.c94bcf942e047298d21f89faf24f1326",
+            "workflow_id": "427766349637366512",
+            "workflow_instance_id": "449215073169191811",
+            "step_id": "5c7487e9-0cb8-446d-8d72-29a765bbd3ff",
+            "inputs": {
+                "title": "Requesting help with my computer",
+                "submitter": "W1234567890"
+            },
+            "outputs": [
+                {
+                    "type": "text",
+                    "name": "title",
+                    "label": "Title of Ticket"
+                },
+                {
+                    "type": "text",
+                    "name": "id",
+                    "label": "Ticket ID"
+                }
+            ]
+        },
+        "event_ts": "1677282654.997075"
+    },
+    "type": "event_callback",
+    "event_id": "EvXXXXXXXX",
+    "event_time": 1234567890,
+    "authorizations": [
+        {
+            "enterprise_id": null,
+            "team_id": "TKM6AU1FG",
+            "user_id": "U040Z1PAX8A",
+            "is_bot": true,
+            "is_enterprise_install": false
+        }
+    ],
+    "is_ext_shared_channel": false
+}

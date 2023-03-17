@@ -12,6 +12,7 @@ import buddy.utils as sut
 import buddy.constants as c
 import buddy.db as db
 import tests.tc as test_const
+import tests.helpers as helpers
 
 test_logger = logging.getLogger("TestLogger")
 
@@ -136,7 +137,6 @@ value_3",
 }
 """
     body = sut.load_json_body_from_untrusted_input_str(input_str)
-    print(body)
     assert type(body) is dict
     new_list = body[converting_key]
     assert type(new_list) is list
@@ -311,7 +311,6 @@ def test_sanitizing_unescaped_quotes(
         if expected_error:
             raise ValueError("Shouldn't have passed successfully with that input!")
         assert set(expected_keys) == set(out.keys())
-        print("OUT", out)
     except json.JSONDecodeError as err:
         if not expected_error:
             raise err
@@ -455,11 +454,15 @@ def test_build_app_home_view_shows_event_configs_and_unhandled():
     # TODO: make this a helper func or something
     team_id = "T44444"
     unhandled = "bad_event,another_unhandled"
+    fail_notify_channels = "C12334,C34455"
     # create a basic team item & event configs
     with Session(db.DB_ENGINE) as s:
         s.add(
             db.TeamConfig(
-                client_id="3334444a", team_id=team_id, unhandled_events=unhandled
+                client_id="3334444a",
+                team_id=team_id,
+                unhandled_events=unhandled,
+                fail_notify_channels=fail_notify_channels,
             )
         )
         s.add(db.EventConfig(team_config_id=1, event_type="test_eventy"))
@@ -472,3 +475,39 @@ def test_build_app_home_view_shows_event_configs_and_unhandled():
     assert "another_unhandled" in json_str
     assert "test_eventy" in json_str
     assert "test_eventy_2" in json_str
+
+
+@pytest.mark.parametrize(
+    "test_str, expected", [("abc,123,123", ["abc", "123"]), ("1,1,1,1,1,1,1,", ["1"])]
+)
+def test_remove_duplicates_from_comma(test_str, expected):
+    out = sut.remove_duplicates_from_comma_separated_string(test_str)
+    helpers.check_lists_equal(out.split(","), expected)
+
+
+def test_send_step_failure_notifications():
+    mock_client = mock.MagicMock()
+    mock_client.chat_postMessage.side_effect = [None, ValueError("oh no an exception!")]
+    team_id = "T1111"
+    chosen_action = "webhook"
+    # load test event json
+    test_event_file_path = "./tests/assets/sample-workflow-step-execute-event.json"
+    event = None
+    with open(test_event_file_path, "r") as f:
+        event = json.load(f)
+
+    fail_notify_channels = "C12334,C34455"
+    # create a basic team item & event configs
+    with Session(db.DB_ENGINE) as s:
+        s.add(
+            db.TeamConfig(
+                client_id="3334444a",
+                team_id=team_id,
+                fail_notify_channels=fail_notify_channels,
+            )
+        )
+        s.commit()
+
+    step = event["event"]["workflow_step"]
+    sut.send_step_failure_notifications(mock_client, chosen_action, step, team_id)
+    assert mock_client.chat_postMessage.call_count == 2

@@ -10,22 +10,25 @@ from datetime import datetime, timedelta, timezone
 import pprint
 
 import slack_sdk
-from slack_bolt import BoltContext
+from slack_bolt import BoltContext, Ack
 from jsonpath_ng import jsonpath
 from jsonpath_ng.ext import parse
 
 import buddy.constants as c
 import buddy.utils as utils
+import buddy.db as db
 from buddy.errors import WorkflowStepFailError
 from buddy.types import Outputs
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 
 logger = logging.getLogger("step_actions")
 
 ################################
 # Step Actions funcs: take `inputs`, return Slack `outputs`
 ################################
+# TODO: this has slowly become "move any Slack App function here so it's testable,
+#  and only keep the initialization in app.py". That's fine, just confusing naming.
 
 
 def run_random_int(step: dict) -> Outputs:
@@ -258,6 +261,8 @@ def run_manual_complete(
     workflow_context_msg = inputs["context_msg"]["value"]
     workflow_name = utils.iget(inputs, "workflow_name", "the Workflow")
     execution_id = event["workflow_step"]["workflow_step_execute_id"]
+    workflow_id = event["workflow_step"]["workflow_id"]
+    delimited_workflow_info = f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}{c.BUDDY_VALUE_DELIMITER}{workflow_id}"
     team_id = body["team_id"]
     app_id = body["api_app_id"]
     app_home_deeplink = utils.slack_deeplink("app_home", team_id, app_id=app_id)
@@ -274,7 +279,7 @@ def run_manual_complete(
                         "text": "👉 Continue",
                         "emoji": True,
                     },
-                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
+                    "value": delimited_workflow_info,
                     "style": "primary",
                     "action_id": "manual_complete-continue",
                 },
@@ -285,7 +290,7 @@ def run_manual_complete(
                         "text": "🛑 Stop",
                         "emoji": True,
                     },
-                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
+                    "value": delimited_workflow_info,
                     "action_id": "manual_complete-stop",
                     "style": "danger",
                 },
@@ -520,3 +525,108 @@ def edit_utils(step: Dict[str, Any], user_token: str) -> List[Dict[Any, Any]]:
         blocks, chosen_action, existing_inputs, chosen_config_item
     )
     return blocks
+
+
+def dispatch_action_update_fail_notify_channels(
+    ack: Ack, body: dict, client: slack_sdk.WebClient, context: BoltContext
+) -> Union[dict, None]:
+    ack()
+    block_id = "home_dispatch_notify_channels"
+    action_id = "action_update_fail_notify_channels"
+    trigger_id = body["trigger_id"]
+    try:
+        channel_ids_string = body["view"]["state"]["values"][block_id][action_id][
+            "value"
+        ]
+        channel_ids_string = utils.remove_duplicates_from_comma_separated_string(
+            channel_ids_string
+        )
+        db.set_failure_notification_channels(
+            channel_ids_string, context.team_id, enterprise_id=context.enterprise_id
+        )
+    except Exception as e:
+        # TODO: if anything blows up,
+        # send a message so they know - maybe also a confirm in the channel itself?
+        # why not a modal instead?
+        # TODO: when considering sending a message in the channel itself - we don't want to hammer it.
+        # Would need to check which ones are new, but that's slightly more effort rn so
+        # gonna save that for the future.
+        logger.exception(e)
+        utils.slack_send_server_error_modal(client, trigger_id)
+        return None
+
+    # run a check against all the channels, make sure we have access to post to them
+    # if not, send a message to this offending user that it's not all gucci
+    all_input_channels = channel_ids_string.split(",")
+    messageable_channels = []
+    channels_needing_invite = []
+    garbage_channels = []
+    for channel_id in all_input_channels:
+        logger.info(f"Checking {channel_id} for ability to post...")
+        status = utils.test_if_bot_is_member(channel_id, client)
+        if status == "not_in_convo":
+            # this should cover private channels as well
+            channels_needing_invite.append(channel_id)
+        elif status == "unable_to_test":
+            garbage_channels.append(channel_id)
+        else:
+            messageable_channels.append(channel_id)
+
+    errMsg = ""
+    messageable_channels = ",".join([f"<#{cid}>" for cid in messageable_channels])
+    formatted_invite_channels = ",".join(
+        [f"<#{cid}>" for cid in channels_needing_invite]
+    )
+    readyMsg = f"""
+🫡 _Ready to send Step Failure notifications to these channels: {messageable_channels or "none"}._
+"""
+    blocks = [
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"{readyMsg}"},
+        }
+    ]
+
+    if channels_needing_invite or garbage_channels:
+        errMsg = f"""
+⚠️ Workflow Buddy was configured to send Step Failure notifications to more channels, but it's not a member yet.
+
+ - You need to invite `@WorkflowBuddy` if you want to use these channels: names: {formatted_invite_channels} | _ids: `{",".join(channels_needing_invite)}`_
+"""
+        if garbage_channels:
+            errMsg += f"\n- These channels either had an error during testing, or don't exist: `{','.join(garbage_channels)}`"
+
+        blocks.extend(
+            [
+                {"type": "divider"},
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"{errMsg}"},
+                },
+            ]
+        )
+
+    try:
+        channels_modal = {
+            "type": "modal",
+            "callback_id": "fail_notification_channels",
+            "title": {
+                "type": "plain_text",
+                "text": "Fail Notifications",
+                "emoji": True,
+            },
+            "close": {"type": "plain_text", "text": "Close", "emoji": True},
+            "blocks": blocks,
+        }
+        client.views_open(trigger_id=trigger_id, view=channels_modal)
+        # app_home_user_id = body["user"]["id"]
+        # client.chat_postMessage(channel=app_home_user_id, text=errMsg)
+    except Exception as e:
+        logger.exception(f"Failed to send confirmation message {e}")
+
+    return {
+        "needs_invite": channels_needing_invite,
+        "garbage_channels": garbage_channels,
+        "readyMsg": readyMsg,
+        "errMsg": errMsg,
+    }

@@ -33,7 +33,7 @@ from slack_sdk.errors import SlackApiError
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 
 # attempting and failing to silence DEBUG loggers
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
 # logging.getLogger("slack_bolt").setLevel(logging.INFO)
@@ -104,6 +104,9 @@ slack_app = App(
 @slack_app.middleware  # or app.use(log_request)
 def log_request(logger: logging.Logger, body: dict, next):
     t = body.get("type")
+    user_id = body.get("user_id") or body.get("user", {}).get("id")
+    team_id = body.get("team_id") or body.get("team", {}).get("id")
+    team_name = body.get("team")
     if t == "event_callback":
         t += f'-{body.get("event", {}).get("type")}'
     elif t == "block_actions":
@@ -113,8 +116,7 @@ def log_request(logger: logging.Logger, body: dict, next):
             s = actions[0].get("action_id")
         t += f"-{s}"
 
-    logger.info(f'type:{t} team_id:{body.get("team_id")} team:{body.get("team")}')
-    logger.debug(body)
+    logger.info(f"type:{t} team_id:{team_id} team:{team_name} user_id:{user_id}")
     return next()
 
 
@@ -284,23 +286,33 @@ def manual_complete_button_clicked(
     logger: logging.Logger,
     client: slack_sdk.WebClient,
     respond: Respond,
+    context: BoltContext,
 ):
     ack()
     actions_payload = body["actions"][0]
     action_id = actions_payload["action_id"]
     action_user_id = body["user"]["id"]
     action_user_name = body["user"].get("name")
+
+    args = actions_payload["value"].split(c.BUDDY_VALUE_DELIMITER)
+    workflow_step_execute_id = args[0]
+
     try:
-        workflow_step_execute_id, workflow_name = actions_payload["value"].split(
-            c.BUDDY_VALUE_DELIMITER
+        workflow_name = args[1]
+        workflow_id = args[2]
+    except IndexError:
+        logger.error(
+            f'Failed to unpack at least one workflow values from {actions_payload["value"]}|{args}'
         )
-    except ValueError:
-        workflow_step_execute_id = actions_payload["value"]
         workflow_name = "the Workflow"
+        workflow_id = "unknown_workflow_id"
 
     execution_body = {
         "event": {
-            "workflow_step": {"workflow_step_execute_id": workflow_step_execute_id}
+            "workflow_step": {
+                "workflow_id": workflow_id,
+                "workflow_step_execute_id": workflow_step_execute_id,
+            }
         }
     }
     prev_msg_blocks = body["message"]["blocks"]
@@ -313,6 +325,16 @@ def manual_complete_button_clicked(
         errmsg = f"Workflow stopped manually by {action_user_name}:{action_user_id}."
         fail(error={"message": errmsg})
         replacement_text = f"🛑 <@{action_user_id}> halted {workflow_name}."
+        chosen_action = "Human Manual Complete"
+        step = execution_body["event"]["workflow_step"]
+        utils.send_step_failure_notifications(
+            client,
+            chosen_action,
+            step,
+            context.team_id,
+            short_err_msg=errmsg,
+            enterprise_id=context.enterprise_id,
+        )
     else:
         # yay the Workflow continues!
         complete = Complete(client=client, body=execution_body)
@@ -362,6 +384,8 @@ def debug_button_clicked(
             fail(error={"message": errmsg})
         replacement_text = f"🛑 Halted debug step for `{workflow_step_execute_id}`."
         respond(replace_original=True, text=replacement_text)
+        # TODO: could consider notifying of "failure" here like in other workflow execution spots, but that just
+        # seems annoying.
     else:
         cache_data = db.get_debug_data_from_cache(workflow_step_execute_id)
         step = cache_data["step"]
@@ -510,7 +534,7 @@ def manual_complete_view_submission(
 
     try:
         client.chat_postMessage(channel=user_id, text=msg)
-    except e:
+    except Exception as e:
         logger.exception(f"Failed to send confirmation message {e}")
 
 
@@ -571,6 +595,13 @@ def delete_event_mapping(
     utils.update_app_home(
         client, user_id, context.team_id, enterprise_id=context.enterprise_id
     )
+
+
+@slack_app.action("action_update_fail_notify_channels")
+def dispatch_action_update_fail_notify_channels(
+    ack: Ack, body: dict, client: slack_sdk.WebClient, context: BoltContext
+):
+    buddy.dispatch_action_update_fail_notify_channels(ack, body, client, context)
 
 
 @slack_app.action("action_add_webhook")
@@ -1001,12 +1032,27 @@ def execute_utils(
     except buddy.errors.WorkflowStepFailError as e:
         fail(error={"message": e.errmsg})
         should_send_complete_signal = False
+        utils.send_step_failure_notifications(
+            client,
+            chosen_action,
+            step,
+            context.team_id,
+            enterprise_id=context.enterprise_id,
+        )
     except Exception as e:
         # catch everything, otherwise our failures lead to orphaned 'In progress'
         logger.exception(e)
         exc_message = f"|## Want help? Check the community discussion (https://github.com/happybara-io/WorkflowBuddy/discussions), or reach out to support@happybara.io ##| Your error info --> Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
         fail(error={"message": exc_message})
         should_send_complete_signal = False
+        utils.send_step_failure_notifications(
+            client,
+            chosen_action,
+            step,
+            context.team_id,
+            enterprise_id=context.enterprise_id,
+            short_err_msg=f"Server error: {type(e).__name__}|{e}|",
+        )
 
     if debug_mode and debug_conversation_id:
         # finish debug mode by sending `outputs` to the same location
