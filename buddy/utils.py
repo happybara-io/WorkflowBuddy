@@ -1119,3 +1119,15 @@ def send_step_failure_notifications(
             logger.warning(
                 f"Continuing past {channel_id}, since notification failure is non-critical."
             )
+
+
+def slack_format_date(
+    timestamp: Union[str, int],
+    token_string: Optional[str] = None,
+    optional_link: Optional[str] = None,
+) -> str:
+    # https://api.slack.com/reference/surfaces/formatting#date-formatting
+    fallback_text = f"pretty_formatted_date for {timestamp}"
+    optional_link = "" if not optional_link else f"^{optional_link}"
+    token_string = token_string or "{date_short} {time}"
+    return f"<!date^{str(timestamp)}^{token_string}{optional_link}|{fallback_text}>"

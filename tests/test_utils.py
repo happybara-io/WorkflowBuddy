@@ -511,3 +511,17 @@ def test_send_step_failure_notifications():
     step = event["event"]["workflow_step"]
     sut.send_step_failure_notifications(mock_client, chosen_action, step, team_id)
     assert mock_client.chat_postMessage.call_count == 2
+
+
+@pytest.mark.parametrize("optional_link", [(None), ("https://abc-optional.com")])
+def test_slack_format_date(optional_link):
+    # ex: <!date^1392734382^{date} at {time}|February 18th, 2014 at 6:39 AM PST>
+    # ex: <!date^1392734382^{date_short}^https://example.com/|Feb 18, 2014 PST>
+    ts = "1392734382"
+    out: str = sut.slack_format_date(ts, optional_link=optional_link)
+    assert "<!date^1392734382^" in out
+    carat_count = out.count("^")
+    if optional_link:
+        assert carat_count == 3
+    else:
+        assert carat_count == 2

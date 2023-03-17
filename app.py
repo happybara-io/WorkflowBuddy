@@ -33,7 +33,10 @@ from slack_sdk.errors import SlackApiError
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 
 # attempting and failing to silence DEBUG loggers
-logging.basicConfig(level=logging.DEBUG)
+level = (
+    logging.DEBUG if os.environ.get("LOG_LEVEL", "INFO") == "DEBUG" else logging.INFO
+)
+logging.basicConfig(level=level)
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
 # logging.getLogger("slack_bolt").setLevel(logging.INFO)
@@ -120,25 +123,33 @@ def log_request(logger: logging.Logger, body: dict, next):
     return next()
 
 
-def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
+def build_scheduled_message_modal(
+    client: slack_sdk.WebClient, delete_failed_id: str = None
+) -> dict:
+    """
+    param delete_failed_id: since Slack doesn't provide an Ack errors mechanism like for view submissions,
+        I'm making my own.
+    """
     # https://api.slack.com/methods/chat.scheduledMessages.list
     # TODO: error handling
     resp = client.chat_scheduledMessages_list()
-    blocks = [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "Messages scheduled to be sent from this bot.",
-            },
-        },
-        {"type": "divider"},
-    ]
+    blocks = []
     if resp["ok"]:
         # TODO: add stuff for pagination? etc? Average user will have <10 I'd bet,
         # so fine to leave off for now.
         messages_list = resp["scheduled_messages"]
-        if len(messages_list) < 1:
+        num_messages = len(messages_list)
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"{num_messages} messages scheduled to be sent from this bot.",
+                },
+            },
+            {"type": "divider"},
+        ]
+        if num_messages < 1:
             blocks.append(
                 {
                     "type": "section",
@@ -148,14 +159,18 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
                     },
                 }
             )
-        for sm in messages_list:
+        for i, sm in enumerate(messages_list):
             text = sm["text"]
+            visual_id = i + 1
+            failed = delete_failed_id == sm["id"]
+            ts = sm["post_at"]
+            formatted_date = utils.slack_format_date(ts)
             blocks.append(
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*To:* <#{sm['channel_id']}> *At:* `{sm['post_at']}` *Text:*\n```{text[:100]}{'...' if len(text) > 100 else ''}```",
+                        "text": f"*{'❌' if failed else ''}{visual_id}.* *To:* <#{sm['channel_id']}> *At:* `{formatted_date}`\n*Text:*\n```{text[:100]}{'...' if len(text) > 100 else ''}```\n_id:{sm['id']}_",
                     },
                     "accessory": {
                         "type": "button",
@@ -166,6 +181,16 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
                     },
                 }
             )
+            if failed:
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*☹️ Deleting message {visual_id} failed - try again in a couple minutes.*\n\n",
+                        },
+                    }
+                )
     else:
         blocks.extend(
             [
@@ -178,6 +203,21 @@ def build_scheduled_message_modal(client: slack_sdk.WebClient) -> dict:
                 }
             ]
         )
+
+    blocks.extend(
+        [
+            {"type": "divider"},
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "Not seeing all X-hundred of your scheduled messages? Reach out the the dev team of Workflow Buddy with your use case if you need to see more.",
+                    }
+                ],
+            },
+        ]
+    )
 
     sm_modal = {
         "type": "modal",
@@ -413,16 +453,23 @@ def delete_scheduled_message(
     channel_id, scheduled_message_id = payload["value"].split("-")
     logger.info(f"SCHEDULED_MESSAGE_CLICKED - {channel_id}:{scheduled_message_id}")
     # rate-limiting: tier 3, 50+ per minute per workspace - should be fine.
-    resp = client.chat_deleteScheduledMessage(
-        channel=channel_id, scheduled_message_id=scheduled_message_id
-    )
+    # resp = client.chat_deleteScheduledMessage(
+    #     channel=channel_id, scheduled_message_id=scheduled_message_id
+    # )
+    resp = {"ok": False}
 
+    # TODO: temp
     if resp["ok"]:
         sm_modal = build_scheduled_message_modal(client)
-        resp = client.views_update(
-            view_id=body["view"]["id"], hash=body["view"]["hash"], view=sm_modal
+    else:
+        sm_modal = build_scheduled_message_modal(
+            client, delete_failed_id=scheduled_message_id
         )
-        logger.debug(resp)
+
+    resp = client.views_update(
+        view_id=body["view"]["id"], hash=body["view"]["hash"], view=sm_modal
+    )
+    logger.debug(resp)
 
 
 @slack_app.action("action_manual_complete")

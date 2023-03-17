@@ -8,6 +8,7 @@ run() {
     export ENV=DEV
     export FLASK_APP=app.py
     export FLASK_DEBUG=true
+    export LOG_LEVEL=DEBUG
     #########################
     # Minimal migration capability
     #########################
