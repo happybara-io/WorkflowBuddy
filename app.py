@@ -38,9 +38,6 @@ level = (
 )
 logging.basicConfig(level=level)
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
-# logging.getLogger("slack_bolt").setLevel(logging.INFO)
-# logging.getLogger("slack_sdk").setLevel(logging.INFO)
 
 logging.info("Starting app...")
 logger.info("Starting app...")
@@ -82,6 +79,15 @@ with db_engine.connect() as conn:
         logger.exception(e)
         logger.info("Creating tables...")
         db.create_tables(db_engine)
+
+
+# Seeing this odd error popping up, hoping it was a mistake during development:
+# "Although the app should be installed into this workspace,.."
+# Their comment for how it happens  -->
+# > This situation can arise if:
+# >   * A developer installed the app from the "Install to Workspace" button in Slack app config page
+#  >   * The InstallationStore failed to save or deleted the installation for this workspace
+# src: https://github.com/slackapi/bolt-python/blob/12aae7ff9ecf49c2f1d11a8dc81088e84f26960e/slack_bolt/middleware/authorization/multi_teams_authorization.py#L90
 
 slack_app = App(
     signing_secret=os.environ["SLACK_SIGNING_SECRET"],
@@ -490,67 +496,6 @@ def manage_scheduled_messages(
     client.views_open(trigger_id=body["trigger_id"], view=sm_modal)
 
 
-# @slack_app.action("action_export")
-# def export_button_clicked(
-#     ack: Ack,
-#     body: dict,
-#     logger: logging.Logger,
-#     client: slack_sdk.WebClient,
-#     context: BoltContext,
-# ):
-#     ack()
-#     exported_json = json.dumps(utils.db_export(), indent=2)
-#     export_modal = {
-#         "type": "modal",
-#         "title": {"type": "plain_text", "text": "Webhook Config Export", "emoji": True},
-#         "close": {"type": "plain_text", "text": "Close", "emoji": True},
-#         "blocks": [
-#             {
-#                 "type": "section",
-#                 "text": {
-#                     "type": "mrkdwn",
-#                     "text": f"*Exported Config:* \n```{exported_json}```",
-#                 },
-#             }
-#         ],
-#     }
-#     client.views_open(trigger_id=body["trigger_id"], view=export_modal)
-
-
-# @slack_app.action("action_import")
-# def import_button_clicked(
-#     ack: Ack, body, logger: logging.Logger, client: slack_sdk.WebClient
-# ):
-#     ack()
-#     blocks = [
-#         {
-#             "type": "section",
-#             "text": {
-#                 "type": "mrkdwn",
-#                 "text": 'Import a JSON config of event type mapped to lists of webhooks.\n*Example:*\n```{"app_mention": [{"name": "Helpful Description","webhook_url": "https://webhook.site/4bf6c228"}]}```\n\nUpdates existing keys, but doesn\'t remove any.',
-#             },
-#         },
-#         {
-#             "type": "input",
-#             "block_id": "json_config_input",
-#             "element": {
-#                 "type": "plain_text_input",
-#                 "multiline": True,
-#                 "action_id": "json_config_value",
-#             },
-#             "label": {"type": "plain_text", "text": "JSON Config", "emoji": True},
-#         },
-#     ]
-#     import_modal = {
-#         "type": "modal",
-#         "callback_id": "import_submission",
-#         "title": {"type": "plain_text", "text": "Import Event Mappings"},
-#         "submit": {"type": "plain_text", "text": "Import"},
-#         "blocks": blocks,
-#     }
-#     client.views_open(trigger_id=body["trigger_id"], view=import_modal)
-
-
 @slack_app.view("manual_complete_submission")
 def manual_complete_view_submission(
     ack: Ack, body, client: slack_sdk.WebClient, view: View, logger: logging.Logger
@@ -583,45 +528,6 @@ def manual_complete_view_submission(
         client.chat_postMessage(channel=user_id, text=msg)
     except Exception as e:
         logger.exception(f"Failed to send confirmation message {e}")
-
-
-# TODO: bring back if it matters at all
-# @slack_app.view("import_submission")
-# def import_config_view_submission(
-#     ack: Ack,
-#     body,
-#     client: slack_sdk.WebClient,
-#     view: View,
-#     logger: logging.Logger,
-#     context: BoltContext,
-# ):
-#     values = view["state"]["values"]
-#     user_id = body["user"]["id"]
-#     json_config_str = values["json_config_input"]["json_config_value"]["value"]
-#     errors = {}
-#     try:
-#         data = json.loads(json_config_str)
-#         ack()
-#     except json.JSONDecodeError as e:
-#         errors["json_config_input"] = f"Invalid JSON. Error: {str(e)}"
-#         ack(response_action="errors", errors=errors)
-#         return
-
-#     msg = ""
-#     try:
-#         # Save to DB
-#         num_keys_updated = utils.db_import(data)
-#         msg = f"Imported {num_keys_updated} event_type keys into Workflow Buddy."
-#     except Exception as e:
-#         logger.exception(e)
-#         msg = "There was an error with your submission"
-
-#     try:
-#         client.chat_postMessage(channel=user_id, text=msg)
-#     except e:
-#         logger.exception(f"Failed to post a message {e}")
-
-#     utils.update_app_home(client, user_id, context.team_id, enterprise_id=context.enterprise_id)
 
 
 @slack_app.action("event_delete_clicked")

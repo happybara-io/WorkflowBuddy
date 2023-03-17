@@ -95,7 +95,7 @@ def send_webhook(
             last_failed_attempt = resp.status_code > 300 and i == final_index
             if ok or last_failed_attempt:
                 return resp
-        except (ConnectionError, Timeout) as e:
+        except (ConnectionError, Timeout) as e:  # type: ignore
             # try again, unless it's already the last try
             logger.info(f"Received exception {type(e).__name__}:{e}")
             if i == final_index:

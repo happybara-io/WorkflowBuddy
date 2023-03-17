@@ -3,6 +3,7 @@
 _| 📂 Open-source | [🧪 Installable Demo App](#demo-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) | [💡 Support](#support) |_
 
 ---
+
 ## Testimonials
 
 >🗣 _"Workflow Buddy is such an enabler for us. It’s exactly what I hoped Workflow Builder originally was." - [iCulture.nl](https://www.iculture.nl/)_
@@ -441,10 +442,11 @@ You have several options to run a Buddy server: locally on your computer, self-h
 
 To run a Buddy server yourself, you will:
 
-1. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
-2. Run a Buddy server either **A)** on your laptop, or **B)** in the cloud.
-3. Update Slack connection info.
-4. Use the bot through your regular Slack desktop! 💃
+1. Clone this repo at a specific release version.
+2. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
+3. Run a Buddy server either **A)** on your laptop, or **B)** in the cloud.
+4. Update Slack connection info.
+5. Use the bot through your regular Slack desktop! 💃
 
 ### Demo App
 
@@ -455,6 +457,17 @@ Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **gu
 > ⚠️
 > This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below since the demo app does not have guarantees around uptime, long-term data storage, etc.
 >
+
+### Clone This Repo
+
+Clone this repo, then check out a specific release version. `main` is actively developed on this project, so it's **HIGHLY** recommended to pin to a specific version.
+
+```
+git fetch --all --tags # so you're local knows about all versions that have been tagged
+git checkout tags/v0.0.x -b v0.0.x-branch # creates a new branch from the specific tagged version
+```
+
+Now you're ready to rock with the repo from that point in time!
 
 ### Slack App Setup
 
@@ -487,7 +500,7 @@ To run the Slack app locally you will:
 
 1. ✅ Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
 2. 📌 Run a local server on your laptop either using `Python` or `Docker` with the credentials you got in step `1`.
-    - _If you use GitHub CodeSpaces for development, you can skip running a proxy tool, because they will port-forward for you._
+    - _If you use GitHub CodeSpaces for development, you can skip running a proxy tool, because they will port-forward for you - when it wants to work._
 3. Run a proxy tool that lets Slack talk to your `localhost` (local server).
 4. Update Slack connection info.
 5. Use the bot through your regular Slack desktop! 💃
@@ -572,10 +585,10 @@ Currently the recommended best practice for updating Workflow Buddy:
   - Run `flyctl ssh sftp shell -a < your app name >`, then `> get /usr/app/data/workflow_buddy.db`.
   - _Automated backups are on the roadmap._
 - _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
-- `cd` to your cloned WB repo. Run `git pull` for the latest updates.
+- `cd` to your cloned WB repo. Run `git fetch --all --tags` so you're local knows about all versions that have been tagged, then change to a specific version with `git checkout tags/v0.0.x -b v0.0.x-branch`.
   - If there were changes to `slack_app_manifest.template.yml`, you'll need to update [your Slack app](https://api.slack.com/apps/) with the latest and greatest.
   - If there were changes to the [secrets in Setup](#slack-app-setup), you will need to add those like was done above in [Cloud: Fly.io](#cloud-flyio).
-- Run `fly deploy` to put your changes in to the wild!
+- Run `fly deploy -a < your app name >` to put your changes in to the wild!
 
 #### Cloud: Other hosting providers
 
