@@ -34,8 +34,11 @@ up-build:
 setup-precommit-hooks:
 	poetry run pre-commit install
 
+shell-dev:
+	fly ssh console -a workflow-buddy-dev
+
 deploy-dev:
-	fly deploy -a workflow-buddy-dev
+	fly deploy -a workflow-buddy-dev -c fly.dev.toml
 
 deploy-prod:
-	fly deploy -a workflow-buddy
+	fly deploy -a workflow-buddy -c fly.prod.toml
