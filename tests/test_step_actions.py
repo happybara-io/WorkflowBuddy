@@ -248,3 +248,28 @@ def test_manual_complete_continue_or_stop(action, mock_body):
     elif action == "continue":
         assert "👉" in text
         assert "🛑" not in text
+
+
+def test_run_json_extractor_broken_input():
+    # This test was written based on a variable of the 'Response Text',
+    # coming from our Webhook step - I guess the JSON string comes with extra
+    # quotes? Is that from me?
+    step = {
+        "inputs": {
+            "json_string": {"value": '"{\\"ok\\":true}"'},
+            "jsonpath_expr": {"value": "$.ok"},
+        }
+    }
+    outputs = sut.run_json_extractor(step)
+    assert list(outputs.values()) == ["[]"]
+
+
+def test_run_json_extractor_expected_function():
+    step = {
+        "inputs": {
+            "json_string": {"value": '{"ok":true}'},
+            "jsonpath_expr": {"value": "$.ok"},
+        }
+    }
+    outputs = sut.run_json_extractor(step)
+    assert list(outputs.values()) == ["True"]
