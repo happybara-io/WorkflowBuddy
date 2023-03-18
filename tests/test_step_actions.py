@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime as dt
 from unittest import mock
+import json
 
 import pytest
 import slack_sdk
@@ -94,7 +95,7 @@ def test_run_webhook_happy_path(mock_send_webhook):
     # mock_utils = mock.MagicMock(name="MockBuddyUtils")
     mock_resp = mock.MagicMock(name="MockWebhookResp")
     mock_resp.status_code = 204
-    mock_resp.text = "response text."
+    mock_resp.text = '{"ok":true}'
     mock_send_webhook.return_value = mock_resp
     step = {
         "inputs": {
@@ -105,6 +106,10 @@ def test_run_webhook_happy_path(mock_send_webhook):
 
     outputs = sut.run_webhook(step)
     assert outputs["webhook_status_code"] == str(mock_resp.status_code)
+    json_dict = json.loads(outputs["webhook_response_text_unsanitized"])
+    assert json_dict["ok"] == True
+    s = json.loads(outputs["webhook_response_text"])
+    assert type(s) == str
 
 
 @mock.patch("buddy.step_actions.utils.send_webhook")

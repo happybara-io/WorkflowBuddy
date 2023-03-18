@@ -552,14 +552,12 @@ def test_slack_format_date(optional_link):
         assert carat_count == 2
 
 
-@pytest.mark.skip(reason="Need to figure out why this doesn't really work rn.")
 def test_sanitize_webhook_response():
-    # TODO: either the output of this, or how Slack fills in variables,
-    # is causing extra sanitizing -> "{\\"ok\\":true}"'
+    # This is doing extra sanitizing -> '"{\\"ok\\":true}"'
     # which of course gets loaded as a string not a JSON dict.
-
-    # usage:
-    # sanitized_resp = utils.sanitize_webhook_response(resp.text)
+    # Solved by having a second output variable that is not sanitized,
+    # rather than trying to force this to do double duty and create
+    # bugs for both.
     resp_as_text = '{"ok":true}'
     out = sut.sanitize_webhook_response(resp_as_text)
-    print("OUT1", out)
+    assert out == '"{\\"ok\\":true}"'

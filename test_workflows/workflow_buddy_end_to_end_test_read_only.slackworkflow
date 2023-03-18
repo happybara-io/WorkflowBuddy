@@ -146,6 +146,42 @@
                 },
                 {
                     "type": "extension_step",
+                    "id": "bccbed5c-6e9e-4233-a2b5-098718108af4",
+                    "config": {
+                        "app_action": {
+                            "name": "Workflow Buddy Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "topic_string": {
+                                    "value": "A new topic from E2E test -&gt; {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}} : {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}}"
+                                },
+                                "conversation_id": {
+                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==channel.id}}"
+                                },
+                                "selected_utility": {
+                                    "value": "set_channel_topic"
+                                },
+                                "debug_mode_enabled": {
+                                    "value": "false"
+                                },
+                                "debug_conversation_id": {
+                                    "value": ""
+                                }
+                            },
+                            "outputs": [],
+                            "step_name": "Set Channel Topic",
+                            "step_image_url": "https://s3.happybara.io/happybara/main_logo_slack_badge.png"
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
                     "id": "c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3",
                     "config": {
                         "app_action": {
@@ -247,6 +283,45 @@
                 },
                 {
                     "type": "extension_step",
+                    "id": "9cfd4565-4740-4ef3-aba8-6c7f13fd4098",
+                    "config": {
+                        "app_action": {
+                            "name": "Workflow Buddy Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "user_id": {
+                                    "value": "{{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}"
+                                },
+                                "selected_utility": {
+                                    "value": "get_email_from_slack_user"
+                                },
+                                "debug_mode_enabled": {
+                                    "value": "false"
+                                },
+                                "debug_conversation_id": {
+                                    "value": ""
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "user_email",
+                                    "type": "text",
+                                    "label": "User Email"
+                                }
+                            ],
+                            "step_name": "Get Email from User",
+                            "step_image_url": "https://s3.happybara.io/happybara/main_logo_slack_badge.png"
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
                     "id": "fcc30d8a-76f9-45ce-80fc-a80ec81f0383",
                     "config": {
                         "app_action": {
@@ -323,10 +398,10 @@
                                     "value": "webhook"
                                 },
                                 "debug_mode_enabled": {
-                                    "value": "false"
+                                    "value": "true"
                                 },
                                 "debug_conversation_id": {
-                                    "value": ""
+                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==user.id}}"
                                 },
                                 "query_params_json_str": {
                                     "value": null
@@ -342,9 +417,14 @@
                                     "name": "webhook_response_text",
                                     "type": "text",
                                     "label": "Webhook Response Text"
+                                },
+                                {
+                                    "name": "webhook_response_text_unsanitized",
+                                    "type": "text",
+                                    "label": "Webhook Response Text (Unsanitized JSON string)"
                                 }
                             ],
-                            "step_name": "Send a webhook",
+                            "step_name": "(DEBUG) Send a webhook",
                             "step_image_url": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png"
                         }
                     }
@@ -364,7 +444,7 @@
                         "app_defined_config": {
                             "inputs": {
                                 "json_string": {
-                                    "value": "{{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_response_text}}"
+                                    "value": "{{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_response_text_unsanitized}}"
                                 },
                                 "jsonpath_expr": {
                                     "value": "$.ok"
@@ -373,10 +453,10 @@
                                     "value": "json_extractor"
                                 },
                                 "debug_mode_enabled": {
-                                    "value": "false"
+                                    "value": "true"
                                 },
                                 "debug_conversation_id": {
-                                    "value": ""
+                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==user.id}}"
                                 }
                             },
                             "outputs": [
@@ -386,7 +466,7 @@
                                     "label": "Extracted Data Matches"
                                 }
                             ],
-                            "step_name": "Extract Value from JSON",
+                            "step_name": "(DEBUG) Extract Value from JSON",
                             "step_image_url": "https://s3.happybara.io/happybara/main_logo.png"
                         }
                     }
@@ -449,7 +529,7 @@
                             "ref": "b44f7526-7c10-474f-8d7f-37dc220f665c==user"
                         },
                         "has_button": false,
-                        "message_text": "Started at {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} by {{b44f7526-7c10-474f-8d7f-37dc220f665c==user}}.\n\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}\nwaited for (s): {{5eec408b-c201-42b7-a743-9813a5cd80a2==waited_for}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nrandom member picker: {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_1}} | {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_id_1}}\nfound person:  {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}, {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nscheduled message id: {{fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id}}\nwebhook response: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code}} | {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_response_text}}\nJSON extraction: {{8796edbd-54e0-4be5-a434-44224ba1892d==extracted_matches}}\n\nTime waiting for approval: ({{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_started}}-{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}})\n\nFinished: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==timestamp_completed}}",
+                        "message_text": "Started at {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} by {{b44f7526-7c10-474f-8d7f-37dc220f665c==user}}.\n\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}\nwaited for (s): {{5eec408b-c201-42b7-a743-9813a5cd80a2==waited_for}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nset channel topic:  {{bccbed5c-6e9e-4233-a2b5-098718108af4==timestamp_completed}}\nrandom member picker: {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_1}} | {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_id_1}}\nfound person:  {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}, {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nback to email: {{9cfd4565-4740-4ef3-aba8-6c7f13fd4098==user_email}}\nscheduled message id: {{fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id}}\nwebhook response: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code}} | {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_response_text}}\nJSON extraction: {{8796edbd-54e0-4be5-a434-44224ba1892d==extracted_matches}}\n\nTime waiting for approval: ({{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_started}}-{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}})\n\nFinished: {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} -&gt;{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}}",
                         "message_blocks": [
                             {
                                 "type": "rich_text",
@@ -508,6 +588,16 @@
                                                 "data_type": "text"
                                             },
                                             {
+                                                "text": "\nset channel topic:  ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "bccbed5c-6e9e-4233-a2b5-098718108af4==timestamp_completed",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "date"
+                                            },
+                                            {
                                                 "text": "\nrandom member picker: ",
                                                 "type": "text"
                                             },
@@ -543,6 +633,16 @@
                                             },
                                             {
                                                 "id": "3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nback to email: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "9cfd4565-4740-4ef3-aba8-6c7f13fd4098==user_email",
                                                 "type": "workflowtoken",
                                                 "property": "",
                                                 "data_type": "text"
@@ -612,7 +712,17 @@
                                                 "type": "text"
                                             },
                                             {
-                                                "id": "96ac98db-57a5-45dc-a7ed-dc295bef187a==timestamp_completed",
+                                                "id": "b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "date"
+                                            },
+                                            {
+                                                "text": " ->",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed",
                                                 "type": "workflowtoken",
                                                 "property": "",
                                                 "data_type": "date"

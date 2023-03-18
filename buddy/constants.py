@@ -2,6 +2,15 @@ from typing import Any, Dict, List
 
 UTF8 = "utf-8"
 
+ENV_ENV = "ENV"
+ENV_LOG_LEVEL = "LOG_LEVEL"
+ENV_SLACK_CLIENT_ID = "SLACK_CLIENT_ID"
+ENV_SLACK_CLIENT_SECRET = "SLACK_CLIENT_SECRET"
+ENV_SLACK_SIGNING_SECRET = "SLACK_SIGNING_SECRET"
+ENV_SECRET_ENCRYPTION_KEY = "SECRET_ENCRYPTION_KEY"
+ENV_IGNORE_ENCRYPTION = "IGNORE_ENCRYPTION"
+ENV_BUDDY_DEFAULT_SUBSCRIPTION = "ENV_BUDDY_DEFAULT_SUBSCRIPTION"
+
 # THIS HAS TO MATCH WHAT'S IN THE SLACK APP DEFINITION
 SCOPES = [
     "app_mentions:read",
@@ -740,6 +749,11 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 "name": "webhook_response_text",
                 "label": "Webhook Response Text",
             },
+            {
+                "type": "text",
+                "name": "webhook_response_text_unsanitized",
+                "label": "Webhook Response Text (Unsanitized JSON string)",
+            },
         ],
     },
     "random_int": {
@@ -1170,7 +1184,18 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 "action_id": "topic_string_value",
             },
         },
-        "outputs": [],
+        "outputs": [
+            {
+                "label": "Channel with Updated Topic",
+                "name": "channel_with_updated_topic",
+                "type": "channel",
+            },
+            {
+                "label": "Channel ID with Updated Topic",
+                "name": "channel_id_with_updated_topic",
+                "type": "text",
+            },
+        ],
     },
     "json_extractor": {
         "draft": False,

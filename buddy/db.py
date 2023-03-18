@@ -4,6 +4,9 @@ import os
 import logging
 import json
 from pathlib import Path
+from datetime import date
+
+import buddy.constants as c
 
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, text, Boolean
 from sqlalchemy import event, create_engine, select, delete, func
@@ -285,19 +288,30 @@ def get_team_config(
         if not team_config:
             if fail_if_none:
                 raise ValueError(f"No team config found for that team id({team_id})!")
-            # create it if it doesn't exist
-            team_config = create_team_config("", team_id, enterprise_id, session=s)
+            # Set subscription type if it's not self-hosted
+            subscription_type = os.environ.get(c.ENV_BUDDY_DEFAULT_SUBSCRIPTION, "beta")
+            # add the date too, why not?
+            subscription_type += f"_{date.today().isoformat()}"
+            team_config = create_team_config(
+                "", team_id, enterprise_id, session=s, subscription=subscription_type
+            )
 
     return team_config
 
 
 def create_team_config(
-    client_id: str, team_id: str, enterprise_id: str, session: Optional[Session] = None
+    client_id: str,
+    team_id: str,
+    enterprise_id: str,
+    session: Optional[Session] = None,
+    subscription: Optional[str] = None,
 ) -> TeamConfig:
     with Session(DB_ENGINE) if not session else nullcontext(session) as s:
         tc = TeamConfig(
             client_id=client_id, team_id=team_id, enterprise_id=enterprise_id
         )
+        if subscription:
+            tc.subscription = subscription
         s.add(tc)
         s.commit()
         return tc

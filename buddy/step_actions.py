@@ -170,6 +170,7 @@ def run_json_extractor(step: dict) -> Outputs:
 
     try:
         # TODO: do I need to do a safe load here for double quotes/etc? Hopefully it should be well-formed if it's coming here and not built by hand
+        json_string = json_string.replace("\n", "")
         json_data = json.loads(json_string, strict=False)
     except json.JSONDecodeError as e:
         errmsg = utils.pretty_json_error_msg(
@@ -347,7 +348,12 @@ def run_set_channel_topic(
         resp = client.conversations_setTopic(
             channel=conversation_id, topic=topic_string
         )
-        return Outputs({})
+        return Outputs(
+            {
+                "channel_with_updated_topic": conversation_id,
+                "channel_id_with_updated_topic": conversation_id,
+            }
+        )
     except slack_sdk.errors.SlackApiError as e:
         logger.error(e.response)
         errmsg = f"Slack Error: unable to set channel topic. {e.response['error']}"
@@ -482,11 +488,13 @@ def run_webhook(step: dict) -> Outputs:
         raise WorkflowStepFailError(errmsg)
 
     # TODO: is there a limit to output variable string size?
-    sanitized_resp = utils.sanitize_webhook_response(resp.text)
+    text = resp.text
+    sanitized_resp = utils.sanitize_webhook_response(text)
     return Outputs(
         {
             "webhook_status_code": str(resp.status_code),
-            "webhook_response_text": f"{sanitized_resp}",
+            "webhook_response_text": sanitized_resp,
+            "webhook_response_text_unsanitized": text,
         }
     )
 

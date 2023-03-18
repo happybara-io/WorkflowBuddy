@@ -36,17 +36,19 @@ from slack_bolt.oauth.oauth_settings import OAuthSettings
 
 # attempting and failing to silence DEBUG loggers
 level = (
-    logging.DEBUG if os.environ.get("LOG_LEVEL", "INFO") == "DEBUG" else logging.INFO
+    logging.DEBUG
+    if os.environ.get(c.ENV_LOG_LEVEL, "INFO") == "DEBUG"
+    else logging.INFO
 )
 logging.basicConfig(level=level)
 logger = logging.getLogger(__name__)
 
 logging.info("Starting app...")
 logger.info("Starting app...")
-ENV = os.environ.get("ENV", "DEV")
-slack_client_id = os.environ["SLACK_CLIENT_ID"]
-encryption_key = os.environ.get("SECRET_ENCRYPTION_KEY")
-ignore_encryption_warning = os.environ.get("IGNORE_ENCRYPTION", False)
+ENV = os.environ.get(c.ENV_ENV, "DEV")
+slack_client_id = os.environ[c.ENV_SLACK_CLIENT_ID]
+encryption_key = os.environ.get(c.ENV_SECRET_ENCRYPTION_KEY)
+ignore_encryption_warning = os.environ.get(c.ENV_IGNORE_ENCRYPTION, False)
 if not encryption_key and not ignore_encryption_warning:
     logger.warning(
         "[!] Starting server without an encryption key...data will not be encrypted at rest by this application."
@@ -92,10 +94,10 @@ with db_engine.connect() as conn:
 # src: https://github.com/slackapi/bolt-python/blob/12aae7ff9ecf49c2f1d11a8dc81088e84f26960e/slack_bolt/middleware/authorization/multi_teams_authorization.py#L90
 
 slack_app = App(
-    signing_secret=os.environ["SLACK_SIGNING_SECRET"],
+    signing_secret=os.environ[c.ENV_SLACK_SIGNING_SECRET],
     oauth_settings=OAuthSettings(
         client_id=slack_client_id,
-        client_secret=os.environ["SLACK_CLIENT_SECRET"],
+        client_secret=os.environ[c.ENV_SLACK_CLIENT_SECRET],
         scopes=c.SCOPES,
         user_scopes=c.USER_SCOPES,
         installation_store=installation_store,
@@ -730,6 +732,7 @@ def save_utils(
     update: Update,
     logger: logging.Logger,
     client: slack_sdk.WebClient,
+    context: BoltContext,
 ):
     logger.debug("view", view)
     curr_modal_state_values = view["state"]["values"]
@@ -762,14 +765,9 @@ def save_utils(
     if curr_action_config.get("needs_user_token"):
         # warning is shown to user on load; this prevents them from saving a bad config
         try:
-            user_token = os.environ["SLACK_USER_TOKEN"]
-            client = slack_sdk.WebClient(token=user_token)
+            client = slack_sdk.WebClient(token=context.user_token)
             kwargs = {"query": "a", "count": 1}
             resp = client.search_messages(**kwargs)
-        except KeyError:
-            errors[
-                "search_query_input"
-            ] = f"Need a valid SLACK_USER_TOKEN secret for {c.UTILS_ACTION_LABELS[selected_utility_callback_id]}."
         except slack_sdk.errors.SlackApiError as e:
             logger.error(e.response)
             errmsg = f"Slack Error: Need a valid user token. {e.response['error']}"
