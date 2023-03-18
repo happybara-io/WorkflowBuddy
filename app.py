@@ -104,12 +104,26 @@ slack_app = App(
 )
 
 
-# TODO: if user facing action, send them a nice message to let them know it broke
-# @slack_app.error
-# def custom_error_handler(error: Union[BoltError, SlackApiError], body: dict, logger: logging.Logger):
-#     # kwargs available https://slack.dev/bolt-python/api-docs/slack_bolt/kwargs_injection/args.html
-#     logger.exception(f"Error: {error}")
-#     logger.info(f"Request body: {body}")
+@slack_app.error
+def custom_error_handler(
+    error: Union[BoltError, SlackApiError],
+    body: dict,
+    client: slack_sdk.WebClient,
+    context: BoltContext,
+    logger: logging.Logger,
+):
+    # kwargs available https://slack.dev/bolt-python/api-docs/slack_bolt/kwargs_injection/args.html
+    logger.exception(f"Error: {error}")
+    logger.info(f"Request body: {body}")
+
+    fail_text = "Dang, sorry that last action didn't run correctly."
+    try:
+        if context.user_id:
+            resp = client.chat_postMessage(channel=context.user_id, text=fail_text)
+    except Exception as e:
+        logger.error(
+            f"Failed trying to send error handler message to {context.user_id}"
+        )
 
 
 def build_scheduled_message_modal(
@@ -331,6 +345,7 @@ def debug_button_clicked(
     logger: logging.Logger,
     client: slack_sdk.WebClient,
     respond: Respond,
+    context: BoltContext,
 ):
     logger.debug("Continuing from debug button clicked...")
     logger.debug(f"ACTION_BODY: {body}")
@@ -369,7 +384,7 @@ def debug_button_clicked(
         complete = Complete(client=client, body=execution_body)
 
         step["already_sent_debug_message"] = True
-        execute_utils(step, orig_execute_body, complete, fail, client, logger)
+        execute_utils(step, orig_execute_body, complete, fail, client, context, logger)
 
 
 @slack_app.action("scheduled_message_delete_clicked")
