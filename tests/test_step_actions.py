@@ -197,9 +197,54 @@ def test_dispatch_action_update_fail_notify_channels(test_if_bot_is_member):
         },
     }
     resp = sut.dispatch_action_update_fail_notify_channels(
-        ack, body, mock_client, MockContext
+        ack, body, mock_client, context
     )
     assert type(resp) is dict, "Must have failed when trying to set new channels in DB"
     assert "none" in resp["readyMsg"]
     assert "<#C1234>" in resp["errMsg"]
     assert "<#C123456>" in resp["errMsg"]
+
+
+@pytest.mark.parametrize(
+    "action, mock_body",
+    [
+        (
+            "continue",
+            {
+                "message": {"blocks": [{"type": "mrkdwn"}]},
+                "user": {"id": "U1111"},
+                "actions": [
+                    {
+                        "action_id": "manual_complete-continue",
+                        "value": "fake-workflow-execute-id|+|fake-workflow-name|+|fake-workflow-id",
+                    }
+                ],
+            },
+        ),
+        (
+            "stop",
+            {
+                "message": {"blocks": [{"type": "mrkdwn"}]},
+                "user": {"id": "U1111"},
+                "actions": [
+                    {
+                        "action_id": "manual_complete-stop",
+                        "value": "fake-workflow-execute-id|+|fake-workflow-name|+|fake-workflow-id",
+                    }
+                ],
+            },
+        ),
+    ],
+)
+def test_manual_complete_button_clicked(action, mock_body):
+    mock_client = mock.MagicMock(name="slack_client")
+    context = MockContext()
+    text, blocks = sut.manual_complete_button_clicked(
+        mock_body, dummy_logger, mock_client, context
+    )
+    if action == "stop":
+        assert "🛑" in text
+        assert "👉" not in text
+    elif action == "continue":
+        assert "👉" in text
+        assert "🛑" not in text

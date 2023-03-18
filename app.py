@@ -317,69 +317,8 @@ def manual_complete_button_clicked(
     context: BoltContext,
 ):
     ack()
-    actions_payload = body["actions"][0]
-    action_id = actions_payload["action_id"]
-    action_user_id = body["user"]["id"]
-    action_user_name = body["user"].get("name")
-
-    args = actions_payload["value"].split(c.BUDDY_VALUE_DELIMITER)
-    workflow_step_execute_id = args[0]
-
-    try:
-        workflow_name = args[1]
-        workflow_id = args[2]
-    except IndexError:
-        logger.error(
-            f'Failed to unpack at least one workflow values from {actions_payload["value"]}|{args}'
-        )
-        workflow_name = "the Workflow"
-        workflow_id = "unknown_workflow_id"
-
-    execution_body = {
-        "event": {
-            "workflow_step": {
-                "workflow_id": workflow_id,
-                "workflow_step_execute_id": workflow_step_execute_id,
-            }
-        }
-    }
-    prev_msg_blocks = body["message"]["blocks"]
-    # Keep just the first info block, then swap out rest with updated block.
-    updated_blocks = prev_msg_blocks[:1]
-
-    if "stop" in action_id:
-        fail = Fail(client=client, body=execution_body)
-        # TODO: add more context: by who? why? what workflow was this?
-        errmsg = f"Workflow stopped manually by {action_user_name}:{action_user_id}."
-        fail(error={"message": errmsg})
-        replacement_text = f"🛑 <@{action_user_id}> halted {workflow_name}."
-        chosen_action = "Human Manual Complete"
-        step = execution_body["event"]["workflow_step"]
-        utils.send_step_failure_notifications(
-            client,
-            chosen_action,
-            step,
-            context.team_id,
-            short_err_msg=errmsg,
-            enterprise_id=context.enterprise_id,
-        )
-    else:
-        # yay the Workflow continues!
-        complete = Complete(client=client, body=execution_body)
-        outputs = {"user_id": action_user_id, "user": action_user_id}
-        complete(outputs=outputs)
-        replacement_text = f"👉 <@{action_user_id}> continued {workflow_name}."
-
-    updated_blocks.append(
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": replacement_text,
-                }
-            ],
-        }
+    replacement_text, updated_blocks = manual_complete_button_clicked(
+        body, logger, client, context
     )
     respond(replace_original=True, text=replacement_text, blocks=updated_blocks)
 
