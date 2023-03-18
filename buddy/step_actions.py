@@ -562,7 +562,9 @@ def dispatch_action_update_fail_notify_channels(
     channels_needing_invite = []
     garbage_channels = []
     for channel_id in all_input_channels:
-        logger.info(f"Checking {channel_id} for ability to post...")
+        logger.info(
+            f"Checking {channel_id} for ability to post failure notifications..."
+        )
         status = utils.test_if_bot_is_member(channel_id, client)
         if status == "not_in_convo":
             # this should cover private channels as well

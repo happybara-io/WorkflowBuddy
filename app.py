@@ -22,6 +22,7 @@ import buddy
 import buddy.errors
 import buddy.utils as utils
 import buddy.db as db
+import buddy.middleware as middleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
@@ -108,25 +109,6 @@ slack_app = App(
 #     # kwargs available https://slack.dev/bolt-python/api-docs/slack_bolt/kwargs_injection/args.html
 #     logger.exception(f"Error: {error}")
 #     logger.info(f"Request body: {body}")
-
-
-@slack_app.middleware  # or app.use(log_request)
-def log_request(logger: logging.Logger, body: dict, next):
-    t = body.get("type")
-    user_id = body.get("user_id") or body.get("user", {}).get("id")
-    team_id = body.get("team_id") or body.get("team", {}).get("id")
-    team_name = body.get("team")
-    if t == "event_callback":
-        t += f'-{body.get("event", {}).get("type")}'
-    elif t == "block_actions":
-        s = ""
-        actions = body.get("actions", [{}])
-        if len(actions) > 0:
-            s = actions[0].get("action_id")
-        t += f"-{s}"
-
-    logger.info(f"type:{t} team_id:{team_id} team:{team_name} user_id:{user_id}")
-    return next()
 
 
 def build_scheduled_message_modal(
@@ -1105,6 +1087,11 @@ def execute_webhook(
         exc_message = f"Server error: {type(e).__name__}|{e}|{''.join(tb.format_exception(None, e, e.__traceback__))}"
         fail(error={"message": exc_message})
 
+
+###########################
+# Slack App Middleware
+############################
+slack_app.use(middleware.log_request)
 
 ###########################
 # Instantiate all Steps visible to users
