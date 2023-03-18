@@ -6,6 +6,7 @@ import os
 import pprint
 import re
 import traceback as tb
+import random
 from datetime import datetime, timedelta, timezone
 from typing import Tuple, Union, Dict, List
 
@@ -1066,6 +1067,14 @@ def home():
 @flask_app.route("/health", methods=["GET"])
 def health():
     return jsonify({"ok": True}), 201
+
+
+@flask_app.route("/random-fail", methods=["GET"])
+def random_fail():
+    # doesn't need to be all of them, just a random assortment of 4xx + 5xx
+    random_http_fail_errors = [400, 407, 410, 500, 503, 520, 577]
+    fail_code = random.choice(random_http_fail_errors)
+    return jsonify({"ok": False}), fail_code
 
 
 @flask_app.route("/slack/events", methods=["POST"])
