@@ -323,7 +323,7 @@ def shortcut_message_details(ack: Ack, shortcut: dict, client: slack_sdk.WebClie
 
 
 @slack_app.action(re.compile("(manual_complete-continue|manual_complete-stop)"))
-def manual_complete_button_clicked(
+def manual_complete_continue_or_stop(
     ack: Ack,
     body: dict,
     logger: logging.Logger,
@@ -332,7 +332,7 @@ def manual_complete_button_clicked(
     context: BoltContext,
 ):
     ack()
-    replacement_text, updated_blocks = manual_complete_button_clicked(
+    replacement_text, updated_blocks = buddy.manual_complete_continue_or_stop(
         body, logger, client, context
     )
     respond(replace_original=True, text=replacement_text, blocks=updated_blocks)

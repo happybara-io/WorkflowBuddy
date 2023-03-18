@@ -398,10 +398,35 @@ def test_sbool(bool_str, expected):
     assert out == expected
 
 
-@pytest.mark.skip()
-def test_parse_values_from_input_config():
+@pytest.mark.parametrize(
+    "desc, values, inputs, curr_action_config, expected_error_key",
+    [
+        (
+            "Test timestamp way into 2030 gets validation error for >120 days",
+            {
+                "channel_input": {"channel_value": {"selected_channel": "C1111111"}},
+                "post_at_input": {"post_at_value": {"value": "1909980770"}},
+                "msg_text_input": {
+                    "msg_text_value": {"value": "msg text with {{slack==variable}}"}
+                },
+            },
+            {},
+            c.UTILS_CONFIG["schedule_message"],
+            "post_at_input",
+        )
+    ],
+)
+def test_parse_values_from_input_config(
+    desc, values, inputs, curr_action_config, expected_error_key
+):
     # TODO: can create more confidence in this now that it's moved here for unit tests than in app
-    pass
+    mock_client = mock.MagicMock(name="slack_client")
+    inputs, errors = sut.parse_values_from_input_config(
+        mock_client, values, inputs, curr_action_config
+    )
+
+    if expected_error_key:
+        assert expected_error_key in errors
 
 
 def test_slack_deeplink():

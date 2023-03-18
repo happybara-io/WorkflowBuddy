@@ -773,6 +773,7 @@ def parse_values_from_input_config(
     inputs = inputs
     errors = {}
 
+    # TODO: doesn't handle missing blocks/action ids gracefully
     for name, input_config in curr_action_config["inputs"].items():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
@@ -840,13 +841,20 @@ def parse_values_from_input_config(
             try:
                 timestamp_int = int(value)
                 curr = datetime.now().timestamp()
-                if (timestamp_int - curr) < c.TIME_5_MINS:
+                time_diff_seconds = timestamp_int - curr
+                if time_diff_seconds < c.TIME_5_MINS:
                     readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
                     errors[
                         block_id
                     ] = f"Need a timestamp from > 5 mins in future, but got {readable_bad_dt}."
+
+                if time_diff_seconds > c.TIME_119_DAYS:
+                    readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
+                    errors[
+                        block_id
+                    ] = f"Need a timestamp <120 days in the future, but got {readable_bad_dt}."
             except ValueError:
-                errors[block_id] = f"Must be valid timestamp integer."
+                errors[block_id] = "Must be valid timestamp integer."
         elif (
             validation_type is not None
             and validation_type.startswith("str_length")

@@ -635,7 +635,7 @@ def dispatch_action_update_fail_notify_channels(
     }
 
 
-def manual_complete_button_clicked(
+def manual_complete_continue_or_stop(
     body: dict,
     logger: logging.Logger,
     client: slack_sdk.WebClient,

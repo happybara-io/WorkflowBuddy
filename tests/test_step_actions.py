@@ -236,10 +236,10 @@ def test_dispatch_action_update_fail_notify_channels(test_if_bot_is_member):
         ),
     ],
 )
-def test_manual_complete_button_clicked(action, mock_body):
+def test_manual_complete_continue_or_stop(action, mock_body):
     mock_client = mock.MagicMock(name="slack_client")
     context = MockContext()
-    text, blocks = sut.manual_complete_button_clicked(
+    text, blocks = sut.manual_complete_continue_or_stop(
         mock_body, dummy_logger, mock_client, context
     )
     if action == "stop":
