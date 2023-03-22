@@ -145,6 +145,39 @@
                     }
                 },
                 {
+                    "type": "message",
+                    "id": "eee71f6d-b50a-4803-aa68-48dbe0e3d817",
+                    "config": {
+                        "channel": {
+                            "ref": "b44f7526-7c10-474f-8d7f-37dc220f665c==channel"
+                        },
+                        "has_button": false,
+                        "message_text": "Random UUID for search: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}",
+                        "message_blocks": [
+                            {
+                                "type": "rich_text",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [
+                                            {
+                                                "text": "Random UUID for search: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
                     "type": "extension_step",
                     "id": "bccbed5c-6e9e-4233-a2b5-098718108af4",
                     "config": {
@@ -242,7 +275,7 @@
                         "app_defined_config": {
                             "inputs": {
                                 "user_email": {
-                                    "value": "kevin@happybara.io"
+                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==user.email}}"
                                 },
                                 "selected_utility": {
                                     "value": "find_user_by_email"
@@ -398,10 +431,10 @@
                                     "value": "webhook"
                                 },
                                 "debug_mode_enabled": {
-                                    "value": "true"
+                                    "value": "false"
                                 },
                                 "debug_conversation_id": {
-                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==user.id}}"
+                                    "value": ""
                                 },
                                 "query_params_json_str": {
                                     "value": null
@@ -424,7 +457,7 @@
                                     "label": "Webhook Response Text (Unsanitized JSON string)"
                                 }
                             ],
-                            "step_name": "(DEBUG) Send a webhook",
+                            "step_name": "Send a webhook",
                             "step_image_url": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png"
                         }
                     }
@@ -453,10 +486,10 @@
                                     "value": "json_extractor"
                                 },
                                 "debug_mode_enabled": {
-                                    "value": "true"
+                                    "value": "false"
                                 },
                                 "debug_conversation_id": {
-                                    "value": "{{b44f7526-7c10-474f-8d7f-37dc220f665c==user.id}}"
+                                    "value": ""
                                 }
                             },
                             "outputs": [
@@ -466,8 +499,125 @@
                                     "label": "Extracted Data Matches"
                                 }
                             ],
-                            "step_name": "(DEBUG) Extract Value from JSON",
+                            "step_name": "Extract Value from JSON",
                             "step_image_url": "https://s3.happybara.io/happybara/main_logo.png"
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab",
+                    "config": {
+                        "app_action": {
+                            "name": "Workflow Buddy Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "sort": {
+                                    "value": "timestamp"
+                                },
+                                "sort_dir": {
+                                    "value": "desc"
+                                },
+                                "search_query": {
+                                    "value": "in:{{b44f7526-7c10-474f-8d7f-37dc220f665c==channel}}  Random {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}"
+                                },
+                                "delay_seconds": {
+                                    "value": "30"
+                                },
+                                "selected_utility": {
+                                    "value": "find_message"
+                                },
+                                "debug_mode_enabled": {
+                                    "value": "false"
+                                },
+                                "debug_conversation_id": {
+                                    "value": ""
+                                },
+                                "fail_if_empty_results": {
+                                    "value": "true"
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "channel",
+                                    "type": "channel",
+                                    "label": "Channel"
+                                },
+                                {
+                                    "name": "channel_id",
+                                    "type": "text",
+                                    "label": "Channel ID"
+                                },
+                                {
+                                    "name": "message_ts",
+                                    "type": "text",
+                                    "label": "Message TS"
+                                },
+                                {
+                                    "name": "permalink",
+                                    "type": "text",
+                                    "label": "Permalink"
+                                },
+                                {
+                                    "name": "message_text",
+                                    "type": "text",
+                                    "label": "Message Text"
+                                },
+                                {
+                                    "name": "user",
+                                    "type": "user",
+                                    "label": "User"
+                                },
+                                {
+                                    "name": "user_id",
+                                    "type": "text",
+                                    "label": "User ID"
+                                }
+                            ],
+                            "step_name": "Find a Message",
+                            "step_image_url": "https://s3.happybara.io/happybara/main_logo.png"
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "d66233b3-d81f-49c6-9143-2ef51f7b35a6",
+                    "config": {
+                        "app_action": {
+                            "name": "Workflow Buddy Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "reaction": {
+                                    "value": ":boom:"
+                                },
+                                "permalink": {
+                                    "value": "{{d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab==permalink}}"
+                                },
+                                "selected_utility": {
+                                    "value": "add_reaction"
+                                },
+                                "debug_mode_enabled": {
+                                    "value": "false"
+                                },
+                                "debug_conversation_id": {
+                                    "value": ""
+                                }
+                            },
+                            "outputs": [],
+                            "step_name": "Add Reaction",
+                            "step_image_url": "https://s3.happybara.io/happybara/main_logo_slack_badge.png"
                         }
                     }
                 },
@@ -529,7 +679,7 @@
                             "ref": "b44f7526-7c10-474f-8d7f-37dc220f665c==user"
                         },
                         "has_button": false,
-                        "message_text": "Started at {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} by {{b44f7526-7c10-474f-8d7f-37dc220f665c==user}}.\n\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}\nwaited for (s): {{5eec408b-c201-42b7-a743-9813a5cd80a2==waited_for}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nset channel topic:  {{bccbed5c-6e9e-4233-a2b5-098718108af4==timestamp_completed}}\nrandom member picker: {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_1}} | {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_id_1}}\nfound person:  {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}, {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nback to email: {{9cfd4565-4740-4ef3-aba8-6c7f13fd4098==user_email}}\nscheduled message id: {{fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id}}\nwebhook response: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code}} | {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_response_text}}\nJSON extraction: {{8796edbd-54e0-4be5-a434-44224ba1892d==extracted_matches}}\n\nTime waiting for approval: ({{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_started}}-{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}})\n\nFinished: {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} -&gt;{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}}",
+                        "message_text": "Started at {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} by {{b44f7526-7c10-474f-8d7f-37dc220f665c==user}}.\n\nrandom int: {{00a5f67f-1e4f-4b83-8d70-436c42c19a87==random_int_text}}\nwaited for (s): {{5eec408b-c201-42b7-a743-9813a5cd80a2==waited_for}}\nrandom uuid: {{3c492862-161e-4629-9f82-e9bcf89dbbde==random_uuid}}\nset channel topic:  {{bccbed5c-6e9e-4233-a2b5-098718108af4==timestamp_completed}}\nrandom member picker: {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_1}} | {{c5d1f948-bf4a-4eb9-8d27-f6933e7f4db3==selected_user_id_1}}\nfound person:  {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==user_id}}, {{3ed1760f-952d-423d-b3e5-947ea1b4ab1f==real_name}}\nback to email: {{9cfd4565-4740-4ef3-aba8-6c7f13fd4098==user_email}}\nscheduled message id: {{fcc30d8a-76f9-45ce-80fc-a80ec81f0383==scheduled_message_id}}\nwebhook response: {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_status_code}} | {{96ac98db-57a5-45dc-a7ed-dc295bef187a==webhook_response_text}}\nJSON extraction: {{8796edbd-54e0-4be5-a434-44224ba1892d==extracted_matches}}\nfind message:  {{d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab==message_ts}} | {{d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab==message_text}}| {{d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab==user}}\n\nTime waiting for approval: ({{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_started}}-{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}})\n\nFinished: {{b44f7526-7c10-474f-8d7f-37dc220f665c==current_timestamp}} -&gt;{{5c7487e9-0cb8-446d-8d72-29a765bbd3ff==timestamp_completed}}",
                         "message_blocks": [
                             {
                                 "type": "rich_text",
@@ -686,6 +836,36 @@
                                                 "type": "workflowtoken",
                                                 "property": "",
                                                 "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\nfind message:  ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab==message_ts",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": " | ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab==message_text",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "| ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "d2a080b7-9b9a-46e4-9825-d4d3bad5a6ab==user",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "user"
                                             },
                                             {
                                                 "text": "\n\nTime waiting for approval: (",
