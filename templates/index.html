@@ -7,24 +7,42 @@
     {% if dev %}
         <h1>Workflow Buddy Dev</h1>
     {% else %}
-        <h1>Workflow Buddy</h1>
+        <h1>Workflow Buddy Beta</h1>
     {% endif %}
     <hr />
     <br />
-    <h3>Install to your Slack Workspace!</h3>
-    <p>This takes you to the local installation link, which will then take you to Slack to authenticate. Slack will return you to us :D
+    <h3>What is Workflow Buddy?</h3>
+    <p>Workflow Buddy fills the gaps we've seen in Workflow Builder functionality. This includes:    </p>
+    <ul>
+        <li>an HTTP Request/Outgoing Webhook Step</li>
+        <li>Debug Mode while working on your workflows</li>
+        <li>failure notifications if a Buddy Step fails</li>
+        <li>.... and much more - refer back to the <a href="https://github.com/happybara-io/WorkflowBuddy">docs</a> if you are interested in more info.</li>
+    </ul>
+    <hr/>
+    <br />
+    <h3>Get Workflow Buddy</h3>
+    <p>Follow the button to the installation link, which will then take you to Slack to authenticate. Then you'll be all set to use Workflow Buddy in <a href="app.slack.com/workflow-builder">Workflow Builder!</a>
     </p>
     <a href="/slack/install" style="display: inline-block;border-radius: 5px;background-color: purple; padding: 8px 12px; font-weight: bold;">🔗 Install Workflow Buddy</a>
     <br />
     <a href="https://app.slack.com/">See your Slack workspaces in the browser...</a>
     <br />
-    <h3>Endpoints</h3>
-    <ul>
-        <li>Health: /health</li>
-        <li>Events: /slack/events</li>
-        <li>Interactivity: /slack/events</li>
-        <li>Webhooks: /webhook</li>
-        <li>Finish Execution: /workflow/finish-execution</li>
-    </ul>
+    <h3>Beta?</h3>
+    <p>
+        You're experiencing the Beta of the hosted/cloud version of Workflow Buddy. The early self-hosted versions of Buddy have been running for non-critical functionality at multiple companies over the past ~6 months, and we are now piloting a hosted Beta.
+        We are considering charging in the future to help defray support costs - so if that is a blocker, you should consider the self-hosted option that will be forever open-source.
+    </p>
+    <h3>Self-hosted vs Hosted/Cloud</h3>
+    <p>The core difference at the present between self-hosted and cloud is level of support. We will of course fix bugs and respond to issues on the repo, but hosted users can expect faster responses and quicker resolutions to their issues.
+        Self-hosting also opens the door for unique deployment/infra issues we aren't equipped to help with.</p>
+    <h3>Where is data stored?</h3>
+    <p>
+        The vast majority of data involved in Workflows (especially the configuration forms you see in Workflow Builder) are all stored on Slack's servers, Workflow Buddy just acts as an intermediary when they
+        are running.
+
+        The data Buddy stores is limited to what is needed for functionality (encrypted OAuth tokens, Slack team/user IDs, etc.), or is useful for your own team's stats (such as usage of Step types). If you are curious
+        to know more detail, check out the <em>"buddy/db.py"</em> file in the open-source repo, which shows all the database models.
+    </p>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Workflow Buddy - Super powers for Workflow Builder
 
-_| 📂 Open-source | [🧪 Installable Demo App](#demo-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) | [💡 Support](#support) |_
+_| 📂 Open-source | [🧪 Installable Beta App](#beta-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) | [💡 Support](#support) |_
 
 ---
 
@@ -42,7 +42,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [Available Steps](#-available-steps) - `+15`
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
-  - [Installing your own Buddy](#running-workflow-buddy) - (5-30 mins)
+  - [Installing your own Buddy/ Self-hosting](#running-workflow-buddy) - (5-30 mins)
   - [(Beginner) Simple Workflow](#beginner-quickstart-create-a-simple-workflow) - (~10 mins)
   - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
   - [(Advanced) Try New Steps](#advanced-quickstart-run-all-new-steps) - (~25 mins)
@@ -426,21 +426,27 @@ We're gonna start with a simple event we can easily control: `app_mention` _(whe
 
 Maybe, but until then, you have an option rather than waiting impatiently. Plus, since it is an extension of Workflow Builder, it won't stop working if Slack decides to add new functionality to the core tool. For those unaware, Slack is planning to release [conditional logic and other features in Q1 2023](https://techcrunch.com/2022/09/01/slack-gains-new-automation-features-including-conditional-logic-for-workflows/?guccounter=1).
 
+### Data: where is it stored?
+
+The vast majority of data involved in Workflows (especially the configuration forms you see in Workflow Builder) are all stored on Slack's servers, Workflow Buddy just acts as an intermediary when they are running.
+
+The data Buddy stores is limited to what is needed for functionality (encrypted OAuth tokens, Slack team/user IDs, etc.), or is useful for your own team's stats (such as usage of Step types). If you are curious to know more detail, check out the `buddy/db.py` file in the open-source repo, which shows all the database models.
+
 ---
 
-## Hosted
+## Hosted/ Cloud
 
-Don't want to host servers yourself, but still want to use Buddy? Happybara plans to release a hosted version in the near future.
+Don't want to host servers yourself, but still want to use Buddy? Happybara plans to release a hosted/cloud version in the near future.
 
 [🏄‍♀️ Snag your spot on the waitlist!](https://tally.so/r/mVLKkj)
 
 ## Running Workflow Buddy
 
-> 🧪 _Just want to experiment? Install the [demo app](#demo-app) to your Slack workspace and skip setting up servers until you're ready. You can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts**. If you get stuck, check out your [💡 support resources](#support)._
+> 🧪 _Just want to experiment? Install the [Beta app](#beta-app) to your Slack workspace and skip setting up servers until you're ready. You can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts**. If you get stuck, check out your [💡 support resources](#support)._
 
-You have several options to run a Buddy server: locally on your computer, self-hosted on a cloud service, or [hosted by Happybara](#hosted) _(coming soon)_.
+You have several options to run a Buddy server: locally on your computer, self-hosted on a cloud service, or [hosted by Happybara](#hosted-cloud) _(coming soon)_.
 
-To run a Buddy server yourself, you will:
+To self-host and run a Buddy server yourself, you will:
 
 1. Clone this repo at a specific release version.
 2. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
@@ -448,15 +454,12 @@ To run a Buddy server yourself, you will:
 4. Update Slack connection info.
 5. Use the bot through your regular Slack desktop! 💃
 
-### Demo App
+### Beta App
 
-There is a demo version of Workflow Buddy that can be [installed to your workspace](https://workflow-buddy-demo.fly.dev/slack/install) rather than setting up Slack apps & servers just to sample it.
+There is a beta version of Workflow Buddy that can be [installed to your workspace](https://workflow-buddy.fly.dev/) rather than setting up Slack apps & servers just to sample it.
 
 Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts** to learn what is possible with Workflow Buddy.
 
-> ⚠️
-> This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below since the demo app does not have guarantees around uptime, long-term data storage, etc.
->
 
 ### Clone This Repo
 
@@ -586,6 +589,7 @@ Currently the recommended best practice for updating Workflow Buddy:
   - _Automated backups are on the roadmap._
 - _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
 - `cd` to your cloned WB repo. Run `git fetch --all --tags` so you're local knows about all versions that have been tagged, then change to a specific version with `git checkout tags/v0.0.x -b v0.0.x-branch`.
+   > ⚠️ _If you were using Workflow Buddy prior to v1.0.0, your Event Configuration settings (what you created from the App Home) are stored in the old storage schema and will **NOT** be automatically imported. Recommended approach to upgrade is to make sure to `Export` those settings before you change versions of Workflow Buddy, then manually create matching ones once you have the new version running. Most users will only have 1 or 2, if you have many that need to be migrated feel free to reach out to our support for assistance._
   - If there were changes to `slack_app_manifest.template.yml`, you'll need to update [your Slack app](https://api.slack.com/apps/) with the latest and greatest.
   - If there were changes to the [secrets in Setup](#slack-app-setup), you will need to add those like was done above in [Cloud: Fly.io](#cloud-flyio).
 - Run `fly deploy -a < your app name >` to put your changes in to the wild!
