@@ -1,5 +1,34 @@
 from typing import Any, Dict, List
 
+UTF8 = "utf-8"
+
+ENV_ENV = "ENV"
+ENV_LOG_LEVEL = "LOG_LEVEL"
+ENV_SLACK_CLIENT_ID = "SLACK_CLIENT_ID"
+ENV_SLACK_CLIENT_SECRET = "SLACK_CLIENT_SECRET"
+ENV_SLACK_SIGNING_SECRET = "SLACK_SIGNING_SECRET"
+ENV_SECRET_ENCRYPTION_KEY = "SECRET_ENCRYPTION_KEY"
+ENV_IGNORE_ENCRYPTION = "IGNORE_ENCRYPTION"
+ENV_BUDDY_DEFAULT_SUBSCRIPTION = "ENV_BUDDY_DEFAULT_SUBSCRIPTION"
+
+# THIS HAS TO MATCH WHAT'S IN THE SLACK APP DEFINITION
+SCOPES = [
+    "app_mentions:read",
+    "channels:manage",
+    "channels:read",
+    "chat:write",
+    "commands",
+    "groups:write",
+    "reactions:read",
+    "reactions:write",
+    "users:read",
+    "users:read.email",
+    "workflow.steps:execute",
+    "chat:write.public",
+]
+
+USER_SCOPES = ["search:read"]
+
 URLS: Dict[str, Any] = {
     "images": {
         "bara_main_logo": "https://s3.happybara.io/happybara/main_logo.png",
@@ -26,17 +55,19 @@ EVENT_CHANNEL_DELETED = "channel_deleted"
 EVENT_CHANNEL_UNARCHIVE = "channel_unarchive"
 EVENT_REACTION_ADDED = "reaction_added"
 EVENT_WORKFLOW_PUBLISHED = "workflow_published"
+EVENT_WORKFLOW_UNPUBLISHED = "workflow_unpublished"
+EVENT_WORKFLOW_DELETED = "workflow_deleted"
 EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
 WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
-DB_UNHANDLED_EVENTS_KEY = "unhandled_events"
-
 TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
+TIME_119_DAYS = 119 * 24 * 3600
 
 WEBHOOK_SK_LENGTH = 20
+HTTP_REQUEST_RETRIES = 1
 SLACK_BUTTON_VALUE_MAX_CHARS = 2000
 
 WAIT_STATE_MAX_SECONDS = 60
@@ -65,9 +96,13 @@ APP_HOME_HEADER_BLOCKS: List[Dict[str, Any]] = [
                 "value": URLS["github-repo"]["home"],
                 "url": URLS["github-repo"]["home"],
                 "action_id": "action_github_repo",
-            },
+            }
         ],
     },
+    {"type": "divider"},
+]
+
+APP_HOME_EVENT_TRIGGER_BLOCKS = [
     {"type": "divider"},
     {
         "type": "header",
@@ -122,19 +157,19 @@ APP_HOME_HEADER_BLOCKS: List[Dict[str, Any]] = [
                 "value": "add_webhook",
                 "action_id": "action_add_webhook",
             },
-            {
-                "type": "button",
-                "style": "primary",
-                "text": {"type": "plain_text", "text": "Import", "emoji": True},
-                "value": "import",
-                "action_id": "action_import",
-            },
-            {
-                "type": "button",
-                "text": {"type": "plain_text", "text": "Export", "emoji": True},
-                "value": "export",
-                "action_id": "action_export",
-            },
+            # {
+            #     "type": "button",
+            #     "style": "primary",
+            #     "text": {"type": "plain_text", "text": "Import", "emoji": True},
+            #     "value": "import",
+            #     "action_id": "action_import",
+            # },
+            # {
+            #     "type": "button",
+            #     "text": {"type": "plain_text", "text": "Export", "emoji": True},
+            #     "value": "export",
+            #     "action_id": "action_export",
+            # },
         ],
     },
     # {"type": "divider"},
@@ -506,6 +541,16 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 "block_id": "block_checkboxes",
                 "element": {
                     "type": "checkboxes",
+                    "initial_options": [
+                        {
+                            "text": {"type": "mrkdwn", "text": " "},
+                            "description": {
+                                "type": "mrkdwn",
+                                "text": "_Check this if you want Workflow to halt on server errors, otherwise it can continue._",
+                            },
+                            "value": "fail_on_http_error",
+                        }
+                    ],
                     "options": [
                         {
                             "text": {"type": "mrkdwn", "text": " "},
@@ -703,6 +748,11 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 "type": "text",
                 "name": "webhook_response_text",
                 "label": "Webhook Response Text",
+            },
+            {
+                "type": "text",
+                "name": "webhook_response_text_unsanitized",
+                "label": "Webhook Response Text (Unsanitized JSON string)",
             },
         ],
     },
@@ -1134,7 +1184,18 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 "action_id": "topic_string_value",
             },
         },
-        "outputs": [],
+        "outputs": [
+            {
+                "label": "Channel with Updated Topic",
+                "name": "channel_with_updated_topic",
+                "type": "channel",
+            },
+            {
+                "label": "Channel ID with Updated Topic",
+                "name": "channel_id_with_updated_topic",
+                "type": "text",
+            },
+        ],
     },
     "json_extractor": {
         "draft": False,

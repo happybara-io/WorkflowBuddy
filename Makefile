@@ -3,13 +3,13 @@
 prep: format test
 
 format:
-	poetry run black .
+	poetry run black buddy/ tests/ app.py
 
 ngrok:
 	ngrok http 4747
 
 run-dev:
-	./run-dev.sh
+	poetry run ./run-dev.sh
 
 test:
 	poetry run python -m pytest -sv tests/
@@ -19,8 +19,8 @@ cov:
 	# wslview for linux on windows - on Mac you can use 'open', on linux 'xdg-open'
 	wslview htmlcov/index.html || true
 
-type-check:
-	poetry run python -m mypy buddy/ # app.py
+typecheck:
+	poetry run python -m mypy --no-warn-unused-ignores buddy/ # app.py
 
 generate-requirements:
 	poetry export -o requirements.txt --without-hashes
@@ -33,3 +33,12 @@ up-build:
 
 setup-precommit-hooks:
 	poetry run pre-commit install
+
+shell-dev:
+	fly ssh console -a workflow-buddy-dev
+
+deploy-dev:
+	fly deploy -a workflow-buddy-dev -c fly.dev.toml
+
+deploy-prod:
+	fly deploy -a workflow-buddy -c fly.prod.toml

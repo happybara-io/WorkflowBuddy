@@ -3,6 +3,7 @@
 _| 📂 Open-source | [🧪 Installable Demo App](#demo-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) | [💡 Support](#support) |_
 
 ---
+
 ## Testimonials
 
 >🗣 _"Workflow Buddy is such an enabler for us. It’s exactly what I hoped Workflow Builder originally was." - [iCulture.nl](https://www.iculture.nl/)_
@@ -57,7 +58,7 @@ Want to get rockin' with Workflow Buddy, but running into trouble? You have a nu
 
 - 📚 Read the docs - _in this README, and the [wiki](https://github.com/happybara-io/WorkflowBuddy/wiki)_
 - 👬 Search through or ask a question in the [Community Discussions](https://github.com/happybara-io/WorkflowBuddy/discussions) - _no question is too small_.
-- 📩 Send an email to [support@happybara.io](mailto:support@happybara.io). 
+- 📩 Send an email to [support@happybara.io](mailto:support@happybara.io).
 - 🙋‍♀️ If you found a bug; open a [new GitHub issue](https://github.com/happybara-io/WorkflowBuddy/issues/new/choose). _⚠ If in doubt, please use the Discussions rather than Issues._
 
 ---
@@ -149,7 +150,7 @@ The events that have been tested and are known to be working - other Slack event
 
 Options that work the same across event types.
 
-- `raw_event`: By default, Workflow Buddy will flatten & limit the JSON it receives to fit with the [Slack limitations](#templates-for-event-triggers) of 20 variables and no nested data. Set this to `true` to turn off the transformation.
+- `use_raw_event`: By default, Workflow Buddy will flatten & limit the JSON it receives to fit with the [Slack limitations](#templates-for-event-triggers) of 20 variables and no nested data. Set this to `true` to turn off the transformation.
 
 #### **app_mention** - [_docs_](https://api.slack.com/events/app_mention)
 
@@ -441,10 +442,11 @@ You have several options to run a Buddy server: locally on your computer, self-h
 
 To run a Buddy server yourself, you will:
 
-1. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
-2. Run a Buddy server either **A)** on your laptop, or **B)** in the cloud.
-3. Update Slack connection info.
-4. Use the bot through your regular Slack desktop! 💃
+1. Clone this repo at a specific release version.
+2. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
+3. Run a Buddy server either **A)** on your laptop, or **B)** in the cloud.
+4. Update Slack connection info.
+5. Use the bot through your regular Slack desktop! 💃
 
 ### Demo App
 
@@ -456,6 +458,17 @@ Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **gu
 > This app is intended for initial testing only! Think of it like the free samples at Costco - gives you a taste, but not meant for a whole meal. Once you've tried out Workflow Buddy, you should look into the hosting options below since the demo app does not have guarantees around uptime, long-term data storage, etc.
 >
 
+### Clone This Repo
+
+Clone this repo, then check out a specific release version. `main` is actively developed on this project, so it's **HIGHLY** recommended to pin to a specific version.
+
+```
+git fetch --all --tags # so you're local knows about all versions that have been tagged
+git checkout tags/v0.0.x -b v0.0.x-branch # creates a new branch from the specific tagged version
+```
+
+Now you're ready to rock with the repo from that point in time!
+
 ### Slack App Setup
 
 - **Copy `slack_app_manifest.template.yml` to `slack_app_manifest.yml`**.
@@ -466,18 +479,15 @@ Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **gu
   - After a couple simple confirmation modals to go through.
   - Go to the `OAuth & Permissions` section and click `Install App` to grant permissions for your new app on the workspace. This will generate the access tokens you will need for the next step.
 - **Now create a `.env` file in your repo. We will be populating it with values from the Slack App you created.**
-  - Get the `SLACK_BOT_TOKEN` & `SLACK_USER_TOKEN` from the `OAuth & Permissions` tab of your Slack app.
-  - Get the `SLACK_SIGNING_SECRET` from the `Basic Information` tab of your Slack app.
+  - Get the  `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, & `SLACK_SIGNING_SECRET` from the `Basic Information` tab of your Slack app. This lets Workflow Buddy run the install flow to receive `bot_tokens` and `user_tokens`.
   - The final result should look like:
 
     ```
-    SLACK_BOT_TOKEN=xoxb-********
-    # should only be needed if you want to use the 'Find a Message' action
-    SLACK_USER_TOKEN=xoxp-********
     SLACK_SIGNING_SECRET=********
-    # only oauth demo app should need
     SLACK_CLIENT_ID=********
     SLACK_CLIENT_SECRET=********
+    # if you want to have encryption for the data in your server's DB
+    SECRET_ENCRYPTION_KEY=< you-choose-this-value-keep-it-safe>
     ```
 
 - **Next, you'll spin up the two local servers or a cloud server.**
@@ -490,7 +500,7 @@ To run the Slack app locally you will:
 
 1. ✅ Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
 2. 📌 Run a local server on your laptop either using `Python` or `Docker` with the credentials you got in step `1`.
-    - _If you use GitHub CodeSpaces for development, you can skip running a proxy tool, because they will port-forward for you._
+    - _If you use GitHub CodeSpaces for development, you can skip running a proxy tool, because they will port-forward for you - when it wants to work._
 3. Run a proxy tool that lets Slack talk to your `localhost` (local server).
 4. Update Slack connection info.
 5. Use the bot through your regular Slack desktop! 💃
@@ -547,13 +557,13 @@ _If you get stuck, check out your [💡 support resources](#support)._
 
 You will need to create an account with cc details💳, though this should run on the free tier. You will then need to [install the `flyctl`](https://fly.io/docs/flyctl/installing/) tool and `flyctl auth login` so it gets connected.
 
-- Copy `fly.template.toml` to `fly.toml`. Open `fly.toml` and customize the _app name_ on the first line of the file.
-- 🥂 Run `flyctl launch` to get the app initialized with _Fly.io_. Choose `No` when it asks _"Would you like to deploy now?"_.
-  - _You can choose any name you want for it, it won't be visible except in your [Fly dashboard](https://fly.io/dashboard/personal)._
+- Copy `fly.template.toml` to `fly.toml`.
+- **Choose a name for your app.** `https://< your app name>.fly.dev` is where it will be hosted, and labeled in the [Fly dashboard](https://fly.io/dashboard/personal).
+- 🥂 Run `flyctl launch --name < your app name> --no-deploy` to get the app initialized with _Fly.io_. _It will write an updated config to the `fly.toml` file, so don't be alarmed when it does._
 - If you want your **data to persist between deployments**:
   - Create a volume for your instance. I set this to 1 GB, but you get up to 3 GB on the free tier. I also picked `ord` since I'm in the US, but pick any [region near you](https://fly.io/docs/reference/regions/).
-    `flyctl volumes create workflowbuddy_vol --size 1 -r ord`
-  - _(Optional, if using alternate name)_ Ensure `fly.toml` has the mount:
+    `flyctl -a <your app name > volumes create workflowbuddy_vol --size 1 -r ord`
+  - _(Optional)_ Ensure `fly.toml` has the mount added _(Optional since this has already been implemented in the template. Remove it if you don't want persistence.)_:
 
     ```
     [mounts]
@@ -562,24 +572,23 @@ You will need to create an account with cc details💳, though this should run o
     ```
 
   - _(Optional)_ update `fly.toml` config settings.
-- Add secrets from `.env` _(documented above)_ to the Fly environnment using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
-  - For each one, run: `flyctl secrets set <name>='<secret>'`.
-  - 🚀 Finally, get a running app with `flyctl deploy`!
-    - _If you run into issues with remote builders, you can always do it locally with `flyctl deploy --local-only`._
-
-> ⚠️ _Currently it uses using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed._
+- Add secrets from `.env` _(documented [above](#slack-app-setup))_ to the Fly environnment using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
+  - run: `flyctl secrets -a <your app name > set <name>='<secret>' <name2>='<secret2>'...`.
+- 🚀 Finally, get a running app with `flyctl deploy -a < your app name >`!
+  - _If you run into issues with remote builders, you can always do it on Docker locally with `flyctl deploy --local-only`._
 
 ##### Updating Workflow Buddy on Fly
 
 Currently the recommended best practice for updating Workflow Buddy:
 
-- _(Optional)_ Backup previous config.
-  - In Slack, go to `@Workflow Buddy` _App Home_ and `Export` any existing configurations, save them to a local file as a backup.
+- _(Optional)_ Backup the DB.
+  - Run `flyctl ssh sftp shell -a < your app name >`, then `> get /usr/app/data/workflow_buddy.db`.
+  - _Automated backups are on the roadmap._
 - _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
-- `cd` to your cloned WB repo. Run `git pull` for the latest updates.
+- `cd` to your cloned WB repo. Run `git fetch --all --tags` so you're local knows about all versions that have been tagged, then change to a specific version with `git checkout tags/v0.0.x -b v0.0.x-branch`.
   - If there were changes to `slack_app_manifest.template.yml`, you'll need to update [your Slack app](https://api.slack.com/apps/) with the latest and greatest.
   - If there were changes to the [secrets in Setup](#slack-app-setup), you will need to add those like was done above in [Cloud: Fly.io](#cloud-flyio).
-- Run `fly deploy` to put your changes in to the wild!
+- Run `fly deploy -a < your app name >` to put your changes in to the wild!
 
 #### Cloud: Other hosting providers
 
@@ -639,14 +648,7 @@ For Slack events, this app basically just acts as a proxy. As long as the event 
 
 For the new actions, it registers a **Workflow Builder Step** - unfortunately each app is limited to 10 registered with Slack. To get around that limitation, we have the user select from a static select list of actions that have been implemented on the server, then update the modal to give them the appropriate options. For example, if the user wants to `Send a webhook`, we'll then update the modal to have an input for the Webhook URL, and a text box for the body they want to send.
 
-**Data**: Config data (basically just webhooks for now) is persisted on disk using Using a very simple cache + JSON file to persist webhook config data - it's not very robust, so highly recommend keeping a copy of the JSON file as backup to easily import if config is destroyed.
-
-### Where is the configuration data store?
-
-It's using a very simple cache + JSON file to persist webhook config data - it's not very robust, so **highly recommend** using the `Export` function to save a backup to easily `Import` if config is destroyed.
-
-Depending on your deployment options, you may need to take extra steps to persist the local file data until a more persistent data store is added.
-
+**Data**: Config data (basically just webhooks for now) is persisted on disk using a SQlite DB.
 
 ### Tools
 
@@ -654,5 +656,25 @@ We use a number of tools in & around this repo to improve the code quality:
 
 - Black formatter
 - [Sourcery.ai - improved code suggestions for Python](https://docs.sourcery.ai/Welcome/)
+- [Fly.io](https://fly.io)
+
+### Notes on using Fly.io
+
+Saving a few helpful things I've run into for those who are self-hosting.
+
+#### Pull files (like SQLite DB) to local machine
+
+There are plenty of reasons to pull files down - backups, easier querying, etc. Fly offers a number of different ways to get access to files, and I've had varying luck with each of them:
+
+- ✅ `flyctl ssh sftp shell`, then manually selecting a file with `> get < filename >`. Then Ctrl+C out of it.
+- ❌ `flyctl sftp get /usr/app/data/workflow_buddy.db` didn't work for me. What's odd is the same exact command with `sftp find` was able to locate the file, as well as manually selecting it with `sftp shell`. Confusing.
+
+#### Open a console and explore
+
+Easily done with `flyctl ssh console`.
+
+#### Proxy localhost to server
+
+❌ I've had no luck with `flyctl proxy 4747` - supposedly proxy should let you interact with the server as if it was running on your local, but both `curl` and my browser end up hanging indefinitely when I reach to `http://localhost:4747`.
 
 ---

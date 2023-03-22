@@ -1,6 +1,4 @@
 # fly.toml file generated for workflow-buddy on 2022-09-25T20:43:16-05:00
-
-app = "workflow-buddy"
 kill_signal = "SIGINT"
 kill_timeout = 5
 processes = []

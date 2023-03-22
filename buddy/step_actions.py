@@ -2,25 +2,34 @@ import json
 import logging
 import os
 import random
+import copy
 import string
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
+import pprint
 
 import slack_sdk
+from slack_bolt import BoltContext, Ack
+from slack_bolt.workflows.step import Complete, Configure, Fail, Update, WorkflowStep
 from jsonpath_ng import jsonpath
 from jsonpath_ng.ext import parse
 
 import buddy.constants as c
 import buddy.utils as utils
+import buddy.db as db
 from buddy.errors import WorkflowStepFailError
 from buddy.types import Outputs
 
-logging.basicConfig(level=logging.DEBUG)
+from typing import List, Dict, Any, Union, Tuple
+
+logger = logging.getLogger("step_actions")
 
 ################################
 # Step Actions funcs: take `inputs`, return Slack `outputs`
 ################################
+# TODO: this has slowly become "move any Slack App function here so it's testable,
+#  and only keep the initialization in app.py". That's fine, just confusing naming.
 
 
 def run_random_int(step: dict) -> Outputs:
@@ -47,7 +56,7 @@ def run_conversations_create(inputs: dict, client: slack_sdk.WebClient) -> Outpu
             }
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: failed to create conversation. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
@@ -65,14 +74,13 @@ def run_find_user_by_email(inputs: dict, client: slack_sdk.WebClient) -> Outputs
             }
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: failed to get email. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
 
 def run_find_message(
-    step: dict,
-    logger: logging.Logger,
+    step: dict, logger: logging.Logger, context: BoltContext
 ) -> Outputs:
     # https://api.slack.com/methods/search.messages
     inputs = step["inputs"]
@@ -94,7 +102,7 @@ def run_find_message(
 
     # TODO: team_id is required attribute if using an org-token
     try:
-        user_token = os.environ["SLACK_USER_TOKEN"]
+        user_token = context.user_token
         client = slack_sdk.WebClient(token=user_token)
     except KeyError:
         errmsg = "No SLACK_USER_TOKEN provided to Workflow Buddy - required for searching Slack messages."
@@ -162,6 +170,7 @@ def run_json_extractor(step: dict) -> Outputs:
 
     try:
         # TODO: do I need to do a safe load here for double quotes/etc? Hopefully it should be well-formed if it's coming here and not built by hand
+        json_string = json_string.replace("\n", "")
         json_data = json.loads(json_string, strict=False)
     except json.JSONDecodeError as e:
         errmsg = utils.pretty_json_error_msg(
@@ -171,7 +180,7 @@ def run_json_extractor(step: dict) -> Outputs:
 
     jsonpath_expr = parse(jsonpath_expr_str)
     results = jsonpath_expr.find(json_data)
-    logging.debug(f"JSONPATH {jsonpath_expr_str}| RESULTS: {results}")
+    logger.debug(f"JSONPATH {jsonpath_expr_str}| RESULTS: {results}")
     matches = [match.value for match in results]
     if len(matches) == 1:
         matches = matches[0]
@@ -193,7 +202,7 @@ def run_random_member_picker(
             channel=conversation_id, limit=num_per_request
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: unable to get conversation members from Slack. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
@@ -235,7 +244,7 @@ def run_schedule_message(inputs: dict, client: slack_sdk.WebClient) -> Outputs:
             }
         )
     except slack_sdk.errors.SlackApiError as e:
-        logging.error(e.response)
+        logger.error(e.response)
         errmsg = f"Slack Error: unable to schedule message. {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
@@ -254,10 +263,12 @@ def run_manual_complete(
     workflow_context_msg = inputs["context_msg"]["value"]
     workflow_name = utils.iget(inputs, "workflow_name", "the Workflow")
     execution_id = event["workflow_step"]["workflow_step_execute_id"]
+    workflow_id = event["workflow_step"]["workflow_id"]
+    delimited_workflow_info = f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}{c.BUDDY_VALUE_DELIMITER}{workflow_id}"
     team_id = body["team_id"]
     app_id = body["api_app_id"]
     app_home_deeplink = utils.slack_deeplink("app_home", team_id, app_id=app_id)
-    fallback_text = f"👋 Workflow Buddy here! You've been asked to `Continue/Stop` a Workflow.\nUse these buttons once tasks have been completed to your satisfaction.\n*Name:* `{workflow_name}`\n```{workflow_context_msg}```"
+    fallback_text = f"👋 Workflow Buddy here! You've been asked to `Continue/Stop` a Workflow.\nUse these buttons once tasks have been completed to your satisfaction.\n*Name:* `{workflow_name}`\n*Context About the Workflow:*\n```{workflow_context_msg}```"
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": fallback_text}},
         {
@@ -270,7 +281,7 @@ def run_manual_complete(
                         "text": "👉 Continue",
                         "emoji": True,
                     },
-                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
+                    "value": delimited_workflow_info,
                     "style": "primary",
                     "action_id": "manual_complete-continue",
                 },
@@ -281,7 +292,7 @@ def run_manual_complete(
                         "text": "🛑 Stop",
                         "emoji": True,
                     },
-                    "value": f"{execution_id}{c.BUDDY_VALUE_DELIMITER}{workflow_name}",
+                    "value": delimited_workflow_info,
                     "action_id": "manual_complete-stop",
                     "style": "danger",
                 },
@@ -302,7 +313,7 @@ def run_manual_complete(
         resp = client.chat_postMessage(
             channel=conversation_id, text=fallback_text, blocks=blocks  # type: ignore
         )
-        logger.info(resp)
+        logger.debug(resp)
     except slack_sdk.errors.SlackApiError as e:
         logger.error(e.response)
         errmsg = f"Slack Error: unable to send message with execution_id to conversation. {e.response['error']}."
@@ -337,7 +348,12 @@ def run_set_channel_topic(
         resp = client.conversations_setTopic(
             channel=conversation_id, topic=topic_string
         )
-        return Outputs({})
+        return Outputs(
+            {
+                "channel_with_updated_topic": conversation_id,
+                "channel_id_with_updated_topic": conversation_id,
+            }
+        )
     except slack_sdk.errors.SlackApiError as e:
         logger.error(e.response)
         errmsg = f"Slack Error: unable to set channel topic. {e.response['error']}"
@@ -409,11 +425,11 @@ def run_webhook(step: dict) -> Outputs:
     query_params_json_str = (
         inputs.get("query_params_json_str", {}).get("value", {}) or "{}"
     )
-    logging.info(f"sending to url:{url}")
+    logger.info(f"sending to url:{url}")
     body = {}
     bool_flags_input = inputs.get("bool_flags", {})
     try:
-        selected_checkboxes = json.loads(bool_flags_input.get("value", []))
+        selected_checkboxes = json.loads(bool_flags_input.get("value", "[]"))
         for box_item in selected_checkboxes:
             flag_name = box_item["value"]
             bool_flags[flag_name] = True
@@ -423,7 +439,7 @@ def run_webhook(step: dict) -> Outputs:
             bool_flags_input,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
     try:
@@ -435,7 +451,7 @@ def run_webhook(step: dict) -> Outputs:
             request_json_str,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
     try:
@@ -446,7 +462,7 @@ def run_webhook(step: dict) -> Outputs:
             headers_json_str,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
     try:
@@ -459,10 +475,10 @@ def run_webhook(step: dict) -> Outputs:
             query_params_json_str,
             e,
         )
-        logging.error(full_err_msg)
+        logger.error(full_err_msg)
         raise WorkflowStepFailError(full_err_msg)
 
-    logging.debug(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
+    logger.info(f"Method:{http_method}|Headers:{new_headers}|QP:{query_params}")
     resp = utils.send_webhook(
         url, body, method=http_method, params=query_params, headers=new_headers
     )
@@ -472,10 +488,229 @@ def run_webhook(step: dict) -> Outputs:
         raise WorkflowStepFailError(errmsg)
 
     # TODO: is there a limit to output variable string size?
-    sanitized_resp = utils.sanitize_webhook_response(resp.text)
+    text = resp.text
+    sanitized_resp = utils.sanitize_webhook_response(text)
     return Outputs(
         {
             "webhook_status_code": str(resp.status_code),
-            "webhook_response_text": f"{sanitized_resp}",
+            "webhook_response_text": sanitized_resp,
+            "webhook_response_text_unsanitized": text,
         }
     )
+
+
+def edit_utils(step: Dict[str, Any], user_token: str) -> List[Dict[Any, Any]]:
+    existing_inputs = copy.deepcopy(
+        step["inputs"]
+    )  # avoid potential issue when we delete from input dict
+
+    blocks = copy.deepcopy(c.UTILS_STEP_MODAL_COMMON_BLOCKS)
+    DEFAULT_ACTION = "webhook"
+    chosen_action = (
+        existing_inputs.get("selected_utility", {}).get("value") or DEFAULT_ACTION
+    )
+    chosen_config_item = c.UTILS_CONFIG[chosen_action]
+    debug_mode_enabled = utils.sbool(
+        existing_inputs.get("debug_mode_enabled", {}).get("value")
+    )
+
+    if debug_mode_enabled:
+        copy_of_debug_blocks = copy.deepcopy(c.DEBUG_MODE_BLOCKS)
+        blocks.extend(copy_of_debug_blocks)
+
+    blocks.append(
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"{chosen_config_item.get('description')}",
+            },
+        }
+    )
+    blocks.extend(utils.dynamic_modal_top_blocks(chosen_action, user_token=user_token))
+    # have to make sure we aren't accidentally editing config blocks in memory
+    blocks.extend(copy.deepcopy(chosen_config_item["modal_input_blocks"]))
+    utils.update_blocks_with_previous_input_based_on_config(
+        blocks, chosen_action, existing_inputs, chosen_config_item
+    )
+    return blocks
+
+
+def dispatch_action_update_fail_notify_channels(
+    ack: Ack, body: dict, client: slack_sdk.WebClient, context: BoltContext
+) -> Union[dict, None]:
+    ack()
+    block_id = "home_dispatch_notify_channels"
+    action_id = "action_update_fail_notify_channels"
+    trigger_id = body["trigger_id"]
+    try:
+        channel_ids_string = body["view"]["state"]["values"][block_id][action_id][
+            "value"
+        ]
+        channel_ids_string = utils.remove_duplicates_from_comma_separated_string(
+            channel_ids_string
+        )
+        db.set_failure_notification_channels(
+            channel_ids_string, context.team_id, enterprise_id=context.enterprise_id
+        )
+    except Exception as e:
+        # TODO: if anything blows up,
+        # send a message so they know - maybe also a confirm in the channel itself?
+        # why not a modal instead?
+        # TODO: when considering sending a message in the channel itself - we don't want to hammer it.
+        # Would need to check which ones are new, but that's slightly more effort rn so
+        # gonna save that for the future.
+        logger.exception(e)
+        utils.slack_send_server_error_modal(client, trigger_id)
+        return None
+
+    # run a check against all the channels, make sure we have access to post to them
+    # if not, send a message to this offending user that it's not all gucci
+    all_input_channels = channel_ids_string.split(",")
+    messageable_channels = []
+    channels_needing_invite = []
+    garbage_channels = []
+    for channel_id in all_input_channels:
+        logger.info(
+            f"Checking {channel_id} for ability to post failure notifications..."
+        )
+        status = utils.test_if_bot_is_member(channel_id, client)
+        if status == "not_in_convo":
+            # this should cover private channels as well
+            channels_needing_invite.append(channel_id)
+        elif status == "unable_to_test":
+            garbage_channels.append(channel_id)
+        else:
+            messageable_channels.append(channel_id)
+
+    errMsg = ""
+    messageable_channels = ",".join([f"<#{cid}>" for cid in messageable_channels])
+    formatted_invite_channels = ",".join(
+        [f"<#{cid}>" for cid in channels_needing_invite]
+    )
+    readyMsg = f"""
+🫡 _Ready to send Step Failure notifications to these channels: {messageable_channels or "none"}._
+"""
+    blocks = [
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"{readyMsg}"},
+        }
+    ]
+
+    if channels_needing_invite or garbage_channels:
+        errMsg = f"""
+⚠️ Workflow Buddy was configured to send Step Failure notifications to more channels, but it's not a member yet.
+
+ - You need to invite `@WorkflowBuddy` if you want to use these channels: names: {formatted_invite_channels} | _ids: `{",".join(channels_needing_invite)}`_
+"""
+        if garbage_channels:
+            errMsg += f"\n- These channels either had an error during testing, or don't exist: `{','.join(garbage_channels)}`"
+
+        blocks.extend(
+            [
+                {"type": "divider"},
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"{errMsg}"},
+                },
+            ]
+        )
+
+    try:
+        channels_modal = {
+            "type": "modal",
+            "callback_id": "fail_notification_channels",
+            "title": {
+                "type": "plain_text",
+                "text": "Fail Notifications",
+                "emoji": True,
+            },
+            "close": {"type": "plain_text", "text": "Close", "emoji": True},
+            "blocks": blocks,
+        }
+        client.views_open(trigger_id=trigger_id, view=channels_modal)
+        # app_home_user_id = body["user"]["id"]
+        # client.chat_postMessage(channel=app_home_user_id, text=errMsg)
+    except Exception as e:
+        logger.exception(f"Failed to send confirmation message {e}")
+
+    return {
+        "needs_invite": channels_needing_invite,
+        "garbage_channels": garbage_channels,
+        "readyMsg": readyMsg,
+        "errMsg": errMsg,
+    }
+
+
+def manual_complete_continue_or_stop(
+    body: dict,
+    logger: logging.Logger,
+    client: slack_sdk.WebClient,
+    context: BoltContext,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    actions_payload = body["actions"][0]
+    action_id = actions_payload["action_id"]
+    action_user_id = body["user"]["id"]
+    action_user_name = body["user"].get("name")
+
+    args = actions_payload["value"].split(c.BUDDY_VALUE_DELIMITER)
+    workflow_step_execute_id = args[0]
+
+    try:
+        workflow_name = args[1]
+        workflow_id = args[2]
+    except IndexError:
+        logger.error(
+            f'Failed to unpack at least one workflow values from {actions_payload["value"]}|{args}'
+        )
+        workflow_name = "the Workflow"
+        workflow_id = "unknown_workflow_id"
+
+    execution_body = {
+        "event": {
+            "workflow_step": {
+                "workflow_id": workflow_id,
+                "workflow_step_execute_id": workflow_step_execute_id,
+            }
+        }
+    }
+    prev_msg_blocks = body["message"]["blocks"]
+    # Keep just the first info block, then swap out rest with updated block.
+    updated_blocks = prev_msg_blocks[:1]
+
+    if "stop" in action_id:
+        fail = Fail(client=client, body=execution_body)
+        # TODO: add more context: by who? why? what workflow was this?
+        errmsg = f"Workflow stopped manually by {action_user_name}:{action_user_id}."
+        fail(error={"message": errmsg})
+        replacement_text = f"🛑 <@{action_user_id}> halted {workflow_name}."
+        chosen_action = "Human Manual Complete"
+        step = execution_body["event"]["workflow_step"]
+        utils.send_step_failure_notifications(
+            client,
+            chosen_action,
+            step,
+            context.team_id,
+            short_err_msg=errmsg,
+            enterprise_id=context.enterprise_id,
+        )
+    else:
+        # yay the Workflow continues!
+        complete = Complete(client=client, body=execution_body)
+        outputs = {"user_id": action_user_id, "user": action_user_id}
+        complete(outputs=outputs)
+        replacement_text = f"👉 <@{action_user_id}> continued {workflow_name}."
+
+    updated_blocks.append(
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": replacement_text,
+                }
+            ],
+        }
+    )
+    return replacement_text, updated_blocks

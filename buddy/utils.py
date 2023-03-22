@@ -11,44 +11,26 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib import parse, response
+import buddy.db as db
+import time
 
+from sqlalchemy.orm import Session
 import requests
+from requests.exceptions import Timeout, ConnectionError
 import slack_sdk
 import slack_sdk.errors
 
 import buddy.constants as c
 
-logging.basicConfig(level=logging.DEBUG)
-
-ENV = os.environ.get("ENV", "TEST")
-WB_DATA_DIR = os.getenv("WB_DATA_DIR") or (
-    "./workflow-buddy-test/" if ENV == "TEST" else "/usr/app/data/"
-)
-logging.info(f"ENV: {ENV} WB_DATA_DIR:{WB_DATA_DIR}")
-
-
-Path(WB_DATA_DIR).mkdir(parents=True, exist_ok=True)
-PERSISTED_JSON_FILE = f"{WB_DATA_DIR}/workflow-buddy-db.json"
-Path(PERSISTED_JSON_FILE).touch()
-logging.info(f"Using DB file path: {PERSISTED_JSON_FILE}...")
-
-# !! THIS ONLY WORKS IF YOU HAVE A SINGLE PROCESS
-IN_MEMORY_WRITE_THROUGH_CACHE: Dict[str, List] = {}
-# on startup, load current contents into cache
-with open(PERSISTED_JSON_FILE, "r") as jf:
-    try:
-
-        IN_MEMORY_WRITE_THROUGH_CACHE = json.load(jf)
-        logging.info("Cache loaded from file")
-    except json.decoder.JSONDecodeError as e:
-        logging.warning("Unable to load from file, starting empty cache.")
-        IN_MEMORY_WRITE_THROUGH_CACHE = {}
-logging.info(f"Starting DB: {IN_MEMORY_WRITE_THROUGH_CACHE}")
-
+logger = logging.getLogger(__name__)
 
 ###################
 # Utils
 ###################
+def get_input_val(inputs: dict, key: str, default_val: Any) -> Any:
+    return inputs.get(key, {"value": default_val})["value"]
+
+
 def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
     block_kit_base_url = "https://app.slack.com/block-kit-builder/"
     payload = view
@@ -59,132 +41,141 @@ def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
 
 
 # TODO: accept any of the keyword args that are allowed?
-def generic_event_proxy(logger: logging.Logger, event: dict, body: dict) -> None:
+def generic_event_proxy(
+    logger: logging.Logger,
+    event: dict,
+    body: dict,
+    team_id: Union[str, None],
+    enterprise_id: Union[str, None],
+) -> None:
     event_type = event.get("type")
     logger.info(f"||{event_type}|BODY:{body}")
-    try:
-        workflow_webhooks_to_request = db_get_event_config(event_type)
-        db_remove_unhandled_event(event_type)
-    except KeyError as e:
-        logger.debug(f"KeyError - setting unhandled event for {event_type}:{e}")
-        db_set_unhandled_event(event_type)
-        return
 
-    for webhook_config in workflow_webhooks_to_request:
-        should_filter_reason = should_filter_event(webhook_config, event)
+    # TODO: this has gotta be plural
+    event_configs = db.get_event_configs(
+        event_type, team_id, enterprise_id=enterprise_id
+    )
+    if not event_configs:
+        db.set_unhandled_event(event_type, team_id, enterprise_id=enterprise_id)
+    else:
+        db.remove_unhandled_event(event_type, team_id, enterprise_id=enterprise_id)
+
+    # TODO: run through each event
+    for ec in event_configs:
+        should_filter_reason = should_filter_event(ec, event)
         if should_filter_reason:
             logger.info(f"Filtering event. Reason:{should_filter_reason} event:{event}")
             continue
 
-        if webhook_config.get("raw_event"):
+        if ec.use_raw_event:
             json_body = event
         else:
             json_body = flatten_payload_for_slack_workflow_builder(event)
-        resp = send_webhook(webhook_config["webhook_url"], json_body)
+        resp = send_webhook(ec.webhook_url, json_body)
         if resp.status_code >= 300:
-            logger.error(f"{resp.status_code}:{resp.text}|config:{webhook_config}")
+            logger.error(f"{resp.status_code}:{resp.text[:100]}|config:{ec}")
     logger.info("Finished sending all webhooks for event")
 
 
 def send_webhook(
-    url: str,
-    body: dict,
-    method="POST",
-    params=None,
-    headers={"Content-Type": "application/json"},
+    url: str, body: dict, method="POST", params=None, headers=None
 ) -> requests.Response:
+    if headers is None:
+        headers = {"Content-Type": "application/json"}
     logging.debug(f"Method:{method}. body to send:{body}")
-    resp = requests.request(
-        method=method, url=url, json=body, params=params, headers=headers
-    )
-    logging.info(f"{resp.status_code}: {resp.text}")
-    return resp
+
+    final_index = c.HTTP_REQUEST_RETRIES
+    for i in range(c.HTTP_REQUEST_RETRIES + 1):
+        try:
+            resp = requests.request(
+                method=method, url=url, json=body, params=params, headers=headers
+            )
+            logger.info(f"{resp.status_code}: {resp.text[:100]}")
+            ok = resp.status_code < 300
+            last_failed_attempt = resp.status_code > 300 and i == final_index
+            if ok or last_failed_attempt:
+                return resp
+        except (ConnectionError, Timeout) as e:  # type: ignore
+            # try again, unless it's already the last try
+            logger.info(f"Received exception {type(e).__name__}:{e}")
+            if i == final_index:
+                logger.error("No more retry left, raising")
+                raise e
+        # Don't hold up server long, but give a tiny break for whatever we're calling
+        time.sleep(0.2)
 
 
-def db_get_unhandled_events() -> List[str]:
-    try:
-        return IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
-    except KeyError:
-        return []
-
-
-def db_remove_unhandled_event(event_type) -> None:
-    with contextlib.suppress(ValueError, KeyError):
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY].remove(event_type)
-        logging.info(f"Remove unhandled event: {event_type}")
-        sync_cache_to_disk()
-
-
-def db_set_unhandled_event(event_type) -> None:
-    logging.info(f"Adding unhandled event: {event_type}")
-    try:
-        curr = IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY]
-        curr.append(event_type)
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = list(set(curr))
-    except KeyError:
-        IN_MEMORY_WRITE_THROUGH_CACHE[c.DB_UNHANDLED_EVENTS_KEY] = [event_type]
-    sync_cache_to_disk()
-
-
-def db_get_event_config(event_type) -> List[Dict[str, Any]]:
-    return IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
-
-
-def sync_cache_to_disk() -> None:
-    logging.debug(f"Syncing cache to disk - {IN_MEMORY_WRITE_THROUGH_CACHE}")
-    json_str = json.dumps(IN_MEMORY_WRITE_THROUGH_CACHE, indent=2)
-    with open(PERSISTED_JSON_FILE, "w") as jf:
-        jf.write(json_str)
-
-
-def db_add_webhook_to_event(
-    event_type, name, webhook_url, adding_user_id, filter_reaction=None
+def update_app_home(
+    client, user_id, team_id: str, enterprise_id: Optional[str] = None, view=None
 ) -> None:
-    new_webhook = {"name": name, "webhook_url": webhook_url, "added_by": adding_user_id}
-    if filter_reaction:
-        new_webhook["filter_reaction"] = filter_reaction
-    try:
-        IN_MEMORY_WRITE_THROUGH_CACHE[event_type].append(new_webhook)
-    except KeyError:
-        IN_MEMORY_WRITE_THROUGH_CACHE[event_type] = [new_webhook]
-    sync_cache_to_disk()
-
-
-def db_remove_event(event_type) -> None:
-    try:
-        del IN_MEMORY_WRITE_THROUGH_CACHE[event_type]
-        sync_cache_to_disk()
-    except KeyError:
-        logging.info("Key doesnt exist to delete")
-
-
-def db_import(new_data) -> int:
-    count = len(new_data.keys())
-    for k, v in new_data.items():
-        IN_MEMORY_WRITE_THROUGH_CACHE[k] = v
-    sync_cache_to_disk()
-    return count
-
-
-def db_export() -> dict:
-    return IN_MEMORY_WRITE_THROUGH_CACHE
-
-
-def update_app_home(client, user_id, view=None) -> None:
     app_home_view = view
     if not view:
-        app_home_view = build_app_home_view()
-    client.views_publish(user_id=user_id, view=app_home_view)
+        app_home_view = build_app_home_view(team_id, enterprise_id=enterprise_id)
+    resp = client.views_publish(user_id=user_id, view=app_home_view)
+    logger.debug(f"Home update resp:{resp}")
 
 
-def build_app_home_view() -> dict:
-    data = db_export()
-    curr_events = list(data.keys())
-    with contextlib.suppress(ValueError):
-        curr_events.remove(c.DB_UNHANDLED_EVENTS_KEY)
+def build_app_home_view(team_id: str, enterprise_id: Optional[str] = None) -> dict:
+    # TODO: gotta pull existing events - this might be just as easy as team config
+    with Session(db.DB_ENGINE) as s:
+        team_config = db.get_team_config(
+            team_id, enterprise_id=enterprise_id, session=s
+        )
+        event_configs: List[db.EventConfig] = team_config.event_configs
+        unhandled_events = comma_str_to_list(team_config.unhandled_events or "")
+
     blocks = copy.deepcopy(c.APP_HOME_HEADER_BLOCKS)
-    unhandled_events = db_get_unhandled_events()
-    if len(unhandled_events) > 0:
+    team_usages = db.get_team_action_usage(team_id)
+    blocks.extend(
+        [
+            {
+                "type": "header",
+                "text": {"type": "plain_text", "text": f"Team", "emoji": True},
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Slack team id: `{team_id}`",
+                },
+            },
+            {
+                "block_id": "home_dispatch_notify_channels",
+                "dispatch_action": True,
+                "type": "input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "action_update_fail_notify_channels",
+                    "initial_value": f"{team_config.fail_notify_channels}",
+                    "placeholder": {"type": "plain_text", "text": "C1111,C2222"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "🔔 Notify Channels on Step Failure",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "These are the channels where you would like a notification sent if a Buddy Step in a Workflow fails ❌.\n_You can acquire a channel ID by opening the 'channel details' at the top, then scrolling to the bottom of the modal._\nThis is a stopgap since Slack's Workflows fail silently as far as we can tell.\n\n⚠️Limitations: This can only notify if Buddy steps fail, NOT any other type of Step, unfortunately.",
+                    }
+                ],
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Team's usage by event name:\n```\n{team_usages}\n```",
+                },
+            },
+        ]
+    )
+
+    blocks.extend(copy.deepcopy(c.APP_HOME_EVENT_TRIGGER_BLOCKS))
+    if unhandled_events:
         blocks.extend(
             [
                 {
@@ -203,7 +194,7 @@ def build_app_home_view() -> dict:
                 },
             ]
         )
-    if not curr_events:
+    if not event_configs:
         blocks.append(
             {
                 "type": "section",
@@ -214,21 +205,19 @@ def build_app_home_view() -> dict:
             }
         )
 
-    for event_type, webhook_list in data.items():
-        if event_type == c.DB_UNHANDLED_EVENTS_KEY:
-            continue
+    for ec in event_configs:
         single_event_row: List[Dict[str, Any]] = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":black_small_square: `{event_type}`",
+                    "text": f":black_small_square: `{ec.event_type}`",
                 },
                 "accessory": {
                     "type": "button",
                     "text": {"type": "plain_text", "text": "Delete", "emoji": True},
                     "style": "danger",
-                    "value": f"{event_type}",
+                    "value": f"EventConfig-{ec.id}",
                     "action_id": "event_delete_clicked",
                 },
             },
@@ -237,7 +226,7 @@ def build_app_home_view() -> dict:
                 "elements": [
                     {
                         "type": "plain_text",
-                        "text": f"--> {str(webhook_list)}",
+                        "text": f"--> url:`{ec.webhook_url}`,  creator:`{ec.creator}`, created:`{str(ec.created_at)}`, filter_react:`{ec.filter_react}`, use_raw_event:{ec.use_raw_event}, desc:`{ec.desc}`.",
                         "emoji": True,
                     }
                 ],
@@ -302,7 +291,6 @@ def test_if_bot_able_to_post_to_conversation_deprecated(
     now = datetime.now()
     three_months = timedelta(days=90)
     post_at = int((now + three_months).timestamp())
-    print("Time to post at", post_at)
     text = "Testing channel membership. If you see this, please ignore."
 
     # Attempt to schedule a message - ask for forgiveness, not permission
@@ -310,12 +298,10 @@ def test_if_bot_able_to_post_to_conversation_deprecated(
         resp = client.chat_scheduleMessage(
             channel=conversation_id, text=text, post_at=post_at
         )
-        print(resp)
         scheduled_id = resp["scheduled_message_id"]
         resp = client.chat_deleteScheduledMessage(
             channel=conversation_id, scheduled_message_id=scheduled_id
         )
-        print(resp)
         status = "can_post"
     except slack_sdk.errors.SlackApiError as e:
         print("---------failure-----", e.response["error"], "-------")
@@ -485,6 +471,16 @@ def build_add_webhook_modal():
     return add_webhook_modal
 
 
+def build_notification_manage_modal():
+    blocks = []
+    return {
+        "type": "modal",
+        "callback_id": "webhook_form_submission",
+        "title": {"type": "plain_text", "text": "🔔 Manage Failure Notifications"},
+        "blocks": blocks,
+    }
+
+
 def sanitize_webhook_response(resp_text: str) -> str:
     # need to make sure if we get JSON back, it's properly sanitized so it can be used downstream
     sanitized = resp_text.replace("\n", "")
@@ -539,21 +535,21 @@ def load_json_body_from_untrusted_input_str(input_str: str) -> dict:
     for k, v in data.items():
         convert_newline_to_list = k.startswith("__")
         if convert_newline_to_list:
-            print("CONVERTING", k, "|", v, "|")
+            # print("CONVERTING", k, "|", v, "|")
             # do our best to handle any odd data without causing errors
             data[k] = v.split("\n") if type(v) == str else v
     return data
 
 
-def should_filter_event(webhook_config: dict, event: dict) -> Optional[str]:
+def should_filter_event(event_config: db.EventConfig, event: dict) -> Optional[str]:
     # from past experience, make sure to explicitly log if you drop in case logic is messed up
     event_type = event.get("type")
     should_filter_reason = None
 
     if event_type == c.EVENT_REACTION_ADDED:
         # https://api.slack.com/events/reaction_added
-        filter_react = webhook_config.get("filter_react", "")
-        filter_channel = webhook_config.get("filter_channel", "")
+        filter_react = event_config.filter_react or ""
+        filter_channel = event_config.filter_channel or ""
         # allow messy config
         filter_react = filter_react.replace(":", "")
         reaction = event.get("reaction")
@@ -565,7 +561,7 @@ def should_filter_event(webhook_config: dict, event: dict) -> Optional[str]:
                 f"No channel match: {filter_channel} but got {channel_id}."
             )
     elif event_type == c.EVENT_APP_MENTION:
-        filter_channel = webhook_config.get("filter_channel", "")
+        filter_channel = event_config.filter_channel or ""
         channel_id = event.get("channel")
         if filter_channel and filter_channel != channel_id:
             should_filter_reason = (
@@ -623,14 +619,15 @@ def pretty_json_error_msg(prefix: str, orig_input: str, e: json.JSONDecodeError)
     return f"{prefix} Error: {str(e)}.\n|Problem Area(chars{start_index}-{end_index}):-->{problem_area}<--|\nInput was: {repr(orig_input)}."
 
 
-def dynamic_modal_top_blocks(action_name: str):
+def dynamic_modal_top_blocks(action_name: str, **kwargs):
     if action_name == "find_message":
         context_text = ""
         try:
-            user_token = os.environ["SLACK_USER_TOKEN"]
+            user_token = kwargs["user_token"]
+            if not user_token:
+                logging.error("User token is empty! What gives!")
             client = slack_sdk.WebClient(token=user_token)
-            kwargs = {"query": "a", "count": 1}
-            resp = client.auth_test(**kwargs)
+            resp = client.auth_test(token=user_token)
             context_text = f"> Current authed user for search is: <@{resp.get('user_id')}>. Results will match what is visible to them. Questions? Check the <{c.URLS['github-repo']['home']}|repo for info.>"
         except KeyError:
             context_text = f"> ❌💥 *Need a valid SLACK_USER_TOKEN secret for {c.UTILS_ACTION_LABELS[action_name]}.* ❌"
@@ -776,6 +773,7 @@ def parse_values_from_input_config(
     inputs = inputs
     errors = {}
 
+    # TODO: doesn't handle missing blocks/action ids gracefully
     for name, input_config in curr_action_config["inputs"].items():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
@@ -843,13 +841,20 @@ def parse_values_from_input_config(
             try:
                 timestamp_int = int(value)
                 curr = datetime.now().timestamp()
-                if (timestamp_int - curr) < c.TIME_5_MINS:
+                time_diff_seconds = timestamp_int - curr
+                if time_diff_seconds < c.TIME_5_MINS:
                     readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
                     errors[
                         block_id
                     ] = f"Need a timestamp from > 5 mins in future, but got {readable_bad_dt}."
+
+                if time_diff_seconds > c.TIME_119_DAYS:
+                    readable_bad_dt = str(datetime.fromtimestamp(timestamp_int))
+                    errors[
+                        block_id
+                    ] = f"Need a timestamp <120 days in the future, but got {readable_bad_dt}."
             except ValueError:
-                errors[block_id] = f"Must be valid timestamp integer."
+                errors[block_id] = "Must be valid timestamp integer."
         elif (
             validation_type is not None
             and validation_type.startswith("str_length")
@@ -907,8 +912,9 @@ def iget(inputs: dict, key: str, default: str) -> str:
 
 
 def update_blocks_with_previous_input_based_on_config(
-    blocks: list, chosen_action, existing_inputs: dict, action_config_item: dict
-) -> None:
+    blocks: list, chosen_action: str, existing_inputs: dict, action_config_item: dict
+) -> bool:
+    did_edit = False
     # TODO: workflow builder keeps pulling old input on the step even when you are creating it totally new 🤔
     # kinda a crappy way to fill out existing inputs into initial values, but fast enough
     if existing_inputs:
@@ -932,13 +938,11 @@ def update_blocks_with_previous_input_based_on_config(
                     if not sbool(
                         existing_inputs.get("debug_mode_enabled", {}).get("value")
                     ):
-                        print("BYE BYE")
                         try:
                             del block["elements"][1]["initial_options"]
                         except KeyError:
                             pass
                     else:
-                        print("SETTING IT")
                         # TODO: this breaks as soon as we change anything in the constants for it
                         block["elements"][1]["initial_options"] = [
                             {
@@ -998,7 +1002,140 @@ def update_blocks_with_previous_input_based_on_config(
                         else:
                             # assume plain_text_input cuz it's common
                             block["element"]["initial_value"] = prev_input_value or ""
+        did_edit = True
     else:
         logging.debug(
             "No previous inputs to reload, anything you see is happening because of bad coding."
         )
+
+    return did_edit
+
+
+def comma_str_to_list(s: str) -> List[str]:
+    return [x for x in s.split(",") if x]
+
+
+def remove_duplicates_from_comma_separated_string(s: str) -> str:
+    items = s.split(",")
+    uniques = set(items)
+    no_empty_strings = [x for x in uniques if x]
+    return ",".join(no_empty_strings)
+
+
+def slack_send_server_error_modal(
+    client: slack_sdk.WebClient,
+    trigger_id: str,
+    blocks: Optional[List[Dict[str, Any]]] = None,
+    suppress_errors: bool = True,
+):
+    default_blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Sorry! Something went wrong on our end. Try again in a few minutes in case it was a network bug 🐛.",
+            },
+        }
+    ]
+    blocks = blocks or default_blocks
+    try:
+        server_error_modal = {
+            "type": "modal",
+            "callback_id": "server_error_modal",
+            "title": {
+                "type": "plain_text",
+                "text": "Server Error",
+                "emoji": True,
+            },
+            "close": {"type": "plain_text", "text": "Close", "emoji": True},
+            "blocks": blocks,
+        }
+        client.views_open(trigger_id=trigger_id, view=server_error_modal)
+    except Exception as e:
+        logger.exception(f"Failed to send server error message {e}")
+        if not suppress_errors:
+            raise e
+
+
+def link_to_workflow_failures_in_web_ui(team_id: str, workflow_id: str) -> str:
+    return f"https://app.slack.com/workflow-builder/{team_id}/workflow/{workflow_id}/activity?status=failed"
+
+
+def send_step_failure_notifications(
+    client: slack_sdk.WebClient,
+    chosen_action: str,
+    step: dict,
+    team_id: str,
+    short_err_msg: Optional[str] = None,
+    enterprise_id: Optional[str] = None,
+):
+    # TODO: need not only error message, but also ideally
+    # the name of the Workflow, or a link to it, or something.
+    # A generic error message isn't that helpful.
+
+    # fetch notification channels from team item
+
+    # loop through, for each one, call chat_postmessage
+
+    # don't let one failure cascade and stop the rest though.
+    workflow_id = step.get("workflow_id", "not_found")
+    workflow_step_execute_id = step.get("workflow_step_execute_id", "not_found")
+    workflow_instance_id = step.get("workflow_instance_id", "not_found")
+    step_id = step.get("workflow_id", "not_found")
+
+    link = link_to_workflow_failures_in_web_ui(team_id, workflow_id)
+
+    try:
+        with Session(db.DB_ENGINE) as s:
+            team_config = db.get_team_config(
+                team_id, enterprise_id=enterprise_id, session=s
+            )
+            fail_notify_channels = comma_str_to_list(
+                team_config.fail_notify_channels or ""
+            )
+    except Exception:
+        logger.exception(e)
+        logger.warning(
+            "Unable to fetch team config, but continuing since notification failure is non-critical."
+        )
+        return
+
+    logger.info(f"Sending step failure notifications to {fail_notify_channels}...")
+    short_err_msg = f" `{short_err_msg}`." if short_err_msg else ""
+    fallback_text = f"❌Workflow Step failed running _'{chosen_action}'_. {short_err_msg} See more details in <{link}|Workflow Builder>."
+    context_text = f"*Relevant ids*:\n workflow_id:{workflow_id} | workflow_step_execute_id:{workflow_step_execute_id} | workflow_instance_id:{workflow_instance_id} | step_id:{step_id}"
+    blocks = [
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": fallback_text},
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": context_text}],
+        },
+        {"type": "divider"},
+    ]
+
+    for channel_id in fail_notify_channels:
+        try:
+            resp = client.chat_postMessage(
+                channel=channel_id, text=fallback_text, blocks=blocks
+            )
+        except Exception as e:
+            logger.exception(e)
+            logger.warning(
+                f"Continuing past {channel_id}, since notification failure is non-critical."
+            )
+
+
+def slack_format_date(
+    timestamp: Union[str, int],
+    token_string: Optional[str] = None,
+    optional_link: Optional[str] = None,
+) -> str:
+    # https://api.slack.com/reference/surfaces/formatting#date-formatting
+    fallback_text = f"pretty_formatted_date for {timestamp}"
+    optional_link = "" if not optional_link else f"^{optional_link}"
+    token_string = token_string or "{date_short} {time}"
+    return f"<!date^{str(timestamp)}^{token_string}{optional_link}|{fallback_text}>"
