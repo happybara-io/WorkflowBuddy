@@ -45,7 +45,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [Installing your own Buddy/ Self-hosting](#running-workflow-buddy) - (5-30 mins)
   - [(Beginner) Simple Workflow](#beginner-quickstart-create-a-simple-workflow) - (~10 mins)
   - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
-  - [(Advanced) Try New Steps](#advanced-quickstart-run-all-new-steps) - (~25 mins)
+  - [(Advanced) Try New Steps](#advanced-quickstart-run-new-steps) - (~25 mins)
 - [FAQ](#faq)
 - [Support](#support)
 - [Development](#development)
@@ -365,19 +365,20 @@ If everything was correct, you should receive a message with a random UUID value
 
 _If you are looking to explore more advanced concepts like Triggers or advanced Workflow Buddy Steps, check out the **Advanced Quickstarts** below. Otherwise feel free to keep poking around on your own in Workflow Builder. There's endless possibilities, so **automate everything!**_
 
-### Advanced Quickstart: Run All New Steps
+### Advanced Quickstart: Run New Steps
 
-Try out the new **Steps** by importing a Workflow that has all of them configured (except for ones that make changes to your Slack Workspace, like `Create a channel`. Don't want to cause any weird side-effects during your testing!).
+Try out the new **Steps** by importing a Workflow that has ~~all~~ most of them configured _(except for ones that make changes to your Slack Workspace, like `Create a channel`. Don't want to cause any weird side-effects during your testing!)_.
 
-> ℹ  _If you haven't yet, you'll need to get a [Buddy instance running + a Slack app](#running-workflow-buddy). Come back when you're ready._
+> ℹ  _If you haven't yet, you'll need to get a [Buddy instance running + a Slack app](#running-workflow-buddy) or install the Cloud version. Come back when you're ready._
 
 - Download the Workflow template from `test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow`[(link)](https://github.com/happybara-io/WorkflowBuddy/blob/main/test_workflows/workflow_buddy_end_to_end_test_read_only.slackworkflow), which contains all the basic functionality of Workflow Buddy Steps.
 - Open Workflow Builder, `Import`, and `Publish` it!
 - Click the `Edit` button on each of the configured Steps in the Workflow so you can see how each available action is configured. **Several require updates:**
-  - You'll need to fill in a test email for `find by email`; do your own to start.
-  - In `Send a webhook`, update the URL to be `https://<your ngrok or server URL>/webhook` to hit your own Workflow Buddy server's extra endpoint.
+  - Invite your new `@WorkflowBuddy` app to the channel you attached the Workflow Shortcut to - otherwise, the `setTopic` action will fail.
+  - _(Optional)_ From the `@WorkflowBuddy` App Home, add a notification channel for failures - that way, if anything goes wrong during setup, you'll find out! Sadly, by default [Slack's Workflow Builder](app.slack.com/workflow-builder/) will fail silently.
   - In `Schedule message`, you'll likely need to update the `timestamp`.
-- Run the Workflow and check the outputted message for details of the execution.
+- 🏃‍♂️**Run the Workflow!**
+  - If you decided not to add failure notifications, or you haven't seen anything happening for ~3 mins, check in Workflow Builder's `Activity` tab to ensure that your execution is in progress - _it might be waiting for you to respond to a message!_
 
 ✅ **That's it!**
 
