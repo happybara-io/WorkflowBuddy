@@ -27,6 +27,7 @@ from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 # - rather than schema, call all the ORM table creations
 ######################
 
+
 def dumb_migrate_db(allow_deletions=False):
     """
     Migrates a database to the new schema given by the SQL text `schema`
@@ -80,25 +81,8 @@ class DBMigrator:
         IN_MEMORY_SQLITE_CONN_STR = "sqlite:///:memory:"
         self.pristine: Engine = sqlalchemy.create_engine(IN_MEMORY_SQLITE_CONN_STR)
         buddy.db.DB_ENGINE = self.pristine
-        # installation_store = SQLAlchemyInstallationStore(
-        #     engine=self.pristine,
-        #     client_id="",
-        #     encryption_key=None,
-        #     logger=None,
-        # )
-        # oauth_state_store = SQLAlchemyOAuthStateStore(
-        #     engine=self.pristine,
-        #     expiration_seconds=0,
-        #     logger=None,
-        # )
         # Create all our tables & Slack tables
         buddy.db.create_tables(self.pristine)
-        # installation_store.metadata.create_all(self.pristine)
-        # oauth_state_store.metadata.create_all(self.pristine)
-
-
-        # TODO: Pristine also needs the Slack tables!
-
         self.n_changes = 0
         self.orig_foreign_keys = None
 
@@ -117,16 +101,17 @@ class DBMigrator:
         self.n_changes += 1
 
     def __enter__(self):
-        self.orig_foreign_keys = (
-            self.db.execute("PRAGMA foreign_keys").fetchone()[0])
+        self.orig_foreign_keys = self.db.execute("PRAGMA foreign_keys").fetchone()[0]
         if self.orig_foreign_keys:
-            self.log_execute("Disable foreign keys temporarily for migration",
-                             "PRAGMA foreign_keys = OFF")
+            self.log_execute(
+                "Disable foreign keys temporarily for migration",
+                "PRAGMA foreign_keys = OFF",
+            )
             # This doesn't count as a change because we'll undo it at the end
             self.n_changes = 0
 
         self.db.__enter__()
-        self.db.execute('BEGIN')
+        self.db.execute("BEGIN")
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
@@ -138,7 +123,7 @@ class DBMigrator:
             # > constraint enforcement may only be enabled or disabled when
             # > there is no pending BEGIN or SAVEPOINT.
             old_changes = self.n_changes
-            new_val = self._migrate_pragma('foreign_keys')
+            new_val = self._migrate_pragma("foreign_keys")
             if new_val == self.orig_foreign_keys:
                 self.n_changes = old_changes
 
@@ -151,145 +136,177 @@ class DBMigrator:
         else:
             if self.orig_foreign_keys:
                 self.log_execute(
-                    "Re-enable foreign keys after migration",
-                    "PRAGMA foreign_keys = ON")
+                    "Re-enable foreign keys after migration", "PRAGMA foreign_keys = ON"
+                )
 
     def migrate(self):
         # In CI the database schema may be changing all the time.  This checks
         # the current db and if it doesn't match database.sql we will
         # modify it so it does match where possible.
-        pristine_tables = dict(self.pristine.execute("""\
+        pristine_tables = dict(
+            self.pristine.execute(
+                """\
             SELECT name, sql FROM sqlite_master
-            WHERE type = \"table\" AND name != \"sqlite_sequence\"""").fetchall())
-        pristine_indices = dict(self.pristine.execute("""\
+            WHERE type = \"table\" AND name != \"sqlite_sequence\""""
+            ).fetchall()
+        )
+        pristine_indices = dict(
+            self.pristine.execute(
+                """\
             SELECT name, sql FROM sqlite_master
-            WHERE type = \"index\"""").fetchall())
+            WHERE type = \"index\""""
+            ).fetchall()
+        )
 
-        tables = dict(self.db.execute("""\
+        tables = dict(
+            self.db.execute(
+                """\
             SELECT name, sql FROM sqlite_master
-            WHERE type = \"table\" AND name != \"sqlite_sequence\"""").fetchall())
+            WHERE type = \"table\" AND name != \"sqlite_sequence\""""
+            ).fetchall()
+        )
 
         new_tables = set(pristine_tables.keys()) - set(tables.keys())
         removed_tables = set(tables.keys()) - set(pristine_tables.keys())
-        logging.info(f'New tables: {new_tables}. Removed Tables:{removed_tables}')
+        logging.info(f"New tables: {new_tables}. Removed Tables:{removed_tables}")
         if removed_tables and not self.allow_deletions:
             raise RuntimeError(
-                "Database migration: Refusing to delete tables %r" %
-                removed_tables)
+                "Database migration: Refusing to delete tables %r" % removed_tables
+            )
 
         modified_tables = set(
-            name for name, sql in pristine_tables.items()
-            if normalise_sql(tables.get(name, "")) != normalise_sql(sql))
-        logging.info(f'Modified tables: {modified_tables}')
+            name
+            for name, sql in pristine_tables.items()
+            if normalise_sql(tables.get(name, "")) != normalise_sql(sql)
+        )
+        logging.info(f"Modified tables: {modified_tables}")
         # This PRAGMA is automatically disabled when the db is committed
         self.db.execute("PRAGMA defer_foreign_keys = TRUE")
 
         # New and removed tables are easy:
         for tbl_name in new_tables:
-            self.log_execute("Create table %s" % tbl_name,
-                             pristine_tables[tbl_name])
+            self.log_execute("Create table %s" % tbl_name, pristine_tables[tbl_name])
         for tbl_name in removed_tables:
             stmt = f"DROP TABLE '{tbl_name}'"
-            self.log_execute(stmt,
-                             stmt
-                             )
+            self.log_execute(stmt, stmt)
 
         for tbl_name in modified_tables:
             # The SQLite documentation insists that we create the new table and
             # rename it over the old rather than moving the old out of the way
             # and then creating the new
             create_table_sql = pristine_tables[tbl_name]
-            create_table_sql = re.sub(r"\b%s\b" % re.escape(tbl_name),
-                                      tbl_name + "_migration_new",
-                                      create_table_sql)
+            create_table_sql = re.sub(
+                r"\b%s\b" % re.escape(tbl_name),
+                tbl_name + "_migration_new",
+                create_table_sql,
+            )
             self.log_execute(
-                "Columns change: Create table %s with updated schema" %
-                tbl_name, create_table_sql)
+                "Columns change: Create table %s with updated schema" % tbl_name,
+                create_table_sql,
+            )
 
-            cols = set([
-                x[1] for x in self.db.execute(
-                    "PRAGMA table_info(%s)" % tbl_name)])
-            pristine_cols = set([
-                x[1] for x in
-                self.pristine.execute("PRAGMA table_info(%s)" % tbl_name)])
+            cols = set(
+                [x[1] for x in self.db.execute("PRAGMA table_info(%s)" % tbl_name)]
+            )
+            pristine_cols = set(
+                [
+                    x[1]
+                    for x in self.pristine.execute("PRAGMA table_info(%s)" % tbl_name)
+                ]
+            )
 
             removed_columns = cols - pristine_cols
-            logging.info(f'Removed columns:{removed_columns}')
+            logging.info(f"Removed columns:{removed_columns}")
             if not self.allow_deletions and removed_columns:
                 logging.warning(
                     "Database migration: Refusing to remove columns %r from "
                     "table %s.  Current cols are %r attempting migration to %r",
-                    removed_columns, tbl_name, cols, pristine_cols)
+                    removed_columns,
+                    tbl_name,
+                    cols,
+                    pristine_cols,
+                )
                 raise RuntimeError(
                     "Database migration: Refusing to remove columns %r from "
-                    "table %s" % (removed_columns, tbl_name))
+                    "table %s" % (removed_columns, tbl_name)
+                )
 
             logging.info("cols: %s, pristine_cols: %s", cols, pristine_cols)
             self.log_execute(
-                "Migrate data for table %s" % tbl_name, """\
+                "Migrate data for table %s" % tbl_name,
+                """\
                 INSERT INTO {tbl_name}_migration_new ({common})
                 SELECT {common} FROM {tbl_name}""".format(
                     tbl_name=tbl_name,
-                    common=", ".join(cols.intersection(pristine_cols))))
+                    common=", ".join(cols.intersection(pristine_cols)),
+                ),
+            )
 
             # Don't need the old table any more
             self.log_execute(
                 "Drop old table %s now data has been migrated" % tbl_name,
-                "DROP TABLE %s" % tbl_name)
+                "DROP TABLE %s" % tbl_name,
+            )
 
             self.log_execute(
                 "Columns change: Move new table %s over old" % tbl_name,
-                "ALTER TABLE %s_migration_new RENAME TO %s" % (
-                    tbl_name, tbl_name))
+                "ALTER TABLE %s_migration_new RENAME TO %s" % (tbl_name, tbl_name),
+            )
 
         # Migrate the indices
-        indices = dict(self.db.execute("""\
+        indices = dict(
+            self.db.execute(
+                """\
             SELECT name, sql FROM sqlite_master
-            WHERE type = \"index\"""").fetchall())
+            WHERE type = \"index\""""
+            ).fetchall()
+        )
         for name in set(indices.keys()) - set(pristine_indices.keys()):
-            self.log_execute("Dropping obsolete index %s" % name,
-                             "DROP INDEX %s" % name)
+            self.log_execute(
+                "Dropping obsolete index %s" % name, "DROP INDEX %s" % name
+            )
         for name, sql in pristine_indices.items():
             if name not in indices:
                 self.log_execute("Creating new index %s" % name, sql)
             elif sql != indices[name]:
                 self.log_execute(
                     "Index %s changed: Dropping old version" % name,
-                    "DROP INDEX %s" % name)
+                    "DROP INDEX %s" % name,
+                )
                 self.log_execute(
-                    "Index %s changed: Creating updated version in its place" %
-                    name, sql)
+                    "Index %s changed: Creating updated version in its place" % name,
+                    sql,
+                )
 
-        self._migrate_pragma('user_version')
+        self._migrate_pragma("user_version")
 
         if self.pristine.execute("PRAGMA foreign_keys").fetchone()[0]:
             if self.db.execute("PRAGMA foreign_key_check").fetchall():
-                raise RuntimeError(
-                    "Database migration: Would fail foreign_key_check")
+                raise RuntimeError("Database migration: Would fail foreign_key_check")
 
     def _migrate_pragma(self, pragma):
-        pristine_val = self.pristine.execute(
-            "PRAGMA %s" % pragma).fetchone()[0]
+        pristine_val = self.pristine.execute("PRAGMA %s" % pragma).fetchone()[0]
         val = self.db.execute("PRAGMA %s" % pragma).fetchone()[0]
 
         if val != pristine_val:
             self.log_execute(
                 "Set %s to %i from %i" % (pragma, pristine_val, val),
-                "PRAGMA %s = %i" % (pragma, pristine_val))
+                "PRAGMA %s = %i" % (pragma, pristine_val),
+            )
 
         return pristine_val
 
 
 def _left_pad(text, indent="    "):
     """Maybe I can find a package in pypi for this?"""
-    return "\n".join(indent + line for line in text.split('\n'))
+    return "\n".join(indent + line for line in text.split("\n"))
 
 
 def normalise_sql(sql):
     # Remove comments:
-    sql = re.sub(r'--[^\n]*\n', "", sql)
+    sql = re.sub(r"--[^\n]*\n", "", sql)
     # Normalise whitespace:
-    sql = re.sub(r'\s+', " ", sql)
+    sql = re.sub(r"\s+", " ", sql)
     sql = re.sub(r" *([(),]) *", r"\1", sql)
     # Remove unnecessary quotes
     sql = re.sub(r'"(\w+)"', r"\1", sql)
@@ -297,14 +314,18 @@ def normalise_sql(sql):
 
 
 def test_normalise_sql():
-    assert normalise_sql("""\
+    assert (
+        normalise_sql(
+            """\
         CREATE TABLE "Node"( -- This is my table
             -- There are many like it but this one is mine
-            A b, C D, "E F G", h)""") == \
-        'CREATE TABLE Node(A b,C D,"E F G",h)'
+            A b, C D, "E F G", h)"""
+        )
+        == 'CREATE TABLE Node(A b,C D,"E F G",h)'
+    )
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    logging.info('Running the migration script!')
+    logging.info("Running the migration script!")
     dumb_migrate_db(allow_deletions=True)
