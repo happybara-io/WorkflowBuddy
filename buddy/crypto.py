@@ -7,6 +7,11 @@ from cryptography.fernet import Fernet, MultiFernet
 from typing import Union
 from buddy.constants import UTF8
 
+
+# TODO: how might i easily add to this list of fields, without
+# causing issue for data that has already been stored unencrypted?
+# how can I detect if a value I pulled from DB was already encrypted,
+# because I want to avoid accidentally double-encrypting items.
 SLACK_SENSITIVE_FIELDS = [
     "team_name",
     "bot_token",

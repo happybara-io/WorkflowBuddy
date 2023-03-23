@@ -80,21 +80,21 @@ class DBMigrator:
         IN_MEMORY_SQLITE_CONN_STR = "sqlite:///:memory:"
         self.pristine: Engine = sqlalchemy.create_engine(IN_MEMORY_SQLITE_CONN_STR)
         buddy.db.DB_ENGINE = self.pristine
-        installation_store = SQLAlchemyInstallationStore(
-            engine=self.pristine,
-            client_id="",
-            encryption_key=None,
-            logger=None,
-        )
-        oauth_state_store = SQLAlchemyOAuthStateStore(
-            engine=self.pristine,
-            expiration_seconds=0,
-            logger=None,
-        )
+        # installation_store = SQLAlchemyInstallationStore(
+        #     engine=self.pristine,
+        #     client_id="",
+        #     encryption_key=None,
+        #     logger=None,
+        # )
+        # oauth_state_store = SQLAlchemyOAuthStateStore(
+        #     engine=self.pristine,
+        #     expiration_seconds=0,
+        #     logger=None,
+        # )
         # Create all our tables & Slack tables
         buddy.db.create_tables(self.pristine)
-        installation_store.metadata.create_all(self.pristine)
-        oauth_state_store.metadata.create_all(self.pristine)
+        # installation_store.metadata.create_all(self.pristine)
+        # oauth_state_store.metadata.create_all(self.pristine)
 
 
         # TODO: Pristine also needs the Slack tables!

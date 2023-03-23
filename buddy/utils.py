@@ -19,6 +19,7 @@ import requests
 from requests.exceptions import Timeout, ConnectionError
 import slack_sdk
 import slack_sdk.errors
+from slack_sdk.oauth.installation_store.models.installation import Installation
 
 import buddy.constants as c
 
@@ -49,31 +50,50 @@ def generic_event_proxy(
     enterprise_id: Union[str, None],
 ) -> None:
     event_type = event.get("type")
-    logger.info(f"||{event_type}|BODY:{body}")
+    logger.info(f"proxy||{event_type}|BODY:{body}")
 
-    # TODO: this has gotta be plural
-    event_configs = db.get_event_configs(
-        event_type, team_id, enterprise_id=enterprise_id
-    )
-    if not event_configs:
-        db.set_unhandled_event(event_type, team_id, enterprise_id=enterprise_id)
-    else:
-        db.remove_unhandled_event(event_type, team_id, enterprise_id=enterprise_id)
-
-    # TODO: run through each event
-    for ec in event_configs:
-        should_filter_reason = should_filter_event(ec, event)
-        if should_filter_reason:
-            logger.info(f"Filtering event. Reason:{should_filter_reason} event:{event}")
-            continue
-
-        if ec.use_raw_event:
-            json_body = event
+    with Session(db.DB_ENGINE, expire_on_commit=False) as s:
+        event_configs = db.get_event_configs(
+            event_type, team_id, enterprise_id=enterprise_id, session=s
+        )
+        if not event_configs:
+            db.set_unhandled_event(
+                event_type, team_id, enterprise_id=enterprise_id, session=s
+            )
         else:
-            json_body = flatten_payload_for_slack_workflow_builder(event)
-        resp = send_webhook(ec.webhook_url, json_body)
-        if resp.status_code >= 300:
-            logger.error(f"{resp.status_code}:{resp.text[:100]}|config:{ec}")
+            db.remove_unhandled_event(
+                event_type, team_id, enterprise_id=enterprise_id, session=s
+            )
+
+        # TODO: run through each event
+        for ec in event_configs:
+            should_filter_reason = should_filter_event(ec, event)
+            if should_filter_reason:
+                logger.info(
+                    f"Filtering event. Reason:{should_filter_reason} event:{event}"
+                )
+                continue
+
+            if ec.use_raw_event:
+                json_body = event
+            else:
+                json_body = flatten_payload_for_slack_workflow_builder(event)
+
+            try:
+                resp = send_webhook(ec.webhook_url, json_body)
+                if resp.status_code >= 300:
+                    logger.error(f"{resp.status_code}:{resp.text[:100]}|config:{ec}")
+                    resp.raise_for_status()
+            except Exception as e:
+                # if something messes up with the proxy, send notification to creator.
+                # They might not be around anymore, but at least you tried!
+                # This makes me think it should be an editable Owner field rather than creator 🤔
+                team_config: db.TeamConfig = ec.team_config
+                client = get_slack_bot_client(
+                    team_config.team_id, enterprise_id=team_config.enterprise_id
+                )
+                send_proxy_error_message(ec.creator, client)
+                continue
     logger.info("Finished sending all webhooks for event")
 
 
@@ -1139,3 +1159,22 @@ def slack_format_date(
     optional_link = "" if not optional_link else f"^{optional_link}"
     token_string = token_string or "{date_short} {time}"
     return f"<!date^{str(timestamp)}^{token_string}{optional_link}|{fallback_text}>"
+
+
+def get_slack_bot_client(
+    team_id: str, enterprise_id: Optional[str] = None
+) -> slack_sdk.WebClient:
+    # TODO:
+    i: Installation = db.INSTALLATIION_STORE.find_installation(
+        team_id=team_id, enterprise_id=enterprise_id
+    )
+    # this isn't as robust as Slack Bolt's authorization, but also not intended to be.
+    return slack_sdk.WebClient(token=i.bot_token)
+
+
+def send_proxy_error_message(user_id: str, client: slack_sdk.WebClient):
+    fail_text = f"Dang, sorry that last action didn't run correctly."
+    try:
+        resp = client.chat_postMessage(channel=user_id, text=fail_text)
+    except Exception as e:
+        logger.error(f"Failed trying to send error handler message to {user_id}")

@@ -1,4 +1,8 @@
 import os
+
+# Set up fake environment variables before any real imports start
+os.environ["SLACK_CLIENT_ID"] = "fake-client-id"
+
 import pytest
 import sqlalchemy
 from sqlalchemy.engine import Engine

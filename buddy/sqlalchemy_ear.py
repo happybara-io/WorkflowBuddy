@@ -3,6 +3,9 @@
 # Slack SQLAlchemy Installation Store - Encryption at Rest
 # core from https://github.com/slackapi/python-slack-sdk/blob/main/slack_sdk/oauth/installation_store/sqlalchemy/__init__.py
 #
+# Modified to support transparent encryption/decryption
+# of sensitive fields.
+#
 ##############################################
 
 import logging
