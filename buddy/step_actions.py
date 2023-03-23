@@ -356,7 +356,7 @@ def run_set_channel_topic(
         )
     except slack_sdk.errors.SlackApiError as e:
         logger.error(e.response)
-        errmsg = f"Slack Error: unable to set channel topic. {e.response['error']}"
+        errmsg = f"Slack Error: unable to set channel topic for <#{conversation_id}> (conversation_id). {e.response['error']}"
         raise WorkflowStepFailError(errmsg)
 
 

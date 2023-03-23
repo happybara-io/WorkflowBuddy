@@ -795,9 +795,10 @@ def save_utils(
         if curr_action_config.get("step_image_url"):
             kwargs["step_image_url"] = curr_action_config["step_image_url"]
         if curr_action_config.get("step_name"):
-            # No size limit, it just pushes it off the screen. Newline supported as well.
-            debug_label = f"(DEBUG) " if debug_mode_enabled else ""
-            kwargs["step_name"] = f"{debug_label}{curr_action_config['step_name']}"
+            label = ("(DEBUG) " if debug_mode_enabled else "") + (
+                "(Dev) " if ENV.lower() != "prod" else ""
+            )
+            kwargs["step_name"] = f"{label}{curr_action_config['step_name']}"
         update(**kwargs)
 
 

@@ -40,5 +40,11 @@ shell-dev:
 deploy-dev:
 	fly deploy -a workflow-buddy-dev -c fly.dev.toml
 
+deploy-dev-local:
+	fly deploy -a workflow-buddy-dev -c fly.dev.toml --local-only
+
 deploy-prod:
 	fly deploy -a workflow-buddy -c fly.prod.toml
+
+deploy-prod-local:
+	fly deploy -a workflow-buddy -c fly.prod.toml --local-only
