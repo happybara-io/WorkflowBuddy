@@ -1,4 +1,4 @@
-FROM python:3.10.7-slim
+FROM python:3.11.3-slim
 
 # inspired by Noco-DB https://github.com/nocodb/nocodb/blob/develop/packages/nocodb/Dockerfile
 ENV WB_DATA_DIR=/usr/app/data/
