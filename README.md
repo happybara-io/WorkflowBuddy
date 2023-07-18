@@ -18,7 +18,7 @@ _| 📂 Open-source | [🧪 Installable Beta App](#beta-app) | [🤖 Hosted for 
 
 The current implementation you get out of the box is a bit boxed in by:
 
-- a small selection of built-in Slack triggers (`5`)
+- a small selection of built-in Slack triggers (`5`) - _To give them credit, this has increased with the Spring 2023 Workflow Builder release - [Slack's available functions](https://api.slack.com/reference/functions)_.
   - _shortcut, new channel member, emoji reaction, schedule, webhook_
 - a **_VERY_** limited selection of built-in Slack actions (`2`)
   - _send a message, send a form_
@@ -236,9 +236,9 @@ Example body Workflow Buddy expects:
 
 _How do you get the execution ID?_ When saving the step, you will define a URL for Workflow Buddy to send the required data to. You could also get it from the `Manual Complete` step if it better fits your use case.
 
-### Wait/ Pause
+### Wait/ Pause / Delay (seconds)
 
-Have your workflow wait for
+Have your workflow wait for up to 60s. After this was developed, Slack released a [`Delay`](https://api.slack.com/reference/functions/delay) option in minutes - this lets you get more granular, as is sometimes required.
 
 ### Random Integer
 
