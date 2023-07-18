@@ -8,6 +8,9 @@ from datetime import date
 
 import buddy.constants as c
 
+from slack_sdk.oauth import OAuthStateUtils
+from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
+from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, text, Boolean
 from sqlalchemy import event, create_engine, select, delete, func
 from sqlalchemy.orm import declarative_base, relationship, Session, selectinload
@@ -16,15 +19,27 @@ from sqlalchemy.engine import Engine
 from typing import Dict, Any, Optional, Union, List, Generator
 from contextlib import nullcontext
 
+## Load local env variables first, in case they don't exist
+import dotenv
+
+dotenv.load_dotenv()
+
 logger = logging.getLogger(__name__)
 # TODO: feels like I shouldn't have to write all these CRUD ops by hand,
 # I must be missing something with SQLAlchemy
 logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARN)
 
-ENV = os.environ.get("ENV", "DEV")
-IS_SQLITE_DB = os.environ.get("DB_TYPE", "sqlite") == "sqlite"
+slack_client_id = os.environ[c.ENV_SLACK_CLIENT_ID]
+encryption_key = os.environ.get(c.ENV_SECRET_ENCRYPTION_KEY)
+ignore_encryption_warning = os.environ.get(c.ENV_IGNORE_ENCRYPTION, False)
+if not encryption_key and not ignore_encryption_warning:
+    logger.warning(
+        "[!] Starting server without an encryption key...data will not be encrypted at rest by this application."
+    )
+ENV = os.environ.get(c.ENV_ENV, "DEV")
+IS_SQLITE_DB = os.environ.get(c.ENV_DB_TYPE, "sqlite") == "sqlite"
 
-WB_DATA_DIR = os.getenv("WB_DATA_DIR") or (
+WB_DATA_DIR = os.getenv(c.ENV_WB_DATA_DIR) or (
     "/usr/app/data/" if ENV == "PROD" else "./workflow-buddy-local/"
 )
 Path(WB_DATA_DIR).mkdir(parents=True, exist_ok=True)
@@ -51,6 +66,7 @@ DB_ENGINE: Engine = create_engine(conn_str, future=True)
 @event.listens_for(DB_ENGINE, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     if IS_SQLITE_DB:
+        # supposed to help with multi-processing
         # disable pysqlite's emitting of the BEGIN statement entirely.
         # also stops it from emitting COMMIT before any DDL.
         dbapi_connection.isolation_level = None
@@ -63,19 +79,36 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 @event.listens_for(DB_ENGINE, "begin")
 def do_begin(conn):
     if IS_SQLITE_DB:
+        # supposed to help with multi-processing
         # emit our own BEGIN
         conn.execute(text("BEGIN IMMEDIATE"))
 
 
 Base = declarative_base()
 
+INSTALLATIION_STORE = SQLAlchemyInstallationStore(
+    engine=DB_ENGINE,
+    client_id=slack_client_id,
+    encryption_key=encryption_key,
+    logger=logger,
+)
+OAUTH_STATE_STORE = SQLAlchemyOAuthStateStore(
+    engine=DB_ENGINE,
+    expiration_seconds=OAuthStateUtils.default_expiration_seconds,
+    logger=logger,
+)
+
 
 def create_tables(engine: Engine) -> None:
     Base.metadata.create_all(engine)
+    INSTALLATIION_STORE.metadata.create_all(engine)
+    OAUTH_STATE_STORE.metadata.create_all(engine)
 
 
 def drop_tables(engine: Engine) -> None:
     Base.metadata.drop_all(engine)
+    INSTALLATIION_STORE.metadata.drop_all(engine)
+    OAUTH_STATE_STORE.metadata.drop_all(engine)
 
 
 TEAM_CONFIG_TABLE_NAME = "team_config"
@@ -187,9 +220,14 @@ class DebugDataCache(Base):
 
 
 def set_unhandled_event(
-    event_type: str, team_id: str, enterprise_id: Optional[str] = None
+    event_type: str,
+    team_id: str,
+    enterprise_id: Optional[str] = None,
+    session: Optional[Session] = None,
 ) -> None:
-    with Session(DB_ENGINE) as s:
+    with Session(DB_ENGINE, expire_on_commit=False) if not session else nullcontext(
+        session
+    ) as s:
         team_config: TeamConfig = get_team_config(
             team_id, enterprise_id=enterprise_id, session=s
         )
@@ -201,9 +239,14 @@ def set_unhandled_event(
 
 
 def remove_unhandled_event(
-    event_type: str, team_id: str, enterprise_id: Optional[str] = None
+    event_type: str,
+    team_id: str,
+    enterprise_id: Optional[str] = None,
+    session: Optional[Session] = None,
 ) -> None:
-    with Session(DB_ENGINE) as s:
+    with Session(DB_ENGINE, expire_on_commit=False) if not session else nullcontext(
+        session
+    ) as s:
         team_config: TeamConfig = get_team_config(
             team_id, enterprise_id=enterprise_id, session=s
         )

@@ -18,9 +18,9 @@ _| 📂 Open-source | [🧪 Installable Beta App](#beta-app) | [🤖 Hosted for 
 
 The current implementation you get out of the box is a bit boxed in by:
 
-- a small selection of built-in Slack triggers (`5`) - _To give them credit, this has increased with the Spring 2023 Workflow Builder release - [Slack's available functions](https://api.slack.com/reference/functions)_.
+- a small selection of built-in Slack triggers (`5`).
   - _shortcut, new channel member, emoji reaction, schedule, webhook_
-- a **_VERY_** limited selection of built-in Slack actions (`2`)
+- a **_VERY_** limited selection of built-in Slack actions (`2`) - _To give them credit, this has increased with the Spring 2023 Workflow Builder release - [Slack's available functions](https://api.slack.com/reference/functions)_
   - _send a message, send a form_
 
 _You can get creative and do a lot with these building blocks, but what if you want to do **more**?_
@@ -40,6 +40,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [Demo Videos](#demos)
   - [Available Event Triggers](#-available-triggers) - `+Many`
   - [Available Steps](#-available-steps) - `+15`
+  - [Improving UX for Slack Workflows](#bonus-utilities-ux-improvements)
   - [Common Use Cases](#-use-cases)
 - **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
   - [Installing your own Buddy/ Self-hosting](#running-workflow-buddy) - (5-30 mins)
@@ -306,7 +307,7 @@ Query the Slack search and return the top result as Workflow variables.
 
 See [Issue #10](https://github.com/happybara-io/WorkflowBuddy/issues/10) for discussion on potential Step actions to add.
 
-## Bonus Utilities
+## Bonus Utilities/ UX Improvements
 
 Occasionally I run into handy utilities that make life easier when building automations for Slack workspaces, and what better place than a toolkit like Workflow Buddy!
 
@@ -315,6 +316,14 @@ Occasionally I run into handy utilities that make life easier when building auto
 For any Workflow Buddy Step, you can enable `Debug Mode`, which will pause and send you a message with information about the `inputs` and metadata, then wait for you to click `Continue`.
 
 [Learn More | Wiki](https://github.com/happybara-io/WorkflowBuddy/wiki/Debug-Mode)
+
+### Error Notifications
+
+Slack Workflows don't have an obvious way to notify for failures in your Workflows - you have to keep checking back to find out if things haven't been working. For Workflow Buddy Steps, there is an option to configure a notification conversation so any time errors happen, it will ping you rather than making you check.
+
+> ℹ️ _Unfortunately, this only works for `Workflow Buddy` Steps, not all Steps in your workflow. Unfortunately we don't have a way to intercept other applications failures._
+
+![Error Notifications](/assets/workflow-buddy-error-notifications.png)
 
 ### Shortcut: Inspect Message
 
@@ -660,7 +669,7 @@ For the new actions, it registers a **Workflow Builder Step** - unfortunately ea
 We use a number of tools in & around this repo to improve the code quality:
 
 - Black formatter
-- [Sourcery.ai - improved code suggestions for Python](https://docs.sourcery.ai/Welcome/)
+- [Sourcery.ai - improved code suggestions for Python (free for OSS)](https://docs.sourcery.ai/Welcome/)
 - [Fly.io](https://fly.io)
 
 ### Notes on using Fly.io

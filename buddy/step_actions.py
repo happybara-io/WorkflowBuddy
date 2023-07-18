@@ -682,7 +682,7 @@ def manual_complete_continue_or_stop(
     if "stop" in action_id:
         fail = Fail(client=client, body=execution_body)
         # TODO: add more context: by who? why? what workflow was this?
-        errmsg = f"Workflow stopped manually by {action_user_name}:{action_user_id}."
+        errmsg = f"Workflow stopped manually by {action_user_name}:{action_user_id}:<@{action_user_id}>."
         fail(error={"message": errmsg})
         replacement_text = f"🛑 <@{action_user_id}> halted {workflow_name}."
         chosen_action = "Human Manual Complete"

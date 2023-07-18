@@ -56,32 +56,12 @@ if not encryption_key and not ignore_encryption_warning:
 
 db_engine = db.DB_ENGINE
 
-installation_store = SQLAlchemyInstallationStore(
-    engine=db_engine,
-    client_id=slack_client_id,
-    encryption_key=encryption_key,
-    logger=logger,
-)
-oauth_state_store = SQLAlchemyOAuthStateStore(
-    engine=db_engine,
-    expiration_seconds=OAuthStateUtils.default_expiration_seconds,
-    logger=logger,
-)
-
 with db_engine.connect() as conn:
-    try:
-        conn.execute(text("select count(*) from slack_bots"))
-    except Exception as e:
-        logger.exception(e)
-        logger.info("Creating Slack installation tables...")
-        installation_store.metadata.create_all(db_engine)
-        oauth_state_store.metadata.create_all(db_engine)
-
     try:
         conn.execute(text("select count(*) from team_config"))
     except Exception as e:
         logger.exception(e)
-        logger.info("Creating tables...")
+        logger.info("Creating all tables...")
         db.create_tables(db_engine)
 
 
@@ -100,8 +80,8 @@ slack_app = App(
         client_secret=os.environ[c.ENV_SLACK_CLIENT_SECRET],
         scopes=c.SCOPES,
         user_scopes=c.USER_SCOPES,
-        installation_store=installation_store,
-        state_store=oauth_state_store,
+        installation_store=db.INSTALLATIION_STORE,
+        state_store=db.OAUTH_STATE_STORE,
     ),
 )
 
@@ -118,7 +98,9 @@ def custom_error_handler(
     logger.exception(f"Error: {error}")
     logger.info(f"Request body: {body}")
 
-    fail_text = "Dang, sorry that last action didn't run correctly."
+    fail_text = (
+        f"Dang, sorry that last action didn't run correctly. Error:\n```\n{error}\n```"
+    )
     try:
         if context.user_id:
             resp = client.chat_postMessage(channel=context.user_id, text=fail_text)
@@ -570,54 +552,42 @@ def handle_event_config_submission(
 def event_app_mention(
     logger: logging.Logger, event: dict, body: dict, context: BoltContext
 ):
-    utils.generic_event_proxy(
-        logger, event, body, context.team_id, context.enterprise_id
-    )
+    utils.generic_event_proxy(logger, event, context.team_id, context.enterprise_id)
 
 
 @slack_app.event(c.EVENT_CHANNEL_ARCHIVE)
 def event_channel_archive(
     logger: logging.Logger, event: dict, body: dict, context: BoltContext
 ):
-    utils.generic_event_proxy(
-        logger, event, body, context.team_id, context.enterprise_id
-    )
+    utils.generic_event_proxy(logger, event, context.team_id, context.enterprise_id)
 
 
 @slack_app.event(c.EVENT_CHANNEL_CREATED)
 def event_channel_created(
     logger: logging.Logger, event: dict, body: dict, context: BoltContext
 ):
-    utils.generic_event_proxy(
-        logger, event, body, context.team_id, context.enterprise_id
-    )
+    utils.generic_event_proxy(logger, event, context.team_id, context.enterprise_id)
 
 
 @slack_app.event(c.EVENT_CHANNEL_DELETED)
 def event_channel_deleted(
     logger: logging.Logger, event: dict, body: dict, context: BoltContext
 ):
-    utils.generic_event_proxy(
-        logger, event, body, context.team_id, context.enterprise_id
-    )
+    utils.generic_event_proxy(logger, event, context.team_id, context.enterprise_id)
 
 
 @slack_app.event(c.EVENT_CHANNEL_UNARCHIVE)
 def event_channel_unarchive(
     logger: logging.Logger, event: dict, body: dict, context: BoltContext
 ):
-    utils.generic_event_proxy(
-        logger, event, body, context.team_id, context.enterprise_id
-    )
+    utils.generic_event_proxy(logger, event, context.team_id, context.enterprise_id)
 
 
 @slack_app.event(c.EVENT_REACTION_ADDED)
 def event_reaction_added(
     logger: logging.Logger, event: dict, body: dict, context: BoltContext
 ):
-    utils.generic_event_proxy(
-        logger, event, body, context.team_id, context.enterprise_id
-    )
+    utils.generic_event_proxy(logger, event, context.team_id, context.enterprise_id)
 
 
 # Mediocre tracking of how many workflows currently are using App Steps
