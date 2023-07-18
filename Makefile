@@ -1,6 +1,6 @@
 .PHONY: format test
 
-prep: format test
+prep: test format generate-requirements
 
 format:
 	poetry run black buddy/ tests/ *.py

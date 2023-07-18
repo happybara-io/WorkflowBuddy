@@ -181,13 +181,70 @@ def test_includes_slack_workflow_variable(value, expected_result):
 
 
 @pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
-@mock.patch("buddy.utils.send_webhook")
-def test_generic_event_proxy(patched_send, name, event):
-    # TODO: Gotta mock out DB for each run to actually test something useful, otherwise it's unkown what you're hitting
-    patched_send.return_value = FakeResponse(201, {"body": True})
+@mock.patch("buddy.db.get_event_configs")
+def test_generic_event_proxy_no_event_configs(mock_get_ec: mock.MagicMock, name, event):
     mock_team_id = "T11111"
     mock_enterprise_id = None
-    sut.generic_event_proxy(test_logger, event, {}, mock_team_id, mock_enterprise_id)
+    # no event configs
+    mock_get_ec.return_value = []
+    was_proxied = sut.generic_event_proxy(
+        test_logger, event, mock_team_id, mock_enterprise_id
+    )
+    assert not was_proxied, "Sent events when it shouldn't"
+
+
+@pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
+@mock.patch("buddy.db.get_event_configs")
+@mock.patch("buddy.utils.send_webhook")
+def test_generic_event_proxy(
+    mock_send: mock.MagicMock, mock_get_ec: mock.MagicMock, name, event
+):
+    # TODO: Gotta mock out DB for each run to actually test something useful, otherwise it's unkown what you're hitting
+    mock_send.return_value = FakeResponse(201, {"body": True})
+    mock_team_id = "T11111"
+    mock_team_config = db.TeamConfig(team_id=mock_team_id)
+    mock_enterprise_id = None
+    # just a generic one
+    mock_get_ec.return_value = [
+        db.EventConfig(
+            id=1, webhook_url="https://fake.website", team_config=mock_team_config
+        )
+    ]
+    was_proxied = sut.generic_event_proxy(
+        test_logger, event, mock_team_id, mock_enterprise_id
+    )
+    assert was_proxied, "Didn't send any events"
+
+
+@pytest.mark.parametrize("name, event", list(test_const.SLACK_DEMO_EVENTS.items()))
+@mock.patch("buddy.db.get_event_configs")
+@mock.patch("buddy.utils.get_slack_bot_client")
+@mock.patch("buddy.utils.send_webhook")
+def test_generic_event_proxy_failure(
+    mock_send: mock.MagicMock,
+    mock_get_slack_client: mock.MagicMock,
+    mock_get_ec: mock.MagicMock,
+    name,
+    event,
+):
+    # TODO: Gotta mock out DB for each run to actually test something useful, otherwise it's unkown what you're hitting
+    mock_send.return_value = FakeResponse(409, {"body": {"ok": False}})
+    mock_team_id = "T11111"
+    mock_team_config = db.TeamConfig(team_id=mock_team_id)
+    mock_enterprise_id = None
+    # just a generic one
+    mock_get_ec.return_value = [
+        db.EventConfig(
+            id=1, webhook_url="https://fake.website", team_config=mock_team_config
+        )
+    ]
+    mock_slack_client = mock.MagicMock(name="mock_client")
+    mock_get_slack_client.return_value = mock_slack_client
+    sut.generic_event_proxy(test_logger, event, mock_team_id, mock_enterprise_id)
+    mock_slack_client.chat_postMessage.assert_called_once()
+
+
+# TODO: test event_proxy -> should_filter
 
 
 @mock.patch("buddy.utils.requests")
@@ -212,13 +269,15 @@ def test_send_webhook_retries_connectionerror(mock_requests: mock.MagicMock):
 
 @mock.patch("buddy.utils.requests")
 def test_send_webhook_retries_http_errors(mock_requests: mock.MagicMock):
-    mock_requests.request.return_value = FakeResponse(407, {})
+    mock_requests.request.return_value = FakeResponse(407, {"error": "gotcha"})
     url = "https://webhook.site/addd265d-3fac-46f7-91aa-86fdb21b98aa"
     body = {"abc": 123}
 
     resp = sut.send_webhook(url, body)
     assert resp.status_code == 407
     assert mock_requests.request.call_count == c.HTTP_REQUEST_RETRIES + 1
+
+    # assert that it attempts to call Slack as well
 
 
 @mock.patch("buddy.utils.requests")

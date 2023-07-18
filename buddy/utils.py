@@ -43,14 +43,15 @@ def get_block_kit_builder_link(type="home", view=None, blocks=[]) -> str:
 
 # TODO: accept any of the keyword args that are allowed?
 def generic_event_proxy(
-    logger: logging.Logger,
+    app_logger: logging.Logger,
     event: dict,
-    body: dict,
     team_id: Union[str, None],
     enterprise_id: Union[str, None],
-) -> None:
+) -> bool:
+    request_proxied = False
     event_type = event.get("type")
-    logger.info(f"proxy||{event_type}|BODY:{body}")
+    app_logger.info(f"proxy||{event_type}|event:{event}")
+    app_logger.info(f"MOCK -> {send_webhook}")
 
     with Session(db.DB_ENGINE, expire_on_commit=False) as s:
         event_configs = db.get_event_configs(
@@ -60,41 +61,49 @@ def generic_event_proxy(
             db.set_unhandled_event(
                 event_type, team_id, enterprise_id=enterprise_id, session=s
             )
+            app_logger.info(
+                f"Sending 0 proxy webhooks for unhandled event {event_type}"
+            )
+            return False
         else:
             db.remove_unhandled_event(
                 event_type, team_id, enterprise_id=enterprise_id, session=s
             )
 
-        # TODO: run through each event
-        for ec in event_configs:
-            should_filter_reason = should_filter_event(ec, event)
-            if should_filter_reason:
-                logger.info(
-                    f"Filtering event. Reason:{should_filter_reason} event:{event}"
-                )
-                continue
+        # force it to load the team configs, otherwise sqlalchemy lazy loading doesn't have it available outside Session
+        team_configs = [ec.team_config for ec in event_configs]
 
-            if ec.use_raw_event:
-                json_body = event
-            else:
-                json_body = flatten_payload_for_slack_workflow_builder(event)
+    for i, ec in enumerate(event_configs):
+        should_filter_reason = should_filter_event(ec, event)
+        if should_filter_reason:
+            app_logger.info(
+                f"Filtering event. Reason:{should_filter_reason} event:{event}"
+            )
+            continue
 
-            try:
-                resp = send_webhook(ec.webhook_url, json_body)
-                if resp.status_code >= 300:
-                    logger.error(f"{resp.status_code}:{resp.text[:100]}|config:{ec}")
-                    resp.raise_for_status()
-            except Exception as e:
-                # if something messes up with the proxy, send notification to creator.
-                # They might not be around anymore, but at least you tried!
-                # This makes me think it should be an editable Owner field rather than creator 🤔
-                team_config: db.TeamConfig = ec.team_config
-                client = get_slack_bot_client(
-                    team_config.team_id, enterprise_id=team_config.enterprise_id
-                )
-                send_proxy_error_message(ec.creator, client)
-                continue
-    logger.info("Finished sending all webhooks for event")
+        if ec.use_raw_event:
+            json_body = event
+        else:
+            json_body = flatten_payload_for_slack_workflow_builder(event)
+
+        try:
+            resp = send_webhook(ec.webhook_url, json_body)
+            app_logger.info(resp)
+            if resp.status_code >= 300:
+                app_logger.error(f"{resp.status_code}:{resp.text[:100]}|config:{ec}")
+                resp.raise_for_status()
+        except Exception as e:
+            # if something messes up with the proxy, send notification to creator.
+            # TODO: They might not be around anymore, but at least you tried!
+            # This makes me think it should be an editable Owner field rather than creator 🤔
+            team_config: db.TeamConfig = team_configs[i]
+            client = get_slack_bot_client(
+                team_config.team_id, enterprise_id=team_config.enterprise_id
+            )
+            send_proxy_error_message(ec.creator, client, ec, e)
+            continue
+    app_logger.info("Finished sending all webhooks for event")
+    return True
 
 
 def send_webhook(
@@ -114,6 +123,7 @@ def send_webhook(
             ok = resp.status_code < 300
             last_failed_attempt = resp.status_code > 300 and i == final_index
             if ok or last_failed_attempt:
+                logger.info("Returning %s", resp)
                 return resp
         except (ConnectionError, Timeout) as e:  # type: ignore
             # try again, unless it's already the last try
@@ -1172,8 +1182,14 @@ def get_slack_bot_client(
     return slack_sdk.WebClient(token=i.bot_token)
 
 
-def send_proxy_error_message(user_id: str, client: slack_sdk.WebClient):
-    fail_text = f"Dang, sorry that last action didn't run correctly."
+def send_proxy_error_message(
+    user_id: str,
+    client: slack_sdk.WebClient,
+    event_config: db.EventConfig,
+    error: Exception,
+):
+    fail_text = f"💥 Slack Event Proxy Failure:\n`{event_config.event_type}|url:{event_config.webhook_url}`\n```{error}```"
+    logger.info("Sending proxy error message to %s", user_id)
     try:
         resp = client.chat_postMessage(channel=user_id, text=fail_text)
     except Exception as e:
