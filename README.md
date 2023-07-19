@@ -47,6 +47,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [(Beginner) Simple Workflow](#beginner-quickstart-create-a-simple-workflow) - (~10 mins)
   - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
   - [(Advanced) Try New Steps](#advanced-quickstart-run-new-steps) - (~25 mins)
+- [Example Workflow Templates](#example-workflows)
 - [FAQ](#faq)
 - [Support](#support)
 - [Development](#development)
@@ -70,6 +71,12 @@ _Hate reading and would rather see videos of it in action?_
 
 - [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/app_mention_e2e_flow.md) showing a [custom event](#-available-triggers) triggering a Workflow which runs the majority of the [available Step actions](#-available-steps).
 - [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/importing-from-trigger-and-outgoing-webhooks.md) showing how to go from [downloaded template](#templates-for-event-triggers) to triggering a Workflow that sends an [`Outgoing Webhook`](#send-a-webhook), along with a bonus of showing how to [proxy slack events to another service](#proxy-slack-events-to-another-service).
+
+---
+
+## Example Workflows
+
+See the `test_workflows/` folder for example Workflow templates you can use either as a base for your own, or to see what is possible with Workflow Buddy.
 
 ---
 

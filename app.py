@@ -1053,6 +1053,15 @@ def health():
     return jsonify({"ok": True}), 201
 
 
+@flask_app.route("/reflect", methods=["POST"])
+def reflect_body():
+    """
+    Reflects the request body to ease integration testing of workflows
+    """
+    request_body = request.get_json()
+    return request_body, 200
+
+
 @flask_app.route("/random-fail", methods=["GET"])
 def random_fail():
     # doesn't need to be all of them, just a random assortment of 4xx + 5xx
