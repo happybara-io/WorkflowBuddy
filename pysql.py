@@ -19,7 +19,7 @@ def main(args: argparse.Namespace):
     query_stmt = args.sql_query
     print("[*] Running query", query_stmt)
     print("-------------------")
-    db_file_path = LOCAL_DB_FILE_PATH if args.local else DOCKER_FILE_PATH
+    db_file_path = (args.file or LOCAL_DB_FILE_PATH) if args.local else DOCKER_FILE_PATH
     if not os.path.isfile(db_file_path):
         raise ValueError(f"File doesnt exist!! -> {db_file_path}")
     conn_str = f"file:{db_file_path}?mode=ro"
@@ -41,5 +41,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="pysql")
     parser.add_argument("sql_query")
     parser.add_argument("--local", "-l", action="store_true")
+    parser.add_argument(
+        "--file",
+        "-f",
+        default=LOCAL_DB_FILE_PATH,
+        help=f"Path to a local DB file (defaults to {LOCAL_DB_FILE_PATH})",
+    )
     args = parser.parse_args()
     main(args)

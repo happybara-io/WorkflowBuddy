@@ -1,0 +1,217 @@
+{
+    "source_id": "435001826144697082",
+    "version": "1",
+    "workflow": {
+        "name": "HTTP Testing",
+        "blueprint": {
+            "version": "1",
+            "trigger": {
+                "type": "channel_action",
+                "id": "30e79835-d2e4-46fa-b1ee-d4bc9d40cc5e",
+                "config": {
+                    "name": "HTTP Testing",
+                    "channels": [
+                        "CP1S57DAB"
+                    ],
+                    "callback_id": "9813059b-0443-4a50-8365-065ce4b8eb4a",
+                    "description": "HTTP Testing"
+                }
+            },
+            "steps": [
+                {
+                    "type": "extension_step",
+                    "id": "c24fb5dd-9642-4c0a-b4bb-92dccdff8a37",
+                    "config": {
+                        "app_action": {
+                            "name": "(Dev) Outgoing Webhook",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa04503AK8HF",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "outgoing_webhook"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "bool_flags": {
+                                    "value": "[{\"text\": {\"type\": \"mrkdwn\", \"text\": \" \", \"verbatim\": false}, \"value\": \"fail_on_http_error\", \"description\": {\"type\": \"mrkdwn\", \"text\": \"_Check this if you want Workflow to halt on server errors, otherwise it can continue._\", \"verbatim\": false}}]"
+                                },
+                                "http_method": {
+                                    "value": "POST"
+                                },
+                                "webhook_url": {
+                                    "value": "https://workflow-buddy-dev.fly.dev/reflect"
+                                },
+                                "headers_json_str": {
+                                    "value": null
+                                },
+                                "request_json_str": {
+                                    "value": "{\n   \"number\": 5,\n   \"nested\": {\n      \"abc\":  123\n   },\n   \"a_list\": [\n         {\"id\": 1, \"val\": 1},\n         {\"id\": 2, \"val\": 2}\n      ]\n}"
+                                },
+                                "query_params_json_str": {
+                                    "value": null
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "webhook_status_code",
+                                    "type": "text",
+                                    "label": "Webhook Status Code"
+                                },
+                                {
+                                    "name": "webhook_response_text",
+                                    "type": "text",
+                                    "label": "Webhook Response Text"
+                                },
+                                {
+                                    "name": "webhook_response_text_unsanitized",
+                                    "type": "text",
+                                    "label": "Webhook Response Text (Unsanitized JSON string)"
+                                }
+                            ],
+                            "step_name": "Send a webhook",
+                            "step_image_url": "https://s3.happybara.io/happybara/main_logo_webhook_badge.png"
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "02150e5f-0b0a-4171-8db8-4df46aa65656",
+                    "config": {
+                        "app_action": {
+                            "name": "(Dev) Workflow Buddy Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "json_string": {
+                                    "value": "{{c24fb5dd-9642-4c0a-b4bb-92dccdff8a37==webhook_response_text_unsanitized}}"
+                                },
+                                "jsonpath_expr": {
+                                    "value": "$.nested.abc"
+                                },
+                                "selected_utility": {
+                                    "value": "json_extractor"
+                                },
+                                "debug_mode_enabled": {
+                                    "value": "false"
+                                },
+                                "debug_conversation_id": {
+                                    "value": ""
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "extracted_matches",
+                                    "type": "text",
+                                    "label": "Extracted Data Matches"
+                                }
+                            ],
+                            "step_name": "Extract Value from JSON",
+                            "step_image_url": "https://s3.happybara.io/happybara/main_logo.png"
+                        }
+                    }
+                },
+                {
+                    "type": "extension_step",
+                    "id": "5b70c94c-0784-48b4-a304-5432679191e0",
+                    "config": {
+                        "app_action": {
+                            "name": "(Dev) Workflow Buddy Utilities",
+                            "type": "workflow_step_edit",
+                            "payload": null,
+                            "action_id": "Aa041BLLURFB",
+                            "api_app_id": "A040W1RHGBX",
+                            "callback_id": "utilities"
+                        },
+                        "app_defined_config": {
+                            "inputs": {
+                                "json_string": {
+                                    "value": "{{c24fb5dd-9642-4c0a-b4bb-92dccdff8a37==webhook_response_text_unsanitized}}"
+                                },
+                                "jsonpath_expr": {
+                                    "value": "$.a_list[1].id"
+                                },
+                                "selected_utility": {
+                                    "value": "json_extractor"
+                                },
+                                "debug_mode_enabled": {
+                                    "value": "false"
+                                },
+                                "debug_conversation_id": {
+                                    "value": ""
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "name": "extracted_matches",
+                                    "type": "text",
+                                    "label": "Extracted Data Matches"
+                                }
+                            ],
+                            "step_name": "Extract Value from JSON",
+                            "step_image_url": "https://s3.happybara.io/happybara/main_logo.png"
+                        }
+                    }
+                },
+                {
+                    "type": "message",
+                    "id": "e0efc9c0-4e97-4ab8-bc6d-d7d08c4b51eb",
+                    "config": {
+                        "user": {
+                            "ref": "30e79835-d2e4-46fa-b1ee-d4bc9d40cc5e==user"
+                        },
+                        "has_button": false,
+                        "message_text": "{{c24fb5dd-9642-4c0a-b4bb-92dccdff8a37==webhook_response_text_unsanitized}}\nExtracted data: {{02150e5f-0b0a-4171-8db8-4df46aa65656==extracted_matches}}\n---\nSecond extraction: {{5b70c94c-0784-48b4-a304-5432679191e0==extracted_matches}}",
+                        "message_blocks": [
+                            {
+                                "type": "rich_text",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_preformatted",
+                                        "elements": [
+                                            {
+                                                "id": "c24fb5dd-9642-4c0a-b4bb-92dccdff8a37==webhook_response_text_unsanitized",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [
+                                            {
+                                                "text": "Extracted data: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "02150e5f-0b0a-4171-8db8-4df46aa65656==extracted_matches",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            },
+                                            {
+                                                "text": "\n---\nSecond extraction: ",
+                                                "type": "text"
+                                            },
+                                            {
+                                                "id": "5b70c94c-0784-48b4-a304-5432679191e0==extracted_matches",
+                                                "type": "workflowtoken",
+                                                "property": "",
+                                                "data_type": "text"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
