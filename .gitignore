@@ -20,3 +20,5 @@ test_output/*
 workflow-buddy-dev/
 workflow-buddy-local/
 workflow_buddy.db
+*.db-wal
+*.db-shm

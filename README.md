@@ -1,6 +1,6 @@
 # Workflow Buddy - Super powers for Workflow Builder
 
-_| 📂 Open-source | [🧪 Installable Beta App](#beta-app) | [🤖 Hosted for you](https://tally.so/r/mVLKkj) | [💡 Support](#support) |_
+_| 📂 Open-source | [🧪 Installable App](https://workflow-buddy.fly.dev/) | [💡 Support](#support) |_
 
 ---
 
@@ -29,12 +29,7 @@ _You can get creative and do a lot with these building blocks, but what if you w
 
 **This Slack App acts as an extension of Workflow Builder, providing access to significantly more Slack triggers (such as `app_mention`, `channel_created`, etc.) and expanding the suite of Steps available.**
 
-⚡ The most important **Step** this app adds is the `Outgoing Webhook`, which enables users to integrate their Slack Workflow Steps with almost any other application.
-
-> **[ℹ️]** Beta Disclaimer:
->
-> This code is in beta stage on it's way to a stable v1. It's fully functional, but would benefit from resiliency features like improved handling for upstream API errors, etc. that let it handle higher volume use-cases.
->
+⚡ The most important **Step** this app adds is the `Outgoing Webhook/HTTP Request`, which enables users to integrate their Slack Workflow Steps with almost any other application.
 
 - **About**
   - [Demo Videos](#demos)
@@ -42,15 +37,14 @@ _You can get creative and do a lot with these building blocks, but what if you w
   - [Available Steps](#-available-steps) - `+15`
   - [Improving UX for Slack Workflows](#bonus-utilities-ux-improvements)
   - [Common Use Cases](#-use-cases)
-- **Quick Starts/ Installation** - 🎉 _test me out!_ 🧪
-  - [Installing your own Buddy/ Self-hosting](#running-workflow-buddy) - (5-30 mins)
+- **Quick Starts** - 🎉 _test me out!_ 🧪
   - [(Beginner) Simple Workflow](#beginner-quickstart-create-a-simple-workflow) - (~10 mins)
   - [(Advanced) Try New Event Triggers](#advanced-quickstart-new-event-triggers) - (~25 mins)
   - [(Advanced) Try New Steps](#advanced-quickstart-run-new-steps) - (~25 mins)
+- [Self-hosting](#running-workflow-buddy) - (45-75 mins)
 - [Example Workflow Templates](#example-workflows)
 - [FAQ](#faq)
 - [Support](#support)
-- [Development](#development)
 
 ---
 
@@ -426,218 +420,20 @@ We're gonna start with a simple event we can easily control: `app_mention` _(whe
 
 ---
 
-## FAQ
-
-### How to get a channel ID?
-
-- Navigate to the desired channel in Slack, then click it's name at the top to open `Channel details`.
-- Scroll to the bottom of that modal, and you'll see a copyable channel ID that looks like:
-
-  `Channel ID: GMZE58GD9`
-
-### Is this a replacement for Workflow Builder?
-
-❌ No! This acts as a complement to Workflow Builder, enhancing it's functionality to do even more awesome things.
-
-### Isn't Slack going to eventually add this functionality to Workflow Builder?
-
-Maybe, but until then, you have an option rather than waiting impatiently. Plus, since it is an extension of Workflow Builder, it won't stop working if Slack decides to add new functionality to the core tool. For those unaware, Slack is planning to release [conditional logic and other features in Q1 2023](https://techcrunch.com/2022/09/01/slack-gains-new-automation-features-including-conditional-logic-for-workflows/?guccounter=1).
-
-### Data: where is it stored?
-
-The vast majority of data involved in Workflows (especially the configuration forms you see in Workflow Builder) are all stored on Slack's servers, Workflow Buddy just acts as an intermediary when they are running.
-
-The data Buddy stores is limited to what is needed for functionality (encrypted OAuth tokens, Slack team/user IDs, etc.), or is useful for your own team's stats (such as usage of Step types). If you are curious to know more detail, check out the `buddy/db.py` file in the open-source repo, which shows all the database models.
-
----
-
-## Hosted/ Cloud
-
-Don't want to host servers yourself, but still want to use Buddy? Happybara plans to release a hosted/cloud version in the near future.
-
-[🏄‍♀️ Snag your spot on the waitlist!](https://tally.so/r/mVLKkj)
-
 ## Running Workflow Buddy
 
-> 🧪 _Just want to experiment? Install the [Beta app](#beta-app) to your Slack workspace and skip setting up servers until you're ready. You can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts**. If you get stuck, check out your [💡 support resources](#support)._
+To use Workflow Buddy, you can either:
 
-You have several options to run a Buddy server: locally on your computer, self-hosted on a cloud service, or [hosted by Happybara](#hosted-cloud) _(coming soon)_.
+- [Self-host](https://github.com/happybara-io/WorkflowBuddy/wiki/Self%E2%80%90Hosting) an instance of Workflow Buddy
+- Install the managed version [hosted by Happybara](https://workflow-buddy.fly.dev/)
 
-To self-host and run a Buddy server yourself, you will:
+Once installed, you can jump to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts** to learn what is possible with Workflow Buddy.
 
-1. Clone this repo at a specific release version.
-2. Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
-3. Run a Buddy server either **A)** on your laptop, or **B)** in the cloud.
-4. Update Slack connection info.
-5. Use the bot through your regular Slack desktop! 💃
-
-### Beta App
-
-There is a beta version of Workflow Buddy that can be [installed to your workspace](https://workflow-buddy.fly.dev/) rather than setting up Slack apps & servers just to sample it.
-
-Once installed, you can skip to [🎉 Use the app](#-use-the-app) to follow **guided quickstarts** to learn what is possible with Workflow Buddy.
-
-
-### Clone This Repo
-
-Clone this repo, then check out a specific release version. `main` is actively developed on this project, so it's **HIGHLY** recommended to pin to a specific version.
-
-```
-git fetch --all --tags # so you're local knows about all versions that have been tagged
-git checkout tags/v0.0.x -b v0.0.x-branch # creates a new branch from the specific tagged version
-```
-
-Now you're ready to rock with the repo from that point in time!
-
-### Slack App Setup
-
-- **Copy `slack_app_manifest.template.yml` to `slack_app_manifest.yml`**.
-  - This lets you make any changes to the app you want, while making it easy to pull updates to the repo without conflicts.
-  - _(Optional) Change the app name, but only if you don't like `Workflow Buddy`🙁._
-- **[Create your Slack app](https://api.slack.com/reference/manifests#creating_apps) from the `slack_app_manifest.yml` file.**
-  - _⚠ MAKE SURE TO CLICK `from an app manifest` WHEN THE MODAL POPS UP!_.
-  - After a couple simple confirmation modals to go through.
-  - Go to the `OAuth & Permissions` section and click `Install App` to grant permissions for your new app on the workspace. This will generate the access tokens you will need for the next step.
-- **Now create a `.env` file in your repo. We will be populating it with values from the Slack App you created.**
-  - Get the  `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, & `SLACK_SIGNING_SECRET` from the `Basic Information` tab of your Slack app. This lets Workflow Buddy run the install flow to receive `bot_tokens` and `user_tokens`.
-  - The final result should look like:
-
-    ```
-    SLACK_SIGNING_SECRET=********
-    SLACK_CLIENT_ID=********
-    SLACK_CLIENT_SECRET=********
-    # if you want to have encryption for the data in your server's DB
-    SECRET_ENCRYPTION_KEY=< you-choose-this-value-keep-it-safe>
-    ```
-
-- **Next, you'll spin up the two local servers or a cloud server.**
-
-> ⚠ There may be a warning about `request_url` verification - you can ignore that until we have spun up our local server and proxy (or our cloud server). Once that's done we will update in the Slack App website with your URLs.
-
-### A. Run local Buddy
-
-To run the Slack app locally you will:
-
-1. ✅ Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
-2. 📌 Run a local server on your laptop either using `Python` or `Docker` with the credentials you got in step `1`.
-    - _If you use GitHub CodeSpaces for development, you can skip running a proxy tool, because they will port-forward for you - when it wants to work._
-3. Run a proxy tool that lets Slack talk to your `localhost` (local server).
-4. Update Slack connection info.
-5. Use the bot through your regular Slack desktop! 💃
-
-#### Run Local: App Server
-
-The easiest way to run the server is with Docker, though you can also run it with Python directly.
-
-##### Run with the server with `Docker`
-
-- `make up`
-
-##### Run the server with `Python`
-
-Another choice! Can either use [Poetry](https://python-poetry.org), or any build tool that understands `requirements.txt` that you're comfortable with.
-
-- `Poetry`
-  - `poetry install`
-  - `poetry shell` (activates virtual environment)
-- **OR** _< insert your favorite python build tool like `pip`, `Pipenv`, etc.>_
-  - Install dependencies from `requirements.txt`
-  - Activate a virtual environment
-- With dependencies in place, run the local dev server with `./run-dev.sh`, or a "prod" server with `./run-prod.sh`.
-
-🔁 You're almost there! Either way you chose, you should see a server waiting for requests. One last step and you can use your Slack app.
-
-#### Run local: Proxy server
-
-- Use [`ngrok`](https://ngrok.com) to tunnel your local port to the public internet. You can either download through a package manager and have it show up in your `$PATH`, or unzip the file and execute it directly `./ngrok`.
- _(⚠ in a separate terminal from your server)_
-
-  ```
-  # if you installed with Brew or similar
-  make ngrok
-  # OR if you just unzipped the file somewhere on your machine
-  ./ngrok http 4747
-  ```
-
-- You should see a black screen with a bunch of info printed on it. That's good!
-- Copy the `ngrok` forwarding URL that shows up, e.g. `https://4342423423.ngrok.io`
-
-### B. Cloud Buddy
-
-To self-host Buddy in the cloud, you will:
-
-1. ✅ Create a Slack app through the [Slack website](https://api.slack.com/apps) (this creates the access tokens so you can talk to Slack).
-2. 📌 Run a server at a cloud provider.
-3. Update Slack connection info.
-4. Use the bot through your regular Slack desktop! 💃
-
-_If you get stuck, check out your [💡 support resources](#support)._
-
-#### Cloud: Fly.io
-
-You will need to create an account with cc details💳, though this should run on the free tier. You will then need to [install the `flyctl`](https://fly.io/docs/flyctl/installing/) tool and `flyctl auth login` so it gets connected.
-
-- Copy `fly.template.toml` to `fly.toml`.
-- **Choose a name for your app.** `https://< your app name>.fly.dev` is where it will be hosted, and labeled in the [Fly dashboard](https://fly.io/dashboard/personal).
-- 🥂 Run `flyctl launch --name < your app name> --no-deploy` to get the app initialized with _Fly.io_. _It will write an updated config to the `fly.toml` file, so don't be alarmed when it does._
-- If you want your **data to persist between deployments**:
-  - Create a volume for your instance. I set this to 1 GB, but you get up to 3 GB on the free tier. I also picked `ord` since I'm in the US, but pick any [region near you](https://fly.io/docs/reference/regions/).
-    `flyctl -a <your app name > volumes create workflowbuddy_vol --size 1 -r ord`
-  - _(Optional)_ Ensure `fly.toml` has the mount added _(Optional since this has already been implemented in the template. Remove it if you don't want persistence.)_:
-
-    ```
-    [mounts]
-        source="workflowbuddy_vol"
-        destination="/usr/app/data/"
-    ```
-
-  - _(Optional)_ update `fly.toml` config settings.
-- Add secrets from `.env` _(documented [above](#slack-app-setup))_ to the Fly environnment using [`flyctl secrets`](https://fly.io/docs/reference/secrets/#setting-secrets).
-  - run: `flyctl secrets -a <your app name > set <name>='<secret>' <name2>='<secret2>'...`.
-- 🚀 Finally, get a running app with `flyctl deploy -a < your app name >`!
-  - _If you run into issues with remote builders, you can always do it on Docker locally with `flyctl deploy --local-only`._
-
-##### Updating Workflow Buddy on Fly
-
-Currently the recommended best practice for updating Workflow Buddy:
-
-- _(Optional)_ Backup the DB.
-  - Run `flyctl ssh sftp shell -a < your app name >`, then `> get /usr/app/data/workflow_buddy.db`.
-  - _Automated backups are on the roadmap._
-- _**(if necessary)**_ manually create any volumes that hadn't existed before. See notes above^.
-- `cd` to your cloned WB repo. Run `git fetch --all --tags` so you're local knows about all versions that have been tagged, then change to a specific version with `git checkout tags/v0.0.x -b v0.0.x-branch`.
-   > ⚠️ _If you were using Workflow Buddy prior to v1.0.0, your Event Configuration settings (what you created from the App Home) are stored in the old storage schema and will **NOT** be automatically imported. Recommended approach to upgrade is to make sure to `Export` those settings before you change versions of Workflow Buddy, then manually create matching ones once you have the new version running. Most users will only have 1 or 2, if you have many that need to be migrated feel free to reach out to our support for assistance._
-  - If there were changes to `slack_app_manifest.template.yml`, you'll need to update [your Slack app](https://api.slack.com/apps/) with the latest and greatest.
-  - If there were changes to the [secrets in Setup](#slack-app-setup), you will need to add those like was done above in [Cloud: Fly.io](#cloud-flyio).
-- Run `fly deploy -a < your app name >` to put your changes in to the wild!
-
-#### Cloud: Other hosting providers
-
-- [Serverless/ Cloudflare Workers was suggested](https://github.com/happybara-io/WorkflowBuddy/issues/29)
-TBD.
-
-### Update Slack connection info
-
-Now we have a Slack app & a Workflow Buddy server running, we just need to make sure they can talk to each other!
-
-- Update the Slack API site with your new ngrok or web server URL in 2 spots - [**Event Subscriptions**](https://api.slack.com/apps/A040W1RHGBX/event-subscriptions?), & **Interactivity**.
-  - this is easiest done by updating the `slack_app_manifest.yml` file and then copying it onto the Manifest page in Slack API site. Replace the base URL _(`https://example.com` but keep the path `/slack/events`)._
-
-  ```
-  # Example
-  ...
-  request_url: https://4342423423.ngrok.io/slack/events
-  ....OR
-  request_url: https://super-app-name.fly.dev/slack/events
-  ....
-  ```
-
-- After updating the URLs on the Slack API website, there will be a warning  `Click here to verify` - click it, and if your servers are running correctly, you'll get a success ✅ from Slack.
-- (_Optional: Testing Webhooks_) [Handy tools to debug requests](https://webhook.site) as well as testing different HTTP responses [mock.codes](https://mock.codes/).
+> _If you get stuck, check out your [💡 support resources](#support)._
 
 ### 🎉 Use the app
 
-🥂 You did it! Your `Workflow Buddy` is running locally and ready to interact with. Let's open App Home to see it working, open Workflow Builder, then try out a **Quickstart** to get your feet wet.
+🥂 Your `Workflow Buddy` is running and ready to interact with. Let's open App Home first to see it's working, then open Workflow Builder and try a **Quickstart** to get your feet wet.
 
 - 🏠 Open the Worflow Buddy App Home by searching `@Workflow Buddy` in Slack and selecting the bot. You should see something like the following:
 
@@ -648,54 +444,12 @@ Now we have a Slack app & a Workflow Buddy server running, we just need to make 
 
 ---
 
-## Development
+## FAQ
 
-If you're interested in contributing to Workflow Buddy through code. New to developing Slack Workflow Steps? Check out the _[Workflow Builder Developer Guide | Building on Slack](https://buildingonslack.com/docs/slack/workflow-builder-developer-guide/)_.
-
-### UI/UX Development
-
-For the "UI" block surfaces (especially App Home), highly recommend opening in [Block Kit Builder](https://app.slack.com/block-kit-builder/) with the helper utility `get_block_kit_builder_link()`.
-
-```
-# Open Python REPL
->>> import utils
->>> utils.get_block_kit_builder_link(view=utils.build_app_home_view())
-# copy the resulting link into address bar, avoiding the '' Python surrounds it with.
-```
-
-### How it works
-
-For Slack events, this app basically just acts as a proxy. As long as the event is added to the bot's OAuth scopes, it should be able to proxy it through to your **Workflow Builder** flow.
-
-For the new actions, it registers a **Workflow Builder Step** - unfortunately each app is limited to 10 registered with Slack. To get around that limitation, we have the user select from a static select list of actions that have been implemented on the server, then update the modal to give them the appropriate options. For example, if the user wants to `Send a webhook`, we'll then update the modal to have an input for the Webhook URL, and a text box for the body they want to send.
-
-**Data**: Config data (basically just webhooks for now) is persisted on disk using a SQlite DB.
-
-### Tools
-
-We use a number of tools in & around this repo to improve the code quality:
-
-- Black formatter
-- [Sourcery.ai - improved code suggestions for Python (free for OSS)](https://docs.sourcery.ai/Welcome/)
-- [Fly.io](https://fly.io)
-
-### Notes on using Fly.io
-
-Saving a few helpful things I've run into for those who are self-hosting.
-
-#### Pull files (like SQLite DB) to local machine
-
-There are plenty of reasons to pull files down - backups, easier querying, etc. Fly offers a number of different ways to get access to files, and I've had varying luck with each of them:
-
-- ✅ `flyctl ssh sftp shell`, then manually selecting a file with `> get < filename >`. Then Ctrl+C out of it.
-- ❌ `flyctl sftp get /usr/app/data/workflow_buddy.db` didn't work for me. What's odd is the same exact command with `sftp find` was able to locate the file, as well as manually selecting it with `sftp shell`. Confusing.
-
-#### Open a console and explore
-
-Easily done with `flyctl ssh console`.
-
-#### Proxy localhost to server
-
-❌ I've had no luck with `flyctl proxy 4747` - supposedly proxy should let you interact with the server as if it was running on your local, but both `curl` and my browser end up hanging indefinitely when I reach to `http://localhost:4747`.
+Moved to the [Wiki](https://github.com/happybara-io/WorkflowBuddy/wiki/FAQ).
 
 ---
+
+## Contributions
+
+See the [Wiki page](https://github.com/happybara-io/WorkflowBuddy/wiki/Contributions) for more information on developing Workflow Buddy.
