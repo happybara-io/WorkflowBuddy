@@ -23,7 +23,7 @@ from buddy.types import Outputs
 
 from typing import List, Dict, Any, Union, Tuple
 
-logger = logging.getLogger("step_actions")
+logger = logging.getLogger(__name__)
 
 ################################
 # Step Actions funcs: take `inputs`, return Slack `outputs`
