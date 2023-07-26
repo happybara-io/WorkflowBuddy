@@ -807,17 +807,25 @@ def parse_values_from_input_config(
     for name, input_config in curr_action_config["inputs"].items():
         block_id = input_config["block_id"]
         action_id = input_config["action_id"]
-        if input_config.get("type") == "channels_select":
-            value = values[block_id][action_id]["selected_channel"]
-        elif input_config.get("type") == "conversations_select":
-            value = values[block_id][action_id]["selected_conversation"]
-        elif input_config.get("type") == "checkboxes":
-            value = json.dumps(values[block_id][action_id]["selected_options"])
-        elif input_config.get("type") == "static_select":
-            value = values[block_id][action_id]["selected_option"]["value"]
-        else:
-            # plain-text input by default
-            value = values[block_id][action_id]["value"]
+
+        try:
+            if input_config.get("type") == "channels_select":
+                value = values[block_id][action_id]["selected_channel"]
+            elif input_config.get("type") == "conversations_select":
+                value = values[block_id][action_id]["selected_conversation"]
+            elif input_config.get("type") == "checkboxes":
+                value = json.dumps(values[block_id][action_id]["selected_options"])
+            elif input_config.get("type") == "static_select":
+                value = values[block_id][action_id]["selected_option"]["value"]
+            else:
+                # plain-text input by default
+                value = values[block_id][action_id]["value"]
+        except KeyError as e:
+            # validations are nice, but shouldn't blow up everything.
+            # This can show up in the case where we are deprecating old functionality,
+            # and therefore have 2+ versions, where future/past versions don't have same input blocks.
+            logging.warning(f"Unable to validate block {block_id} - is that a problem?")
+            continue
 
         validation_type = input_config.get("validation_type")
         # have to consider that people can pass variables, which would mess with some of validation
@@ -899,6 +907,38 @@ def parse_values_from_input_config(
                 ] = f"Input must be shorter than {allowed_len}, but was {user_input_len}."
 
         inputs[name] = {"value": value}
+
+    extra_validations = curr_action_config.get("extra_validations", [])
+    # TODO: this is kinda janky, but need validation that is generic for the whole form/multiple blocks,
+    # not just for a single block.
+    for ev in extra_validations:
+        if ev == "combined_time_delta_under_120_days":
+            using_deprecated_version = values.get("post_at_input")
+            if using_deprecated_version:
+                # only care about this for the newer relative version
+                continue
+            block_id_to_show_error = "relative_days_input"
+            relative_days = int(
+                values["relative_days_input"]["relative_days_value"]["value"]
+            )
+            relative_hours = int(
+                values["relative_hours_input"]["relative_hours_value"]["value"]
+            )
+            relative_minutes = int(
+                values["relative_minutes_input"]["relative_minutes_value"]["value"]
+            )
+            delta = timedelta(
+                days=relative_days, hours=relative_hours, minutes=relative_minutes
+            )
+            delta_total_minutes = delta.total_seconds() / 60
+            if delta.days > c.SLACK_SCHEDULED_MSG_MAX_DAYS:
+                errors[
+                    block_id_to_show_error
+                ] = f"Need a relative future time that sums to < {c.SLACK_SCHEDULED_MSG_MAX_DAYS} days, you gave {str(delta)}."
+            elif delta_total_minutes < c.TIME_5_MINS:
+                errors[
+                    block_id_to_show_error
+                ] = f"Need a relative future time that sums to > {c.TIME_5_MINS} minutes, you gave {str(delta)}."
 
     return inputs, errors
 

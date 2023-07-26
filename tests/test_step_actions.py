@@ -278,3 +278,37 @@ def test_run_json_extractor_expected_function():
     }
     outputs = sut.run_json_extractor(step)
     assert list(outputs.values()) == ["True"]
+
+
+def test_schedule_messages_still_handles_deprecated_post_at_key():
+    mock_client = mock.MagicMock(name="slack_client")
+    mock_client.chat_scheduleMessage.return_value = {
+        "ok": True,
+        "scheduled_message_id": "Q1111111",
+    }
+    inputs = {
+        "channel": {"value": "C111111"},
+        "post_at": {"value": "1669557726"},
+        "msg_text": {"value": "I'm a silly message to send"},
+    }
+    out = sut.run_schedule_message(inputs, mock_client)
+    slack_client_kwargs = mock_client.chat_scheduleMessage.call_args[1]
+    assert type(slack_client_kwargs["post_at"]) is str
+
+
+def test_schedule_messages_with_relative_times():
+    mock_client = mock.MagicMock(name="slack_client")
+    mock_client.chat_scheduleMessage.return_value = {
+        "ok": True,
+        "scheduled_message_id": "Q1111111",
+    }
+    inputs = {
+        "channel": {"value": "C111111"},
+        "relative_days": {"value": "115"},
+        "relative_hours": {"value": "8"},
+        "relative_minutes": {"value": "17"},
+        "msg_text": {"value": "I'm a silly message to send"},
+    }
+    out = sut.run_schedule_message(inputs, mock_client)
+    slack_client_kwargs = mock_client.chat_scheduleMessage.call_args[1]
+    assert type(slack_client_kwargs["post_at"]) is str

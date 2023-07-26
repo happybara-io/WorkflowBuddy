@@ -64,6 +64,7 @@ EVENT_WORKFLOW_STEP_DELETED = "workflow_step_deleted"
 WORKFLOW_STEP_UTILS_CALLBACK_ID = "utilities"
 WORKFLOW_STEP_WEBHOOK_CALLBACK_ID = "outgoing_webhook"
 
+SLACK_SCHEDULED_MSG_MAX_DAYS = 119  # 120, but give some breathing room
 TIME_5_MINS = 5 * 60
 TIME_1_DAY = 24 * 3600
 TIME_119_DAYS = 119 * 24 * 3600
@@ -1072,25 +1073,70 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 },
                 "label": {"type": "plain_text", "text": "Channel", "emoji": True},
             },
+            # {
+            #     "type": "input",
+            #     "block_id": "post_at_input",
+            #     "element": {
+            #         "type": "plain_text_input",
+            #         "action_id": "post_at_value",
+            #         "placeholder": {"type": "plain_text", "text": "1669557726"},
+            #     },
+            #     "label": {
+            #         "type": "plain_text",
+            #         "text": "Post At Unix Timestamp",
+            #         "emoji": True,
+            #     },
+            #     "hint": {
+            #         "type": "plain_text",
+            #         "text": "Use https://www.unixtimestamp.com/ to convert easily.",
+            #         "emoji": True,
+            #     }
+            #     # "optional": True,
+            # },
             {
                 "type": "input",
-                "block_id": "post_at_input",
+                "block_id": "relative_days_input",
                 "element": {
                     "type": "plain_text_input",
-                    "action_id": "post_at_value",
-                    "placeholder": {"type": "plain_text", "text": "1669557726"},
+                    "action_id": "relative_days_value",
+                    "placeholder": {"type": "plain_text", "text": "0"},
                 },
                 "label": {
                     "type": "plain_text",
-                    "text": "Post At Unix Timestamp",
+                    "text": "Days in Future",
                     "emoji": True,
                 },
-                "hint": {
+                "optional": False,
+            },
+            {
+                "type": "input",
+                "block_id": "relative_hours_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "relative_hours_value",
+                    "placeholder": {"type": "plain_text", "text": "1"},
+                },
+                "label": {
                     "type": "plain_text",
-                    "text": "Use https://www.unixtimestamp.com/ to convert easily.",
+                    "text": "Hours in Future",
                     "emoji": True,
-                }
-                # "optional": True,
+                },
+                "optional": False,
+            },
+            {
+                "type": "input",
+                "block_id": "relative_minutes_input",
+                "element": {
+                    "type": "plain_text_input",
+                    "action_id": "relative_minutes_value",
+                    "placeholder": {"type": "plain_text", "text": "0"},
+                },
+                "label": {
+                    "type": "plain_text",
+                    "text": "Minutes in Future",
+                    "emoji": True,
+                },
+                "optional": False,
             },
             {
                 "type": "input",
@@ -1117,8 +1163,27 @@ UTILS_CONFIG: Dict[str, Dict[str, Any]] = {
                 "validation_type": "future_timestamp",
                 "action_id": "post_at_value",
             },
+            "relative_days": {
+                "name": "relative_days",
+                "validation_type": "integer",
+                "block_id": "relative_days_input",
+                "action_id": "relative_days_value",
+            },
+            "relative_hours": {
+                "name": "relative_hours",
+                "validation_type": "integer",
+                "block_id": "relative_hours_input",
+                "action_id": "relative_hours_value",
+            },
+            "relative_minutes": {
+                "name": "relative_minutes",
+                "validation_type": "integer",
+                "block_id": "relative_minutes_input",
+                "action_id": "relative_minutes_value",
+            },
             "msg_text": {"block_id": "msg_text_input", "action_id": "msg_text_value"},
         },
+        "extra_validations": ["combined_time_delta_under_120_days"],
         "outputs": [
             {
                 "label": "Scheduled Message ID",
