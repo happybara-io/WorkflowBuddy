@@ -1,16 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    	<link rel="icon" href="https://happybara.io/wp-content/uploads/2019/11/cropped-happybara-32x32.png" sizes="32x32" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
 </head>
 <body>
     {% if dev %}
-        <h1>Workflow Buddy Dev</h1>
+        <h1>🐶 Workflow Buddy Dev</h1>
     {% else %}
-        <h1>Workflow Buddy Beta</h1>
+        <h1>🐶 Workflow Buddy</h1>
     {% endif %}
     <hr />
     <br />
+    <div class="row">
+        <button onclick="window.open('https://github.com/happybara-io/WorkflowBuddy');">
+        GitHub
+        </button>
+        <button onclick="window.open('https://github.com/happybara-io/WorkflowBuddy/wiki');">
+        Docs
+        </button>
+    </div>
     <h3>What is Workflow Buddy?</h3>
     <p>Workflow Buddy fills the gaps we've seen in Workflow Builder functionality. This includes:    </p>
     <ul>
@@ -22,17 +31,15 @@
     <hr/>
     <br />
     <h3>Get Workflow Buddy</h3>
-    <p>Follow the button to the installation link, which will then take you to Slack to authenticate. Then you'll be all set to use Workflow Buddy in <a href="app.slack.com/workflow-builder">Workflow Builder!</a>
+    <p>Follow the button to the installation link, which will then take you to Slack to authenticate. Then you'll be all set to use Workflow Buddy in <a href="https://app.slack.com/workflow-builder">Workflow Builder!</a>
     </p>
-    <a href="/slack/install" style="display: inline-block;border-radius: 5px;background-color: purple; padding: 8px 12px; font-weight: bold;">🔗 Install Workflow Buddy</a>
+    <a href="/slack/install" style="display: inline-block;border-radius: 5px;background-color: rgb(198, 118, 198); padding: 8px 12px; font-weight: bold; color: white;">🔗 Install Workflow Buddy</a>
+    <br />
     <br />
     <a href="https://app.slack.com/">See your Slack workspaces in the browser...</a>
     <br />
-    <h3>Beta?</h3>
-    <p>
-        You're experiencing the Beta of the hosted/cloud version of Workflow Buddy. The early self-hosted versions of Buddy have been running for non-critical functionality at multiple companies over the past ~6 months, and we are now piloting a hosted Beta.
-        We are considering charging in the future to help defray support costs - so if that is a blocker, you should consider the self-hosted option that will be forever open-source.
-    </p>
+    <hr/>
+    <br />
     <h3>Self-hosted vs Hosted/Cloud</h3>
     <p>The core difference at the present between self-hosted and cloud is level of support. We will of course fix bugs and respond to issues on the repo, but hosted users can expect faster responses and quicker resolutions to their issues.
         Self-hosting also opens the door for unique deployment/infra issues we aren't equipped to help with.</p>
@@ -42,7 +49,7 @@
         are running.
 
         The data Buddy stores is limited to what is needed for functionality (encrypted OAuth tokens, Slack team/user IDs, etc.), or is useful for your own team's stats (such as usage of Step types). If you are curious
-        to know more detail, check out the <em>"buddy/db.py"</em> file in the open-source repo, which shows all the database models.
+        to know more detail, check out the <em>"buddy/db.py"</em> file in the open-source repo, which shows all the database models. You can also <a href="mailto:support@happybara.io">email Happybara Support</a>
     </p>
 </body>
 </html>

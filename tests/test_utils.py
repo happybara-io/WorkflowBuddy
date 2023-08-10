@@ -472,7 +472,22 @@ def test_sbool(bool_str, expected):
             {},
             c.UTILS_CONFIG["schedule_message"],
             "post_at_input",
-        )
+        ),
+        (
+            "Test big relative time gets validation error for >120 days",
+            {
+                "channel_input": {"channel_value": {"selected_channel": "C1111111"}},
+                "relative_days_input": {"relative_days_value": {"value": "115"}},
+                "relative_hours_input": {"relative_hours_value": {"value": "200"}},
+                "relative_minutes_input": {"relative_minutes_value": {"value": "600"}},
+                "msg_text_input": {
+                    "msg_text_value": {"value": "msg text with {{slack==variable}}"}
+                },
+            },
+            {},
+            c.UTILS_CONFIG["schedule_message"],
+            "relative_days_input",
+        ),
     ],
 )
 def test_parse_values_from_input_config(

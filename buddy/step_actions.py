@@ -7,7 +7,6 @@ import string
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-import pprint
 
 import slack_sdk
 from slack_bolt import BoltContext, Ack
@@ -23,7 +22,7 @@ from buddy.types import Outputs
 
 from typing import List, Dict, Any, Union, Tuple
 
-logger = logging.getLogger("step_actions")
+logger = logging.getLogger(__name__)
 
 ################################
 # Step Actions funcs: take `inputs`, return Slack `outputs`
@@ -231,11 +230,23 @@ def run_random_member_picker(
 
 def run_schedule_message(inputs: dict, client: slack_sdk.WebClient) -> Outputs:
     channel = inputs["channel"]["value"]
-    post_at = inputs["post_at"]["value"]  # unix epoch timestamp
+    # Deprecated 08/2023: Have to keep to handle old versions of Workflows that were saved.
+    post_at = utils.get_input_val(inputs, "post_at", None)  # unix epoch timestamp
     # TODO: needs to support the time format in Workflow Builder variables
     # -> Tuesday, September 27th 8:38:26 AM (at least in message display it's converted to user's TZ
     # will have to check how it's passed internally)
+    relative_days = int(utils.get_input_val(inputs, "relative_days", 0))
+    relative_hours = int(utils.get_input_val(inputs, "relative_hours", 0))
+    relative_minutes = int(utils.get_input_val(inputs, "relative_minutes", 0))
     text = inputs["msg_text"]["value"]
+
+    if not post_at:
+        # v2, 08/2023 using relative times from when the step execution happens
+        delta = timedelta(
+            days=relative_days, hours=relative_hours, minutes=relative_minutes
+        )
+        send_dt_ts = (datetime.utcnow() + delta).timestamp()
+        post_at = str(int(send_dt_ts))
     try:
         resp = client.chat_scheduleMessage(channel=channel, post_at=post_at, text=text)
         return Outputs(
