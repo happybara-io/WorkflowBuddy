@@ -7,7 +7,6 @@ import string
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-import pprint
 
 import slack_sdk
 from slack_bolt import BoltContext, Ack

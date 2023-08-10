@@ -1,6 +1,8 @@
 import logging
 import os
 import copy
+import traceback as tb
+import pprint
 
 import slack_sdk
 from slack_bolt import App, BoltContext, Ack
@@ -8,6 +10,7 @@ from slack_sdk.models.views import View
 from slack_bolt.workflows.step import Complete, Configure, Fail, Update, WorkflowStep
 
 import buddy.constants as c
+from buddy.errors import WorkflowStepFailError
 import buddy.step_actions as step_actions
 import buddy.utils as utils
 import buddy.db as db
@@ -244,7 +247,7 @@ def execute_utils(
             outputs = step_actions.run_schedule_message(inputs, client)
         else:
             fail(error={"message": f"Unknown action chosen - {chosen_action}"})
-    except step_actions.errors.WorkflowStepFailError as e:
+    except WorkflowStepFailError as e:
         fail(error={"message": e.errmsg})
         should_send_complete_signal = False
         utils.send_step_failure_notifications(

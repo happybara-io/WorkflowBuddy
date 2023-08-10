@@ -46,6 +46,7 @@ URLS: Dict[str, Any] = {
     "github-repo": {
         "home": "https://github.com/happybara-io/WorkflowBuddy",
         "new-issue": "https://github.com/happybara-io/WorkflowBuddy/issues/new/choose",
+        "support": "https://github.com/happybara-io/WorkflowBuddy#support",
     },
 }
 
@@ -98,8 +99,15 @@ APP_HOME_HEADER_BLOCKS: List[Dict[str, Any]] = [
                 "text": {"type": "plain_text", "text": "🔗GitHub Docs", "emoji": True},
                 "value": URLS["github-repo"]["home"],
                 "url": URLS["github-repo"]["home"],
-                "action_id": "action_github_repo",
-            }
+                "action_id": "action_github_repo_home",
+            },
+            {
+                "type": "button",
+                "text": {"type": "plain_text", "text": "💡Help", "emoji": True},
+                "value": URLS["github-repo"]["support"],
+                "url": URLS["github-repo"]["support"],
+                "action_id": "action_github_repo_support",
+            },
         ],
     },
     {"type": "divider"},
