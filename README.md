@@ -4,6 +4,13 @@ _| 📂 Open-source | [🧪 Installable App](https://workflow-buddy.fly.dev/) | 
 
 ---
 
+## ☠️ Slack Killing Capability
+
+Unfortunately, Slack has decided they will be deprecating the `Steps from Apps` feature in the future, which is what powers Workflow Buddy. We will continue supporting the application as long as our users need. [More info here](https://api.slack.com/legacy/workflows/steps).
+
+![Slack deprecation notice](assets/slack-killing-steps-from-apps.png)
+
+
 ## Testimonials
 
 >🗣 _"Workflow Buddy is such an enabler for us. It’s exactly what I hoped Workflow Builder originally was." - [iCulture.nl](https://www.iculture.nl/)_
