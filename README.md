@@ -64,13 +64,18 @@ Want to get rockin' with Workflow Buddy, but running into trouble? You have a nu
 _Hate reading and would rather see videos of it in action?_
 
 - [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/app_mention_e2e_flow.md) showing a [custom event](#-available-triggers) triggering a Workflow which runs the majority of the [available Step actions](#-available-steps).
-- [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/importing-from-trigger-and-outgoing-webhooks.md) showing how to go from [downloaded template](#templates-for-event-triggers) to triggering a Workflow that sends an [`Outgoing Webhook`](#send-a-webhook), along with a bonus of showing how to [proxy slack events to another service](#proxy-slack-events-to-another-service).
+- [A ~3min video demo](https://github.com/happybara-io/WorkflowBuddy/blob/main/demos/importing-from-trigger-and-outgoing-webhooks.md) showing how to go from [downloaded template](#templates-for-event-triggers) to triggering a Workflow that sends an [`Outgoing Webhook`](#send-an-outgoing-webhook-http-request), along with a bonus of showing how to [proxy slack events to another service](#proxy-slack-events-to-another-service).
 
 ---
 
 ## Example Workflows
 
 See the `test_workflows/` folder for example Workflow templates you can use either as a base for your own, or to see what is possible with Workflow Buddy.
+
+- `single_webhook_test.slackworkflow`
+  - This example has a single step showing how one can send an `Webhook/HTTP Request` to the test site [webhook.site](https://webhook.site).
+- `http_testing.slackworkflow` - This example showcases some more creative uses of response from the `Webhook/HTTP Request`, using the `JSON Extractor` step multiple times to parse data and make it available as Slack Workflow Variables later in your pipeline.
+- `workflow_buddy_end_to_end_test_read_only.slackworkflow` - The kitchen sink, almost. Has almost all of the available utilities, including extra features like `Debug`.
 
 ---
 
@@ -88,7 +93,7 @@ Slack used to offer [Outgoing Webhooks](https://slack.com/apps/A0F7VRG6Q-outgoin
 
 It has a warning at the top though _"Please note, this is a legacy custom integration - an outdated way for teams to integrate with Slack. These integrations lack newer features and they will be deprecated and possibly removed in the future."_. To avoid any issues, you can alternatively use WorkflowBuddy to accomplish the same thing (in 2 ways!).
 
-Enable listening for `message`**\*** events, then either directly proxy the event to your webhook (by adding it to the `Event-Webhook Map` in App Home) or use the `Step: Send a Webhook` as part of a longer Workflow.
+Enable listening for `message`**\*** events, then either directly proxy the event to your webhook (by adding it to the `Event-Webhook Map` in App Home) or use the `Step: Send a Webhook/HTTP Request` as part of a longer Workflow.
 
 **\*** _WorkflowBuddy doesn't yet have the same granularity for filtering events, but it is on the potential roadmap._
 

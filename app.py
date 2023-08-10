@@ -1,14 +1,6 @@
-import contextlib
-import copy
-import json
 import logging
 import os
-import pprint
-import re
-import traceback as tb
 import random
-from datetime import datetime, timedelta, timezone
-from typing import Tuple, Union, Dict, List
 
 import buddy.constants as c
 
@@ -22,14 +14,8 @@ import buddy.errors
 import buddy.utils as utils
 import buddy.db as db
 import buddy.middleware as middleware
-import buddy.workflow_steps as workflow_steps
 from sqlalchemy import text
-from buddy.sqlalchemy_ear import SQLAlchemyInstallationStore
-from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
-from slack_sdk.oauth import OAuthStateUtils
-from slack_bolt import App, Ack, Respond, BoltContext
-from slack_bolt.error import BoltError
-from slack_sdk.errors import SlackApiError
+from slack_bolt import App
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 
 # attempting and failing to silence DEBUG loggers
@@ -110,7 +96,8 @@ slack_app = App(
 
 
 ###########################
-# Slack App listeners
+# Slack App listeners &
+# Instantiate all Steps visible to users
 ############################
 buddy.register_listeners(slack_app)
 
@@ -118,11 +105,6 @@ buddy.register_listeners(slack_app)
 # Slack App Middleware
 ############################
 slack_app.use(middleware.log_request)
-
-###########################
-# Instantiate all Steps visible to users
-############################
-workflow_steps.register(slack_app)
 
 ###########################
 # Flask app stuff
