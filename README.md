@@ -6,7 +6,7 @@ _| 📂 Open-source | [🧪 Installable App](https://workflow-buddy.fly.dev/) | 
 
 ## ☠️ Slack Killing Capability
 
-Unfortunately, Slack has decided they will be deprecating the `Steps from Apps` feature in the future, which is what powers Workflow Buddy. We will continue supporting the application as long as our users need. _[More info here](https://api.slack.com/legacy/workflows/steps), and a [blog post from the Workflow Steps for Jira](https://www.adaptavist.com/blog/important-update-workflow-steps-for-jira) team with how they are handling it_.
+Unfortunately, [Slack has decided they will be deprecating](https://api.slack.com/changelog/2023-08-workflow-steps-from-apps-step-back) the `Steps from Apps` feature, which is what powers Workflow Buddy. That will happen on **Sept 12, 2024**. We will continue supporting the application until Slack turns off support, as well as looking at ways to use their new platform. _[More info here](https://api.slack.com/legacy/workflows/steps), and a [blog post from the Workflow Steps for Jira](https://www.adaptavist.com/blog/important-update-workflow-steps-for-jira) team with how they are handling it_.
 
 ![Slack deprecation notice](assets/slack-killing-steps-from-apps-smol.jpg)
 
